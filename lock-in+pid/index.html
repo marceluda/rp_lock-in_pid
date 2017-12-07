@@ -2155,6 +2155,7 @@
 
     // Python save
     vectxt_py="from numpy import * \nimport matplotlib.pyplot as plt\n\n";
+    vectxt_py+="# Application: "+app_id+"\n# Version: "+app_version+"\n\n";
 
     if ($('#btn_ch' + 1).data('checked')) {
         vectxt_py+="##################################################\n";
@@ -2230,6 +2231,7 @@
 
     // matlab save
     vectxt_mat="%% lock-in+pid saved data\n\n";
+    vectxt_mat+="% Application: "+app_id+"\n% Version: "+app_version+"\n\n";
 
     if ($('#btn_ch' + 1).data('checked')) {
         vectxt_mat+="%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n";
