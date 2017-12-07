@@ -21,79 +21,73 @@ CFLAGS += -DVERSION=$(VER)-$(BUILD_NUMBER) -DREVISION=$(REVISION)
 export CFLAGS
 
 
-.PHONY: clean clean_fpga clean_app
+.PHONY: clean clean_fpga clean_app clean_target
 
-all: $(CONTROLLERHF) fpga info/info.json
+all: $(CONTROLLERHF) fpga
 
-$(CONTROLLERHF): info/info.json
+$(CONTROLLERHF):
 	$(MAKE) -C src
-
-info/info.json:
-	sed "{ s/BUILD_NUMBER/$(BUILD_NUMBER)/ }" info/_info.json > info/_info.json
 
 app: $(CONTROLLERHF)
 
-fpga: red_pitaya.bit info/info.json
+fpga: red_pitaya.bit
 
 red_pitaya.bit:
 	cd fpga && $(MAKE) out/red_pitaya.bit
 	cp fpga/out/red_pitaya.bit .
 
-zip: $(CONTROLLERHF)
-	-$(RM) target -rf
+target/$(APP): red_pitaya.bit $(CONTROLLERHF) index.html
 	mkdir -p target/$(APP)
-	cp -r $(CONTROLLERHF) fpga.conf info css js red_pitaya.bit resources/RP_py index.html target/$(APP)
+	cp -r $(CONTROLLERHF) fpga.conf info css js red_pitaya.bit index.html target/$(APP)
 	cp -r upload_app.sh target/
-	mkdir -p target/$(APP)/RP_py
-	cp resources/RP_py/*.py target/$(APP)/RP_py/
+	mkdir -p target/$(APP)/py
+	cp ../resources/rp_cmds/py/*.py target/$(APP)/py/
 	sed -i target/$(APP)/info/info.json -e 's/REVISION/$(REVISION)/'
 	sed -i target/$(APP)/info/info.json -e 's/BUILD_NUMBER/$(BUILD_NUMBER)/'
+	sed -i target/$(APP)/index.html -e "s/\(\\s*\)var\\s*app_version\\s*=\\s*'VERSION'\\s*;\\s*/\\1var app_version = '$(VER)-$(BUILD_NUMBER)-$(REVISION)';/"
+
+zip: $(CONTROLLERHF) target/$(APP)
+	#-$(RM) target -rf
 	cd target; zip -r $(INSTALL_DIR)/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).zip *
 	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).zip ../.
-	$(RM) target -rf
+	#$(RM) target -rf
 
-tar: $(CONTROLLERHF)
-	-$(RM) target -rf
-	mkdir -p target/$(APP)
-	cp -r $(CONTROLLERHF) fpga.conf info css js red_pitaya.bit resources/RP_py index.html target/$(APP)
-	cp -r upload_app.sh target/
-	mkdir -p target/$(APP)/RP_py
-	cp resources/RP_py/*.py target/$(APP)/RP_py/
-	sed -i target/$(APP)/info/info.json -e 's/REVISION/$(REVISION)/'
-	sed -i target/$(APP)/info/info.json -e 's/BUILD_NUMBER/$(BUILD_NUMBER)/'
+tar: $(CONTROLLERHF) target/$(APP)
 	cd target; tar -czf $(INSTALL_DIR)/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).tar.gz *
 	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).tar.gz ../.
-	$(RM) target -rf
+
+clean_target:
+	-$(RM) target -rf
 
 clean_app:
 	$(MAKE) -C src clean
 	-$(RM) target -rf
 	-$(RM) *.so
-	-$(RM) info/info.json
-	echo "BUILD_NUMBER=$$(( $BUILD_NUMBER + 1 ))" > ../_build_number
+	echo "BUILD_NUMBER=$$(( $(BUILD_NUMBER) + 1 ))" > ../_build_number
 
 clean_fpga:
 	$(MAKE) -C fpga clean
+	-$(RM) target -rf
 	rm red_pitaya.bit
-	-$(RM) info/info.json
 	echo "BUILD_NUMBER=$$(( $BUILD_NUMBER + 1 ))" > ../_build_number
 
-clean: clean_app clean_fpga
+clean: clean_app clean_fpga clean_target
 
 
-upload_bit: red_pitaya.bit
+
+upload_bit: 
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm /opt/redpitaya/www/apps/$(APP)/red_pitaya.bit"
 	scp $(RPSCP) red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 
-upload:
+upload: target/$(APP)
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP) ; mkdir -p /opt/redpitaya/www/apps/$(APP)"
-	scp $(RPSCP) -r controllerhf.so  css js  fpga.conf  index.html  info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
+	scp $(RPSCP) -r target/$(APP)/controllerhf.so  target/$(APP)/css target/$(APP)/js  target/$(APP)/fpga.conf  target/$(APP)/index.html  target/$(APP)/info target/$(APP)/red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 
-upload_html: index.html
+upload_html: target/$(APP)
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)/{index.html,js,css}"
-	scp $(RPSCP) -r index.html css js root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
+	scp $(RPSCP) -r target/$(APP)/index.html target/$(APP)/css target/$(APP)/js root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 
-upload_py: resources/RP_py/hugo.py
+upload_py: ../resources/rp_cmds/py/hugo.py
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /root/py/{data_dump.py,set.py,ver_mem.py,*.py}"
-	scp $(RPSCP) ./resources/RP_py/lock.py ./resources/RP_py/osc.py ./resources/RP_py/hugo.py ./resources/RP_py/*.py root@$(RPIP):/root/py/
+	scp $(RPSCP) ../resources/rp_cmds/py/*.py root@$(RPIP):/root/py/
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; chmod +x /root/py/*.py"
