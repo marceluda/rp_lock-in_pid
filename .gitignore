@@ -11,6 +11,7 @@ lock-in+pid/target/
 ###################
 *.o
 *.so
+!lock-in+pid/controllerhf.so
 
 # Packages #
 ############
