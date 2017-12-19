@@ -4723,129 +4723,111 @@
             </div>
           </div>
 
-        <!-- PID A ---------------------------------------------------->
-
+          <!-- PIDs controls ---------------------------------------------------->
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
-                <a data-toggle="collapse" href="#lock_pidA">
-                  PID A
+                <a data-toggle="collapse" href="#lock_pids">
+                  PIDs modules
                 </a>
               </h4>
             </div>
-            <div id="lock_pidA" class="panel-collapse collapse">
+            <div id="lock_pids" class="panel-collapse collapse">
               <div class="panel-body">
+                <!-- PID A ---------------------------------------------------->
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-
-                    <div class="row">  <!-- label + reset -->
-                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="form-group">
-                              <label for="lock_pidA_sw" class="col-xs-4 control-label">input:</label>
-                              <div class="col-xs-8">
-                                <select id="lock_pidA_sw" class="form-control">
-                                  <option  value="0" selected="selected">error</option>
-                                  <option data-tag="pidA_more" value="1">Xo</option>
-                                  <option data-tag="pidA_more" value="2">Yo</option>
-                                  <option data-tag="pidA_more" value="3">F1</option>
-                                  <option data-tag="pidA_more" value="4">F2</option>
-                                  <option data-tag="pidA_more" value="5">F3</option>
-                                  <option data-tag="pidA_more" value="6">sqx</option>
-                                  <option data-tag="pidA_more" value="7">sqy</option>
-                                  <option data-tag="pidA_more" value="8">sqf</option>
-                                  <option  value="9">signal_i</option>
-                                  <option data-tag="pidA_more" value="10">Ramp A</option>
-                                  <option data-tag="pidA_more" value="11">sin_ref</option>
-                                  <option data-tag="pidA_more" value="12">cos_ref</option>
-                                  <option data-tag="pidA_more" value="13">sin_1f</option>
-                                  <option data-tag="pidA_more" value="14">sin_2f</option>
-                                  <option data-tag="pidA_more" value="15">sin_3f</option>
-                                  <option data-tag="pidA_more" value="16">sq_ref</option>
-                                  <option data-tag="pidA_more" value="17">sq_quad</option>
-                                  <option data-tag="pidA_more" value="18">sq_phas</option>
-                                  <option data-tag="pidA_more" value="19">aux_A</option>
-                                  <option data-tag="pidA_more" value="20">aux_B</option>
-                                  <option data-tag="pidA_more" value="21">test14</option>
-                                  <option  value="22">in1</option>
-                                  <option  value="23">in2</option>
-                                  <option  value="24">in1-in2</option>
-                                  <!--option value="25">0</option-->
-                                  <!--option value="26">0</option-->
-                                  <!--option value="27">0</option-->
-                                  <!--option value="28">0</option-->
-                                  <!--option value="29">0</option-->
-                                  <!--option value="30">0</option-->
-                                  <!--option value="31">0</option-->
-                                </select>
+                  <p class="text-center">
+                    <a data-toggle="collapse" href="#lock_pidA" aria-expanded="true" aria-controls="lock_pidA">
+                      <strong>PID A</strong>
+                    </a>
+                  </p>
+                </div>
+                <hr style="margin: 7px 7px">
+                <div id="lock_pidA" class="in">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <div class="row">  <!-- label + reset -->
+                          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                            <form class="form-horizontal" role="form" onsubmit="return false;">
+                              <div class="form-group">
+                                <label for="lock_pidA_sw" class="col-xs-4 control-label">input:</label>
+                                <div class="col-xs-8">
+                                  <select id="lock_pidA_sw" class="form-control">
+                                    <option  value="0" selected="selected">error</option>
+                                    <option data-tag="pidA_more" value="1">Xo</option>
+                                    <option data-tag="pidA_more" value="2">Yo</option>
+                                    <option data-tag="pidA_more" value="3">F1</option>
+                                    <option data-tag="pidA_more" value="4">F2</option>
+                                    <option data-tag="pidA_more" value="5">F3</option>
+                                    <option data-tag="pidA_more" value="6">sqx</option>
+                                    <option data-tag="pidA_more" value="7">sqy</option>
+                                    <option data-tag="pidA_more" value="8">sqf</option>
+                                    <option  value="9">signal_i</option>
+                                    <option data-tag="pidA_more" value="10">Ramp A</option>
+                                    <option data-tag="pidA_more" value="11">sin_ref</option>
+                                    <option data-tag="pidA_more" value="12">cos_ref</option>
+                                    <option data-tag="pidA_more" value="13">sin_1f</option>
+                                    <option data-tag="pidA_more" value="14">sin_2f</option>
+                                    <option data-tag="pidA_more" value="15">sin_3f</option>
+                                    <option data-tag="pidA_more" value="16">sq_ref</option>
+                                    <option data-tag="pidA_more" value="17">sq_quad</option>
+                                    <option data-tag="pidA_more" value="18">sq_phas</option>
+                                    <option data-tag="pidA_more" value="19">aux_A</option>
+                                    <option data-tag="pidA_more" value="20">aux_B</option>
+                                    <option data-tag="pidA_more" value="21">test14</option>
+                                    <option  value="22">in1</option>
+                                    <option  value="23">in2</option>
+                                    <option  value="24">in1-in2</option>
+                                    <!--option value="25">0</option-->
+                                    <!--option value="26">0</option-->
+                                    <!--option value="27">0</option-->
+                                    <!--option value="28">0</option-->
+                                    <!--option value="29">0</option-->
+                                    <!--option value="30">0</option-->
+                                    <!--option value="31">0</option-->
+                                  </select>
+                                </div>
                               </div>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_irst">reset integral
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_freeze">freeze out
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_ifreeze">freeze integral
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-
-                    </div>
-                    <hr style="margin: 7px 7px">
-
-                    <div class="row">
-                      <div class="row collapse" data-tag="PidAOptions"> <!-- sp control -->
-                        <div class="panel-group col-xs-12 col-sm-5 col-md-5">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="form-group">
-                              <div class="col-xs-12 col-sm-12">
-                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_sp" step="1" min="-8192" max="8191">
-                                <span style="display: none;" class="input-group-btn" id="lock_pidA_sp_apply">
-                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                </span>
+                            </form>
+                          </div>
+                          <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                            <form class="form-horizontal" role="form" onsubmit="return false;">
+                              <div class="checkbox" style="padding-bottom: 12px;">
+                                <label class="group-label">
+                                  <input type="checkbox" id="lock_pidA_irst">reset integral
+                                </label>
                               </div>
+                            </form>
+                          </div>
+                          <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                            <form class="form-horizontal" role="form" onsubmit="return false;">
+                              <div class="checkbox" style="padding-bottom: 12px;">
+                                <label class="group-label">
+                                  <input type="checkbox" id="lock_pidA_freeze">freeze output
+                                </label>
+                              </div>
+                            </form>
+                          </div>
+                          <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                            <form class="form-horizontal" role="form" onsubmit="return false;">
+                              <div class="checkbox" style="padding-bottom: 12px;">
+                                <label class="group-label">
+                                  <input type="checkbox" id="lock_pidA_ifreeze">freeze integral
+                                </label>
+                              </div>
+                            </form>
+                          </div>
 
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-2 col-md-2">
-                          <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>sp:</b></small></div>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
-                          <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidA_sp_text">lock_pidA_sp</div>
-                        </div>
                       </div>
+                      <hr style="margin: 7px 7px">
 
-                      <!--hr style="margin: 7px 7px"-->
-
-                      <div style="border-style: solid; border-color: #FF9999;">
-                        <div class="row"> <!-- kp control -->
-                          <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
+                      <div class="row">
+                        <div class="row collapse" data-tag="PidAOptions"> <!-- sp control -->
+                          <div class="panel-group col-xs-12 col-sm-5 col-md-5">
                             <form class="form-horizontal" role="form" onsubmit="return false;">
                               <div class="form-group">
                                 <div class="col-xs-12 col-sm-12">
-                                  <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kp" step="1" min="-8192" max="8191">
-                                  <span style="display: none;" class="input-group-btn" id="lock_pidA_kp_apply">
+                                  <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_sp" step="1" min="-8192" max="8191">
+                                  <span style="display: none;" class="input-group-btn" id="lock_pidA_sp_apply">
                                     <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                                   </span>
                                 </div>
@@ -4853,182 +4835,202 @@
                               </div>
                             </form>
                           </div>
-                          <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                            <form class="form-horizontal" role="form" onsubmit="return false;">
-                              <div class="form-group">
-                                <div class="col-xs-12">
-                                  <select id="lock_pidA_PSR" class="form-control">
-                                    <option  value="0">/1</option>
-                                    <option  value="1">/8</option>
-                                    <option  value="2">/64</option>
-                                    <option  value="3" selected="selected">/1024</option>
-                                    <option  value="4">/4096</option>
-                                  </select>
-                                </div>
-                              </div>
-                            </form>
+                          <div class="panel-group col-xs-12 col-sm-2 col-md-2">
+                            <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>sp:</b></small></div>
+                          </div>
+                          <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidA_sp_text">lock_pidA_sp</div>
                           </div>
                         </div>
-                        <div class="row">
-                          <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
-                            <div style="padding: 7px 0 10px;" class="col-xs-12">kp:</div>
-                          </div>
-                          <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
-                            <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_kp_text">lock_pidA_kp</div>
-                          </div>
-                        </div>
-                      </div>
 
-                      <div style="border-style: solid; border-color: #99FF99;">
-                        <div class="row"> <!-- ki control -->
-                          <div class="panel-group col-xs-12 col-sm-12 col-md-12"  data-tag="PidActrl">
-                            <form class="form-horizontal" role="form" onsubmit="return false;">
-                              <div class="form-group">
-                                <div class="col-xs-12 col-sm-12">
-                                  <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_ki" step="1" min="-8192" max="8191">
-                                  <span style="display: none;" class="input-group-btn" id="lock_pidA_ki_apply">
-                                    <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                  </span>
-                                </div>
+                        <!--hr style="margin: 7px 7px"-->
 
-                              </div>
-                            </form>
-                          </div>
-                          <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                            <form class="form-horizontal" role="form" onsubmit="return false;">
-                              <div class="form-group">
-                                <div class="col-xs-12">
-                                  <select id="lock_pidA_ISR" class="form-control">
-                                    <option  value="0">8 ns</option>
-                                    <option  value="1">64 ns</option>
-                                    <option  value="2">512 ns</option>
-                                    <option  value="3">8 us</option>
-                                    <option  value="4">6 us</option>
-                                    <option  value="5">524 us</option>
-                                    <option  value="6">8 ms</option>
-                                    <option  value="7">67 ms</option>
-                                    <option  value="8" selected="selected">537 ms</option>
-                                    <option  value="9">9 s</option>
-                                  </select>
-                                </div>
-                              </div>
-                            </form>
-                          </div>
-                        </div>
-                        <div class="row">
-                          <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
-                            <div style="padding: 7px 0 10px;" class="col-xs-12">ki:</div>
-                          </div>
-                          <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
-                            <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_ki_text">lock_pidA_ki</div>
-                          </div>
-                        </div>
-                      </div>
-
-                      <div style="border-style: solid; border-color: #9999FF;">
-                        <div class="row"> <!-- kd control -->
-                          <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
-                            <form class="form-horizontal" role="form" onsubmit="return false;">
-                              <div class="form-group">
-                                <div class="col-xs-12 col-sm-12">
-                                  <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kd" step="1" min="-8192" max="8191">
-                                  <span style="display: none;" class="input-group-btn" id="lock_pidA_kd_apply">
-                                    <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                  </span>
-                                </div>
-
-                              </div>
-                            </form>
-                          </div>
-                          <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                            <form class="form-horizontal" role="form" onsubmit="return false;">
-                              <div class="form-group">
-                                <div class="col-xs-12">
-                                  <select id="lock_pidA_DSR" class="form-control">
-                                    <option  value="0" selected="selected"> 0</option>
-                                    <option  value="1"> 3</option>
-                                    <option  value="2"> 6</option>
-                                    <option  value="3">10</option>
-                                    <option  value="4">13</option>
-                                    <option  value="5">16</option>
-                                  </select>
-                                </div>
-                              </div>
-                            </form>
-                          </div>
-                        </div>
-                        <div class="row">
-                          <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
-                            <div style="padding: 7px 0 10px;" class="col-xs-12">kd:</div>
-                          </div>
-                          <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
-                            <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_kd_text">lock_pidA_kd</div>
-                           </div>
-                        </div>
-                      </div>
-
-                    </div>
-                    <hr style="margin: 7px 7px">
-                    <div class="row">
-                        <div data-tag="PidAOptions" class="collapse">
-                            <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <div style="border-style: solid; border-color: #FF9999;">
+                          <div class="row"> <!-- kp control -->
+                            <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
                               <form class="form-horizontal" role="form" onsubmit="return false;">
                                 <div class="form-group">
-                                  <label for="lock_pidA_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
-                                  <div class="col-xs-8">
-                                    <select id="lock_pidA_SAT" class="form-control">
-                                      <option  value="0">&plusmn;122uV</option>
-                                      <option  value="1">&plusmn;244uV</option>
-                                      <option  value="2">&plusmn;488uV</option>
-                                      <option  value="3">&plusmn;977uV</option>
-                                      <option  value="4">&plusmn;2mV</option>
-                                      <option  value="5">&plusmn;4mV</option>
-                                      <option  value="6">&plusmn;8mV</option>
-                                      <option  value="7">&plusmn;16mV</option>
-                                      <option  value="8">&plusmn;31mV</option>
-                                      <option  value="9">&plusmn;62mV</option>
-                                      <option  value="10">&plusmn;125mV</option>
-                                      <option  value="11">&plusmn;250mV</option>
-                                      <option  value="12">&plusmn;500mV</option>
-                                      <option  value="13" selected="selected">&plusmn;1 V</option>
+                                  <div class="col-xs-12 col-sm-12">
+                                    <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kp" step="1" min="-8192" max="8191">
+                                    <span style="display: none;" class="input-group-btn" id="lock_pidA_kp_apply">
+                                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                    </span>
+                                  </div>
+
+                                </div>
+                              </form>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
+                              <form class="form-horizontal" role="form" onsubmit="return false;">
+                                <div class="form-group">
+                                  <div class="col-xs-12">
+                                    <select id="lock_pidA_PSR" class="form-control">
+                                      <option  value="0">/1</option>
+                                      <option  value="1">/8</option>
+                                      <option  value="2">/64</option>
+                                      <option  value="3" selected="selected">/1024</option>
+                                      <option  value="4">/4096</option>
                                     </select>
                                   </div>
                                 </div>
                               </form>
                             </div>
+                          </div>
+                          <div class="row">
+                            <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                              <div style="padding: 7px 0 10px;" class="col-xs-12">kp:</div>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                              <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_kp_text">lock_pidA_kp</div>
+                            </div>
+                          </div>
                         </div>
-                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <p class="text-center">
-                            <button id="btn_PidAOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidAOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidAOptions]').toggleClass('in collapse') ; $('div[data-tag=PidActrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ; $('option[data-tag=pidA_more]').toggle() ; ">
-                              More Options
-                            </button>
-                          </p>
+
+                        <div style="border-style: solid; border-color: #99FF99;">
+                          <div class="row"> <!-- ki control -->
+                            <div class="panel-group col-xs-12 col-sm-12 col-md-12"  data-tag="PidActrl">
+                              <form class="form-horizontal" role="form" onsubmit="return false;">
+                                <div class="form-group">
+                                  <div class="col-xs-12 col-sm-12">
+                                    <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_ki" step="1" min="-8192" max="8191">
+                                    <span style="display: none;" class="input-group-btn" id="lock_pidA_ki_apply">
+                                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                    </span>
+                                  </div>
+
+                                </div>
+                              </form>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
+                              <form class="form-horizontal" role="form" onsubmit="return false;">
+                                <div class="form-group">
+                                  <div class="col-xs-12">
+                                    <select id="lock_pidA_ISR" class="form-control">
+                                      <option  value="0">8 ns</option>
+                                      <option  value="1">64 ns</option>
+                                      <option  value="2">512 ns</option>
+                                      <option  value="3">8 us</option>
+                                      <option  value="4">6 us</option>
+                                      <option  value="5">524 us</option>
+                                      <option  value="6">8 ms</option>
+                                      <option  value="7">67 ms</option>
+                                      <option  value="8" selected="selected">537 ms</option>
+                                      <option  value="9">9 s</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                              <div style="padding: 7px 0 10px;" class="col-xs-12">ki:</div>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                              <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_ki_text">lock_pidA_ki</div>
+                            </div>
+                          </div>
                         </div>
-                    </div>
+
+                        <div style="border-style: solid; border-color: #9999FF;">
+                          <div class="row"> <!-- kd control -->
+                            <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
+                              <form class="form-horizontal" role="form" onsubmit="return false;">
+                                <div class="form-group">
+                                  <div class="col-xs-12 col-sm-12">
+                                    <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kd" step="1" min="-8192" max="8191">
+                                    <span style="display: none;" class="input-group-btn" id="lock_pidA_kd_apply">
+                                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                    </span>
+                                  </div>
+
+                                </div>
+                              </form>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
+                              <form class="form-horizontal" role="form" onsubmit="return false;">
+                                <div class="form-group">
+                                  <div class="col-xs-12">
+                                    <select id="lock_pidA_DSR" class="form-control">
+                                      <option  value="0" selected="selected"> 0</option>
+                                      <option  value="1"> 3</option>
+                                      <option  value="2"> 6</option>
+                                      <option  value="3">10</option>
+                                      <option  value="4">13</option>
+                                      <option  value="5">16</option>
+                                    </select>
+                                  </div>
+                                </div>
+                              </form>
+                            </div>
+                          </div>
+                          <div class="row">
+                            <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                              <div style="padding: 7px 0 10px;" class="col-xs-12">kd:</div>
+                            </div>
+                            <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                              <div style="padding: 7px 0 10px;" class="row" id="lock_pidA_kd_text">lock_pidA_kd</div>
+                             </div>
+                          </div>
+                        </div>
+
+                      </div>
+                      <hr style="margin: 7px 7px">
+                      <div class="row">
+                          <div data-tag="PidAOptions" class="collapse">
+                              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                                <form class="form-horizontal" role="form" onsubmit="return false;">
+                                  <div class="form-group">
+                                    <label for="lock_pidA_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
+                                    <div class="col-xs-8">
+                                      <select id="lock_pidA_SAT" class="form-control">
+                                        <option  value="0">&plusmn;122uV</option>
+                                        <option  value="1">&plusmn;244uV</option>
+                                        <option  value="2">&plusmn;488uV</option>
+                                        <option  value="3">&plusmn;977uV</option>
+                                        <option  value="4">&plusmn;2mV</option>
+                                        <option  value="5">&plusmn;4mV</option>
+                                        <option  value="6">&plusmn;8mV</option>
+                                        <option  value="7">&plusmn;16mV</option>
+                                        <option  value="8">&plusmn;31mV</option>
+                                        <option  value="9">&plusmn;62mV</option>
+                                        <option  value="10">&plusmn;125mV</option>
+                                        <option  value="11">&plusmn;250mV</option>
+                                        <option  value="12">&plusmn;500mV</option>
+                                        <option  value="13" selected="selected">&plusmn;1 V</option>
+                                      </select>
+                                    </div>
+                                  </div>
+                                </form>
+                              </div>
+                          </div>
+                          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                            <p class="text-center">
+                              <button id="btn_PidAOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidAOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidAOptions]').toggleClass('in collapse') ; $('div[data-tag=PidActrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ; $('option[data-tag=pidA_more]').toggle() ; ">
+                                More Options
+                              </button>
+                            </p>
+                          </div>
+                      </div>
 
 
-                </div>
-              </div>
-            </div>
-          </div>
+                  </div>
 
-        <!-- PID B ---------------------------------------------------->
+                </div><!-- PID A end -->
 
-          <div class="panel panel-default">
-            <div class="panel-heading">
-              <h4 class="panel-title">
-                <a data-toggle="collapse" href="#lock_pidB">
-                  PID B
-                </a>
-              </h4>
-            </div>
-            <div id="lock_pidB" class="panel-collapse collapse">
-              <div class="panel-body">
+                <!-- PID B ---------------------------------------------------->
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-
+                  <p class="text-center">
+                    <a data-toggle="collapse" href="#lock_pidB" aria-expanded="true" aria-controls="lock_pidB">
+                      <strong>PID B</strong>
+                    </a>
+                  </p>
+                </div>
+                <hr style="margin: 7px 7px">
+                <div id="lock_pidB" class="collapse">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                     <div class="row">  <!-- label + reset -->
-                        <div class="panel-group col-xs-12 col-sm-8 col-md-8">
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group">
                               <label for="lock_pidB_sw" class="col-xs-4 control-label">input:</label>
@@ -5080,16 +5082,16 @@
                             </div>
                           </form>
                         </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidB_freeze">freeze out
+                                <input type="checkbox" id="lock_pidB_freeze">freeze output
                               </label>
                             </div>
                           </form>
                         </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
@@ -5296,10 +5298,16 @@
                     </div>
 
 
+                  </div>
                 </div>
+
               </div>
-            </div>
+            </div> <!-- PIDs collapse end -->
           </div>
+
+
+
+
 
 
         <!-- Lock Control --------------------------------------------->
@@ -5563,7 +5571,7 @@
                         <div class="panel-group col-xs-6">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group text-center">
-                              <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
+                              <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock&nbsp;on<br>Trigger</button>
                             </div>
                           </form>
                         </div>
