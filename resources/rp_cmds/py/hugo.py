@@ -237,6 +237,8 @@ class fpga_lock_in(fpga_regs):
         self['read_ctrl'].val(  val & 5  )
 
 
+# The following code can be printed from config_tool.py
+# f.print_hugo()
 
 li = fpga_lock_in(base_addr=0x40600000,dev_file="/dev/mem")
 
@@ -282,15 +284,15 @@ li.add( fpga_reg(name='gen_mod_phase'      , index= 38, rw=True , nbits=12,signe
 li.add( fpga_reg(name='gen_mod_phase_sq'   , index= 39, rw=True , nbits=32,signed=False) )
 li.add( fpga_reg(name='gen_mod_hp'         , index= 40, rw=True , nbits=14,signed=False) )
 li.add( fpga_reg(name='gen_mod_sqp'        , index= 41, rw=True , nbits=32,signed=False) )
-li.add( fpga_reg(name='scan_A'             , index= 42, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='scan_B'             , index= 43, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='scan_step'          , index= 44, rw=True , nbits=32,signed=False) )
-li.add( fpga_reg(name='scan_low_lim'       , index= 45, rw=True , nbits=14,signed=True ) )
-li.add( fpga_reg(name='scan_hig_lim'       , index= 46, rw=True , nbits=14,signed=True ) )
-li.add( fpga_reg(name='scan_reset'         , index= 47, rw=True , nbits= 1,signed=False) )
-li.add( fpga_reg(name='scan_enable'        , index= 48, rw=True , nbits= 1,signed=False) )
-li.add( fpga_reg(name='scan_direction'     , index= 49, rw=True , nbits= 1,signed=False) )
-li.add( fpga_reg(name='scan_B_factor'      , index= 50, rw=True , nbits=14,signed=True ) )
+li.add( fpga_reg(name='ramp_A'             , index= 42, rw=False, nbits=14,signed=True ) )
+li.add( fpga_reg(name='ramp_B'             , index= 43, rw=False, nbits=14,signed=True ) )
+li.add( fpga_reg(name='ramp_step'          , index= 44, rw=True , nbits=32,signed=False) )
+li.add( fpga_reg(name='ramp_low_lim'       , index= 45, rw=True , nbits=14,signed=True ) )
+li.add( fpga_reg(name='ramp_hig_lim'       , index= 46, rw=True , nbits=14,signed=True ) )
+li.add( fpga_reg(name='ramp_reset'         , index= 47, rw=True , nbits= 1,signed=False) )
+li.add( fpga_reg(name='ramp_enable'        , index= 48, rw=True , nbits= 1,signed=False) )
+li.add( fpga_reg(name='ramp_direction'     , index= 49, rw=True , nbits= 1,signed=False) )
+li.add( fpga_reg(name='ramp_B_factor'      , index= 50, rw=True , nbits=14,signed=True ) )
 li.add( fpga_reg(name='sin_ref'            , index= 51, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='cos_ref'            , index= 52, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='sin_1f'             , index= 53, rw=False, nbits=14,signed=True ) )

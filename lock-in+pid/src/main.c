@@ -356,15 +356,15 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_gen_mod_phase_sq"         ,      0, 1, 0,            0,   0xffffffff }, /** phase relation of sq_phas signal **/
     { "lock_gen_mod_hp"               ,      0, 1, 0,            0,        16383 }, /** harmonic period set **/
     { "lock_gen_mod_sqp"              ,      0, 1, 0,            0,   0xffffffff }, /** square signal period **/
-    { "lock_scan_A"                   ,      0, 0, 1,        -8192,         8191 }, /** scan signal A **/
-    { "lock_scan_B"                   ,      0, 0, 1,        -8192,         8191 }, /** scan signal B **/
-    { "lock_scan_step"                ,      0, 1, 0,            0,   0xffffffff }, /** period of the triangular scan signal **/
-    { "lock_scan_low_lim"             ,  -5000, 1, 0,        -8192,         8191 }, /** scan low limit **/
-    { "lock_scan_hig_lim"             ,   5000, 1, 0,        -8192,         8191 }, /** scan high limit **/
-    { "lock_scan_reset"               ,      0, 1, 0,            0,            1 }, /** scan reset config **/
-    { "lock_scan_enable"              ,      0, 1, 0,            0,            1 }, /** scan enable/disable switch **/
-    { "lock_scan_direction"           ,      0, 1, 0,            0,            1 }, /** scan starting direction (up/down) **/
-    { "lock_scan_B_factor"            ,   4096, 1, 0,        -4096,         4096 }, /** proportional factor scan_A/scan_B. // scan_B=scan_A*scan_B_factor/4096 **/
+    { "lock_ramp_A"                   ,      0, 0, 1,        -8192,         8191 }, /** ramp signal A **/
+    { "lock_ramp_B"                   ,      0, 0, 1,        -8192,         8191 }, /** ramp signal B **/
+    { "lock_ramp_step"                ,      0, 1, 0,            0,   0xffffffff }, /** period of the triangular ramp signal **/
+    { "lock_ramp_low_lim"             ,  -5000, 1, 0,        -8192,         8191 }, /** ramp low limit **/
+    { "lock_ramp_hig_lim"             ,   5000, 1, 0,        -8192,         8191 }, /** ramp high limit **/
+    { "lock_ramp_reset"               ,      0, 1, 0,            0,            1 }, /** ramp reset config **/
+    { "lock_ramp_enable"              ,      0, 1, 0,            0,            1 }, /** ramp enable/disable switch **/
+    { "lock_ramp_direction"           ,      0, 1, 0,            0,            1 }, /** ramp starting direction (up/down) **/
+    { "lock_ramp_B_factor"            ,   4096, 1, 0,        -4096,         4096 }, /** proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096 **/
     { "lock_sin_ref"                  ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic reference **/
     { "lock_cos_ref"                  ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation cosinus harmonic reference **/
     { "lock_sin_1f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference **/
@@ -411,7 +411,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidA_irst"                ,      0, 1, 0,            0,            1 }, /** pidA_irst **/
     { "lock_pidA_freeze"              ,      0, 1, 0,            0,            1 }, /** pidA_freeze **/
     { "lock_pidA_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidA_ifreeze **/
-    { "lock_ctrl_A"                   ,      0, 0, 1,        -8192,         8191 }, /** control_A: pidA_out + scan_A **/
+    { "lock_ctrl_A"                   ,      0, 0, 1,        -8192,         8191 }, /** control_A: pidA_out + ramp_A **/
     { "lock_pidB_sw"                  ,      0, 1, 0,            0,           31 }, /** switch selector for pidB input **/
     { "lock_pidB_PSR"                 ,      3, 1, 0,            0,            4 }, /** pidB PSR **/
     { "lock_pidB_ISR"                 ,      8, 1, 0,            0,            9 }, /** pidB ISR **/
@@ -426,17 +426,17 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidB_irst"                ,      0, 1, 0,            0,            1 }, /** pidB_irst **/
     { "lock_pidB_freeze"              ,      0, 1, 0,            0,            1 }, /** pidB_freeze **/
     { "lock_pidB_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidB_ifreeze **/
-    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidA_out + scan_B **/
+    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidA_out + ramp_B **/
     { "lock_aux_A"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_aux_B"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_ctrl_aux_lock_now"        ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_launch_lock_trig",      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_pidB_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_pidA_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
-    { "lock_ctrl_aux_scan_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_ramp_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_set_pidB_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_set_pidA_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
-    { "lock_ctrl_aux_set_scan_enable" ,      0, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_set_ramp_enable" ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_trig_type"       ,      0, 0, 0,            0,            3 }, /** todo **/
     { "lock_ctrl_aux_lock_trig_rise"  ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_sq_on"                ,      0, 0, 0,            0,            1 }, /** todo **/

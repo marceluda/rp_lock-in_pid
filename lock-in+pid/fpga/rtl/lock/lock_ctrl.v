@@ -26,12 +26,12 @@ module lock_ctrl
     // inputs
     input         [10-1:0] lock_ctrl,
     input  signed [14-1:0] signal,
-    input                  scan_trigger,
+    input                  ramp_trigger,
     input         [32-1:0] time_threshold,
     input  signed [14-1:0] level_threshold,
     input                  level_rising_trigger,
     // outputs
-    output                 scan_enable,
+    output                 ramp_enable,
     output                 pidA_enable,
     output                 pidB_enable,
     output                 lock_ctrl_trig
@@ -43,10 +43,10 @@ module lock_ctrl
      * lock_ctrl[ 1] --> launch_lock      : look for lock trigger condition
      * lock_ctrl[ 2] --> pidB_enable_ctrl --|
      * lock_ctrl[ 3] --> pidA_enable_ctrl   |--> actual state of enable controls
-     * lock_ctrl[ 4] --> scan_enable_ctrl --|
+     * lock_ctrl[ 4] --> ramp_enable_ctrl --|
      * lock_ctrl[ 5] --> set_pidB_enable --|      end state of enable
      * lock_ctrl[ 6] --> set_pidA_enable   |----> if lock condition
-     * lock_ctrl[ 7] --> set_scan_enable --|      is met
+     * lock_ctrl[ 7] --> set_ramp_enable --|      is met
      * lock_ctrl[ 8] --> trig_time        : fires trigger if time condition is met
      * lock_ctrl[ 9] --> trig_val         : fires trigger if threshold condition is met
      * lock_ctrl[10] --> lock_trig_rise   : derivative condition for threshold trigger
@@ -73,8 +73,8 @@ module lock_ctrl
         if (rst) cnt  <=   31'b0   ;
         else     cnt  <=  cnt_next[31-1:0] ;
     
-    // counter is synchronized with gen_scan signal 
-    assign cnt_next = scan_trigger ? 32'b0 : cnt+1'b1 ;
+    // counter is synchronized with gen_ramp signal 
+    assign cnt_next = ramp_trigger ? 32'b0 : cnt+1'b1 ;
     
     
     
@@ -152,7 +152,7 @@ module lock_ctrl
     assign set_lock         = (seek_trig_on&trigger_found);
     
     // Outputs
-    assign scan_enable      = set_lock ?  lock_ctrl[7] :  lock_ctrl[4]   ;
+    assign ramp_enable      = set_lock ?  lock_ctrl[7] :  lock_ctrl[4]   ;
     assign pidA_enable      = set_lock ?  lock_ctrl[6] :  lock_ctrl[3]   ;
     assign pidB_enable      = set_lock ?  lock_ctrl[5] :  lock_ctrl[2]   ;
     
@@ -167,12 +167,12 @@ lock_ctrl NAME (
     // inputs
     .lock_ctrl            ( lock_state         ),
     .signal               ( lock_ctrl_signal   ),
-    .scan_trigger         ( scan_trig          ),
+    .ramp_trigger         ( ramp_trig          ),
     .time_threshold       ( lock_trig_time_val ),
     .level_threshold      ( lock_trig_val      ),
     .level_rising_trigger ( lock_trig_rise     ),
     // outputs
-    .scan_enable          ( scan_enable_ctrl   ),
+    .ramp_enable          ( ramp_enable_ctrl   ),
     .pidA_enable          ( pidA_enable_ctrl   ),
     .pidB_enable          ( pidB_enable_ctrl   )
 );

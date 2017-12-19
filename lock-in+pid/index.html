@@ -118,13 +118,13 @@
                        'lock_sf_AfrzI,lock_sf_BfrzO,lock_sf_BfrzI,lock_signal_sw,lock_sg_amp1,lock_sg_amp2,lock_sg_amp3,lock_sg_amp_sq,'+
                        'lock_lpf_F1_tau,lock_lpf_F1_order,lock_lpf_F2_tau,lock_lpf_F2_order,lock_lpf_F3_tau,lock_lpf_F3_order,lock_lpf_sq_tau,'+
                        'lock_lpf_sq_order,lock_error_sw,lock_error_offset,lock_gen_mod_phase,lock_gen_mod_phase_sq,lock_gen_mod_hp,lock_gen_mod_sqp,'+
-                       'lock_scan_step,lock_scan_low_lim,lock_scan_hig_lim,lock_scan_reset,lock_scan_enable,lock_scan_direction,lock_scan_B_factor,'+
+                       'lock_ramp_step,lock_ramp_low_lim,lock_ramp_hig_lim,lock_ramp_reset,lock_ramp_enable,lock_ramp_direction,lock_ramp_B_factor,'+
                        'lock_read_ctrl,lock_pidA_sw,lock_pidA_PSR,lock_pidA_ISR,lock_pidA_DSR,lock_pidA_SAT,lock_pidA_sp,lock_pidA_kp,'+
                        'lock_pidA_ki,lock_pidA_kd,lock_pidA_irst,lock_pidA_freeze,lock_pidA_ifreeze,lock_pidB_sw,lock_pidB_PSR,lock_pidB_ISR,'+
                        'lock_pidB_DSR,lock_pidB_SAT,lock_pidB_sp,lock_pidB_kp,lock_pidB_ki,lock_pidB_kd,lock_pidB_irst,lock_pidB_freeze,'+
                        'lock_pidB_ifreeze,lock_aux_A,lock_aux_B,lock_ctrl_aux_lock_now,lock_ctrl_aux_launch_lock_trig,lock_ctrl_aux_pidB_enable_ctrl,'+
-                       'lock_ctrl_aux_pidA_enable_ctrl,lock_ctrl_aux_scan_enable_ctrl,lock_ctrl_aux_set_pidB_enable,lock_ctrl_aux_set_pidA_enable,'+
-                       'lock_ctrl_aux_set_scan_enable,lock_ctrl_aux_trig_type,lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on';
+                       'lock_ctrl_aux_pidA_enable_ctrl,lock_ctrl_aux_ramp_enable_ctrl,lock_ctrl_aux_set_pidB_enable,lock_ctrl_aux_set_pidA_enable,'+
+                       'lock_ctrl_aux_set_ramp_enable,lock_ctrl_aux_trig_type,lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on';
 
   config_params_keys = config_params_txts.split(",");
 
@@ -1165,7 +1165,7 @@
     // Number inputs
     var input_number=['lock_lock_trig_val','lock_lock_trig_time_val','lock_rl_error_threshold','lock_rl_signal_threshold','lock_sf_jumpA',
                       'lock_sf_jumpB','lock_error_offset','lock_gen_mod_phase','lock_gen_mod_phase_sq','lock_gen_mod_hp','lock_gen_mod_sqp',
-                      'lock_scan_step','lock_scan_low_lim','lock_scan_hig_lim','lock_scan_B_factor','lock_pidA_sp','lock_pidA_kp','lock_pidA_ki',
+                      'lock_ramp_step','lock_ramp_low_lim','lock_ramp_hig_lim','lock_ramp_B_factor','lock_pidA_sp','lock_pidA_kp','lock_pidA_ki',
                       'lock_pidA_kd','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_aux_A','lock_aux_B'];
 
     for(ii in input_number){
@@ -1257,8 +1257,8 @@
         lock_pidB_update();
         //$(this).blur();
     });
-    $('#lock_scan_step,#lock_scan_low_lim,#lock_scan_hig_lim,#lock_scan_B_factor').on('input', function() {
-        lock_scan_step_update();
+    $('#lock_ramp_step,#lock_ramp_low_lim,#lock_ramp_hig_lim,#lock_ramp_B_factor').on('input', function() {
+        lock_ramp_step_update();
         //$(this).blur();
     });
     /*$('#lock_aux_A,#lock_aux_B,#lock_osc_ctrl').on('change', function() {
@@ -1281,7 +1281,7 @@
 
     // Buttons
     var input_buttons = '#lock_osc_raw_mode,#lock_osc_lockin_mode,#lock_sf_start,#lock_ctrl_aux_lock_now,#lock_ctrl_aux_launch_lock_trig,'+
-                        '#lock_ctrl_aux_pidB_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_scan_enable_ctrl,#lock_mod_sq_on,'+
+                        '#lock_ctrl_aux_pidB_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_ramp_enable_ctrl,#lock_mod_sq_on,'+
                         '#lock_mod_harmonic_on';
     $(input_buttons).on('click', function() {
       $(this).toggleClass('btn-default btn-primary');
@@ -1291,9 +1291,9 @@
 
     // Checkboxes inputs
     var input_checkboxes = '#lock_osc1_filt_off,#lock_osc2_filt_off,#lock_rl_error_enable,#lock_rl_signal_enable,#lock_rl_reset,#lock_sf_AfrzO,'+
-                           '#lock_sf_AfrzI,#lock_sf_BfrzO,#lock_sf_BfrzI,#lock_scan_reset,#lock_scan_enable,#lock_scan_direction,#lock_pidA_irst,'+
+                           '#lock_sf_AfrzI,#lock_sf_BfrzO,#lock_sf_BfrzI,#lock_ramp_reset,#lock_ramp_enable,#lock_ramp_direction,#lock_pidA_irst,'+
                            '#lock_pidA_freeze,#lock_pidA_ifreeze,#lock_pidB_irst,#lock_pidB_freeze,#lock_pidB_ifreeze,#lock_ctrl_aux_set_pidB_enable,'+
-                           '#lock_ctrl_aux_set_pidA_enable,#lock_ctrl_aux_set_scan_enable,#lock_ctrl_aux_lock_trig_rise';
+                           '#lock_ctrl_aux_set_pidA_enable,#lock_ctrl_aux_set_ramp_enable,#lock_ctrl_aux_lock_trig_rise';
     $(input_checkboxes).on('change', function() {
       params.local[this.id] = ($(this).is(':checked') ? 1 : 0);
       sendParams();
@@ -1460,7 +1460,7 @@
     });
 
 
-    lock_scan_step_update();
+    lock_ramp_step_update();
     lock_modulation_update();
     lock_ctrl_update();
     lock_pidA_update();
@@ -1469,6 +1469,9 @@
 
     $('[data-toggle="tooltip"]').tooltip({container: 'body'});
 
+    $('option[data-tag=pidA_more]').hide();
+    $('option[data-tag=pidB_more]').hide();
+
     $('#btn_config_load_file')[0].addEventListener('change', config_load_file, false);
 
     $('#config_name_input').on('change', function() {  config_save_file();  });
@@ -1476,11 +1479,11 @@
     $('#btn_set_trig').prop('disabled', false);
     $('#btn_disp_sq').data('checked', false);
 
-    $('label[for="lock_scan_step"]').on('click', function() {
+    $('label[for="lock_ramp_step"]').on('click', function() {
       showModalHelp("<p>Scan period param sets the number of clock ticks the scan control waits before jumping the next scan value.</p>"+
-                    "<p>The scan signals goes one <tt>int</tt> up/down after <tt>scan_step</tt> clock ticks. The name of this control"+
+                    "<p>The scan signals goes one <tt>int</tt> up/down after <tt>ramp_step</tt> clock ticks. The name of this control"+
                     "is just to remember that it sets up the total period of the scan function. The total period will depend on "+
-                    "<tt>scan_low_lim</tt> and <tt>scan_hig_lim</tt> either.</p>");
+                    "<tt>ramp_low_lim</tt> and <tt>ramp_hig_lim</tt> either.</p>");
       });
 
 
@@ -1504,66 +1507,66 @@
               "0": ' ',
               "1": '×10<sup>3</sup>', "2": '×10<sup>6</sup>', "3": '×10<sup>9</sup>', "4": '×10<sup>12</sup>' };
 
-  function lock_scan_step_update() {
+  function lock_ramp_step_update() {
 
-    scan_step_arr          = $("#lock_scan_step"    ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
-    lock_scan_low_lim_arr  = $("#lock_scan_low_lim" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
-    lock_scan_hig_lim_arr  = $("#lock_scan_hig_lim" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
-    lock_scan_B_factor_arr = $("#lock_scan_B_factor").val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    ramp_step_arr          = $("#lock_ramp_step"    ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    lock_ramp_low_lim_arr  = $("#lock_ramp_low_lim" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    lock_ramp_hig_lim_arr  = $("#lock_ramp_hig_lim" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    lock_ramp_B_factor_arr = $("#lock_ramp_B_factor").val().trim().split(' ').filter( function(n,i){ return n!=="" } );
 
-    if( !$.isNumeric(scan_step_arr[0]) ||
-        !$.isNumeric(lock_scan_low_lim_arr[0]) ||
-        !$.isNumeric(lock_scan_hig_lim_arr[0]) ||
-        !$.isNumeric(lock_scan_B_factor_arr[0])
+    if( !$.isNumeric(ramp_step_arr[0]) ||
+        !$.isNumeric(lock_ramp_low_lim_arr[0]) ||
+        !$.isNumeric(lock_ramp_hig_lim_arr[0]) ||
+        !$.isNumeric(lock_ramp_B_factor_arr[0])
         ) return -1 ;
 
     if (params) if (params.local)
-    if( parseLocalFloat(scan_step_arr[0])          == scan_step  &&
-        parseLocalFloat(lock_scan_low_lim_arr[0])  == lock_scan_low_lim &&
-        parseLocalFloat(lock_scan_hig_lim_arr[0])  == lock_scan_hig_lim &&
-        parseLocalFloat(lock_scan_B_factor_arr[0]) == lock_scan_B_factor
+    if( parseLocalFloat(ramp_step_arr[0])          == ramp_step  &&
+        parseLocalFloat(lock_ramp_low_lim_arr[0])  == lock_ramp_low_lim &&
+        parseLocalFloat(lock_ramp_hig_lim_arr[0])  == lock_ramp_hig_lim &&
+        parseLocalFloat(lock_ramp_B_factor_arr[0]) == lock_ramp_B_factor
         ) return -1 ;
 
-    scan_step          = Math.abs( parseLocalFloat( scan_step_arr[0] ) );
-    lock_scan_low_lim  = parseLocalFloat( lock_scan_low_lim_arr[0]  ) ;
-    lock_scan_hig_lim  = parseLocalFloat( lock_scan_hig_lim_arr[0]  ) ;
-    lock_scan_B_factor = parseLocalFloat( lock_scan_B_factor_arr[0] ) ;
+    ramp_step          = Math.abs( parseLocalFloat( ramp_step_arr[0] ) );
+    lock_ramp_low_lim  = parseLocalFloat( lock_ramp_low_lim_arr[0]  ) ;
+    lock_ramp_hig_lim  = parseLocalFloat( lock_ramp_hig_lim_arr[0]  ) ;
+    lock_ramp_B_factor = parseLocalFloat( lock_ramp_B_factor_arr[0] ) ;
 
-    if( lock_scan_low_lim_arr.length === 2) {
-      if ( lock_scan_low_lim_arr[1].toLowerCase()=="v" )
-        lock_scan_low_lim = Math.round( lock_scan_low_lim * 8192 );
-      if ( lock_scan_low_lim_arr[1].toLowerCase()=="mv" )
-        lock_scan_low_lim = Math.round( lock_scan_low_lim * 8192 /1000 );
-      lock_scan_low_lim = Math.min(  8191 , lock_scan_low_lim  ) ;
-      lock_scan_low_lim = Math.max( -8192 , lock_scan_low_lim  ) ;
-      $("#lock_scan_low_lim").val(""+lock_scan_low_lim);
+    if( lock_ramp_low_lim_arr.length === 2) {
+      if ( lock_ramp_low_lim_arr[1].toLowerCase()=="v" )
+        lock_ramp_low_lim = Math.round( lock_ramp_low_lim * 8192 );
+      if ( lock_ramp_low_lim_arr[1].toLowerCase()=="mv" )
+        lock_ramp_low_lim = Math.round( lock_ramp_low_lim * 8192 /1000 );
+      lock_ramp_low_lim = Math.min(  8191 , lock_ramp_low_lim  ) ;
+      lock_ramp_low_lim = Math.max( -8192 , lock_ramp_low_lim  ) ;
+      $("#lock_ramp_low_lim").val(""+lock_ramp_low_lim);
     }
 
-    if( lock_scan_hig_lim_arr.length === 2) {
-      if ( lock_scan_hig_lim_arr[1].toLowerCase()=="v" )
-        lock_scan_hig_lim = Math.round( lock_scan_hig_lim * 8192 );
-      if ( lock_scan_hig_lim_arr[1].toLowerCase()=="mv" )
-        lock_scan_hig_lim = Math.round( lock_scan_hig_lim * 8192 /1000 );
-      lock_scan_hig_lim = Math.min(  8191 , lock_scan_hig_lim  ) ;
-      lock_scan_hig_lim = Math.max( -8192 , lock_scan_hig_lim  ) ;
-      $("#lock_scan_hig_lim").val(""+lock_scan_hig_lim);
+    if( lock_ramp_hig_lim_arr.length === 2) {
+      if ( lock_ramp_hig_lim_arr[1].toLowerCase()=="v" )
+        lock_ramp_hig_lim = Math.round( lock_ramp_hig_lim * 8192 );
+      if ( lock_ramp_hig_lim_arr[1].toLowerCase()=="mv" )
+        lock_ramp_hig_lim = Math.round( lock_ramp_hig_lim * 8192 /1000 );
+      lock_ramp_hig_lim = Math.min(  8191 , lock_ramp_hig_lim  ) ;
+      lock_ramp_hig_lim = Math.max( -8192 , lock_ramp_hig_lim  ) ;
+      $("#lock_ramp_hig_lim").val(""+lock_ramp_hig_lim);
     }
 
-    if ( lock_scan_low_lim > lock_scan_hig_lim ) {
-      lock_scan_low_lim = lock_scan_hig_lim;
-      $("#lock_scan_low_lim").val(""+lock_scan_low_lim);
+    if ( lock_ramp_low_lim > lock_ramp_hig_lim ) {
+      lock_ramp_low_lim = lock_ramp_hig_lim;
+      $("#lock_ramp_low_lim").val(""+lock_ramp_low_lim);
     }
 
-    if( scan_step_arr.length === 2) {
-      if ( scan_step_arr[1].toLowerCase()=="s"  ||  scan_step_arr[1].toLowerCase()=="seg" )
-        scan_step = scan_step / 8e-9 / Math.abs(lock_scan_hig_lim - lock_scan_low_lim) ;
-      if ( scan_step_arr[1].toLowerCase()=="ms" )
-        scan_step = Math.round( scan_step / 8e-9 / 1000 / Math.abs(lock_scan_hig_lim - lock_scan_low_lim) );
-      $("#lock_scan_step").val(""+scan_step);
+    if( ramp_step_arr.length === 2) {
+      if ( ramp_step_arr[1].toLowerCase()=="s"  ||  ramp_step_arr[1].toLowerCase()=="seg" )
+        ramp_step = ramp_step / 8e-9 / Math.abs(lock_ramp_hig_lim - lock_ramp_low_lim) ;
+      if ( ramp_step_arr[1].toLowerCase()=="ms" )
+        ramp_step = Math.round( ramp_step / 8e-9 / 1000 / Math.abs(lock_ramp_hig_lim - lock_ramp_low_lim) );
+      $("#lock_ramp_step").val(""+ramp_step);
     }
 
 
-    period = (lock_scan_hig_lim - lock_scan_low_lim) * (scan_step+1) * 8e-9 * 2;
+    period = (lock_ramp_hig_lim - lock_ramp_low_lim) * (ramp_step+1) * 8e-9 * 2;
 
     if ( period === 0 ){
       txt=" OFF ";
@@ -1577,17 +1580,17 @@
       txt += " <br> <b>f&nbsp;=&nbsp;" + val.toFixed(2) + "&nbsp;" + units[oom.toString()] + "Hz</b></small>";
     }
 
-    $('#lock_scan_step_text').html( txt   );
+    $('#lock_ramp_step_text').html( txt   );
 
-    $('#lock_scan_low_lim_text').html( "<small><b>" + (lock_scan_low_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
-    $('#lock_scan_hig_lim_text').html( "<small><b>" + (lock_scan_hig_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
+    $('#lock_ramp_low_lim_text').html( "<small><b>" + (lock_ramp_low_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
+    $('#lock_ramp_hig_lim_text').html( "<small><b>" + (lock_ramp_hig_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
 
-    txt  =  "<p><b>" + ( (lock_scan_hig_lim - lock_scan_low_lim)/8192*1000 ).toFixed(0) + "&nbsp;mVpp</b>" ;
+    txt  =  "<p><b>" + ( (lock_ramp_hig_lim - lock_ramp_low_lim)/8192*1000 ).toFixed(0) + "&nbsp;mVpp</b>" ;
     txt +=  " <br> " ;
-    txt +=  "<b>" + ( (lock_scan_hig_lim + lock_scan_low_lim)/2/8192*1000 ).toFixed(1) + "&nbsp;mVdc</b></p>" ;
-    $('#lock_scan_text').html( txt );
+    txt +=  "<b>" + ( (lock_ramp_hig_lim + lock_ramp_low_lim)/2/8192*1000 ).toFixed(1) + "&nbsp;mVdc</b></p>" ;
+    $('#lock_ramp_text').html( txt );
 
-    $('#lock_scan_B_factor_text').html( "<small><b>" + (lock_scan_B_factor/4096).toFixed(5) + "</b></small>" );
+    $('#lock_ramp_B_factor_text').html( "<small><b>" + (lock_ramp_B_factor/4096).toFixed(5) + "</b></small>" );
   }
 
   function lpf_update(){
@@ -2776,12 +2779,12 @@
 
     $('#lock_ctrl_aux_set_pidA_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidA_enable ? true : false));
     $('#lock_ctrl_aux_set_pidB_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidB_enable ? true : false));
-    $('#lock_ctrl_aux_set_scan_enable').prop('checked', (params.original.lock_ctrl_aux_set_scan_enable ? true : false));
+    $('#lock_ctrl_aux_set_ramp_enable').prop('checked', (params.original.lock_ctrl_aux_set_ramp_enable ? true : false));
 
-    if (params.original.lock_ctrl_aux_scan_enable_ctrl)
-      $('#lock_ctrl_aux_scan_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
+    if (params.original.lock_ctrl_aux_ramp_enable_ctrl)
+      $('#lock_ctrl_aux_ramp_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
     else
-      $('#lock_ctrl_aux_scan_enable_ctrl').removeClass('btn-primary').addClass('btn-default');
+      $('#lock_ctrl_aux_ramp_enable_ctrl').removeClass('btn-primary').addClass('btn-default');
 
     if (params.original.lock_ctrl_aux_pidA_enable_ctrl)
       $('#lock_ctrl_aux_pidA_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
@@ -2817,9 +2820,9 @@
     $('#lock_sf_AfrzI'                ).prop('checked', (params.original.lock_sf_AfrzI                    ? true : false));
     $('#lock_sf_BfrzO'                ).prop('checked', (params.original.lock_sf_BfrzO                    ? true : false));
     $('#lock_sf_BfrzI'                ).prop('checked', (params.original.lock_sf_BfrzI                    ? true : false));
-    $('#lock_scan_reset'              ).prop('checked', (params.original.lock_scan_reset                  ? true : false));
-    $('#lock_scan_enable'             ).prop('checked', (params.original.lock_scan_enable                 ? true : false));
-    $('#lock_scan_direction'          ).prop('checked', (params.original.lock_scan_direction              ? true : false));
+    $('#lock_ramp_reset'              ).prop('checked', (params.original.lock_ramp_reset                  ? true : false));
+    $('#lock_ramp_enable'             ).prop('checked', (params.original.lock_ramp_enable                 ? true : false));
+    $('#lock_ramp_direction'          ).prop('checked', (params.original.lock_ramp_direction              ? true : false));
     $('#lock_pidA_irst'               ).prop('checked', (params.original.lock_pidA_irst                   ? true : false));
     $('#lock_pidA_freeze'             ).prop('checked', (params.original.lock_pidA_freeze                 ? true : false));
     $('#lock_pidA_ifreeze'            ).prop('checked', (params.original.lock_pidA_ifreeze                ? true : false));
@@ -2828,7 +2831,7 @@
     $('#lock_pidB_ifreeze'            ).prop('checked', (params.original.lock_pidB_ifreeze                ? true : false));
     $('#lock_ctrl_aux_set_pidB_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidB_enable    ? true : false));
     $('#lock_ctrl_aux_set_pidA_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidA_enable    ? true : false));
-    $('#lock_ctrl_aux_set_scan_enable').prop('checked', (params.original.lock_ctrl_aux_set_scan_enable    ? true : false));
+    $('#lock_ctrl_aux_set_ramp_enable').prop('checked', (params.original.lock_ctrl_aux_set_ramp_enable    ? true : false));
     $('#lock_ctrl_aux_lock_trig_rise' ).prop('checked', (params.original.lock_ctrl_aux_lock_trig_rise     ? true : false));
 
     // Numbers
@@ -2843,10 +2846,10 @@
     $('#lock_gen_mod_phase_sq'   ).val(params.original.lock_gen_mod_phase_sq      );
     $('#lock_gen_mod_hp'         ).val(params.original.lock_gen_mod_hp            );
     $('#lock_gen_mod_sqp'        ).val(params.original.lock_gen_mod_sqp           );
-    $('#lock_scan_step'          ).val(params.original.lock_scan_step             );
-    $('#lock_scan_low_lim'       ).val(params.original.lock_scan_low_lim          );
-    $('#lock_scan_hig_lim'       ).val(params.original.lock_scan_hig_lim          );
-    $('#lock_scan_B_factor'      ).val(params.original.lock_scan_B_factor         );
+    $('#lock_ramp_step'          ).val(params.original.lock_ramp_step             );
+    $('#lock_ramp_low_lim'       ).val(params.original.lock_ramp_low_lim          );
+    $('#lock_ramp_hig_lim'       ).val(params.original.lock_ramp_hig_lim          );
+    $('#lock_ramp_B_factor'      ).val(params.original.lock_ramp_B_factor         );
     $('#lock_pidA_sp'            ).val(params.original.lock_pidA_sp               );
     $('#lock_pidA_kp'            ).val(params.original.lock_pidA_kp               );
     $('#lock_pidA_ki'            ).val(params.original.lock_pidA_ki               );
@@ -2926,10 +2929,10 @@
       $('#lock_ctrl_aux_pidA_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
     else
       $('#lock_ctrl_aux_pidA_enable_ctrl').removeClass('btn-primary').addClass('btn-default');
-    if (params.original.lock_ctrl_aux_scan_enable_ctrl)     // lock_ctrl_aux_scan_enable_ctrl
-      $('#lock_ctrl_aux_scan_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
+    if (params.original.lock_ctrl_aux_ramp_enable_ctrl)     // lock_ctrl_aux_ramp_enable_ctrl
+      $('#lock_ctrl_aux_ramp_enable_ctrl').removeClass('btn-default').addClass('btn-primary');
     else
-      $('#lock_ctrl_aux_scan_enable_ctrl').removeClass('btn-primary').addClass('btn-default');
+      $('#lock_ctrl_aux_ramp_enable_ctrl').removeClass('btn-primary').addClass('btn-default');
     if (params.original.lock_mod_sq_on)                     // lock_mod_sq_on
       $('#lock_mod_sq_on').removeClass('btn-default').addClass('btn-primary');
     else
@@ -2941,7 +2944,7 @@
 
     // [LOLO DOCK LOADPARAMS END]
 
-    lock_scan_step_update();
+    lock_ramp_step_update();
     lock_modulation_update();
     lock_ctrl_update();
     lock_pidA_update();
@@ -4132,38 +4135,38 @@
                           <label for="lock_oscA_sw" class="col-xs-4 control-label">OscA:</label>
                           <div class="col-xs-8">
                             <select id="lock_oscA_sw" class="form-control">
-                              <option value="0">0</option>
-                              <option value="1" selected="selected">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">error_reg</option>
-                              <option value="4">ctrl_A</option>
-                              <option value="5">ctrl_B</option>
-                              <option value="6">Scan A</option>
-                              <option value="7">scan_B</option>
-                              <option value="8">pidA_in</option>
-                              <option value="9">pidB_in</option>
-                              <option value="10">PID A out</option>
-                              <option value="11">PID B out</option>
-                              <option value="12">sin_ref</option>
-                              <option value="13">cos_ref</option>
-                              <option value="14">sin_1f</option>
-                              <option value="15">sin_2f</option>
-                              <option value="16">sin_3f</option>
-                              <option value="17">sq_ref</option>
-                              <option value="18">sq_quad</option>
-                              <option value="19">sq_phas</option>
-                              <option value="20">{1'b0,sq_ref_b,12'b0}</option>
-                              <option value="21">signal_i</option>
-                              <option value="22">Xo</option>
-                              <option value="23">Yo</option>
-                              <option value="24">F1</option>
-                              <option value="25">F2</option>
-                              <option value="26">F3</option>
-                              <option value="27">sqx</option>
-                              <option value="28">sqy</option>
-                              <option value="29">sqf</option>
-                              <option value="30">0</option>
-                              <option value="31">0</option>
+                              <option  value="0">0</option>
+                              <option  value="1" selected="selected">in1</option>
+                              <option  value="2">in2</option>
+                              <option  value="3">error</option>
+                              <option  value="4">ctrl_A</option>
+                              <option  value="5">ctrl_B</option>
+                              <option  value="6">Ramp A</option>
+                              <option  value="7">Ramp B</option>
+                              <option  value="8">pidA_in</option>
+                              <option  value="9">pidB_in</option>
+                              <option  value="10">PID A out</option>
+                              <option  value="11">PID B out</option>
+                              <option  value="12">sin_ref</option>
+                              <option  value="13">cos_ref</option>
+                              <option  value="14">sin_1f</option>
+                              <option  value="15">sin_2f</option>
+                              <option  value="16">sin_3f</option>
+                              <option  value="17">sq_ref</option>
+                              <option  value="18">sq_quad</option>
+                              <option  value="19">sq_phas</option>
+                              <option  value="20">square ref (bin)</option>
+                              <option  value="21">signal_i</option>
+                              <option  value="22">Xo</option>
+                              <option  value="23">Yo</option>
+                              <option  value="24">F1</option>
+                              <option  value="25">F2</option>
+                              <option  value="26">F3</option>
+                              <option  value="27">sqx</option>
+                              <option  value="28">sqy</option>
+                              <option  value="29">sqf</option>
+                              <!--option value="30">0</option-->
+                              <!--option value="31">0</option-->
                             </select>
                           </div>
                         </div>
@@ -4175,38 +4178,38 @@
                           <label for="lock_oscB_sw" class="col-xs-4 control-label">OscB:</label>
                           <div class="col-xs-8">
                             <select id="lock_oscB_sw" class="form-control">
-                              <option value="0">0</option>
-                              <option value="1">in1</option>
-                              <option value="2" selected="selected">in2</option>
-                              <option value="3">error</option>
-                              <option value="4">ctrl_A</option>
-                              <option value="5">ctrl_B</option>
-                              <option value="6">Scan A</option>
-                              <option value="7">scan_B</option>
-                              <option value="8">pidA_in</option>
-                              <option value="9">pidB_in</option>
-                              <option value="10">PID A out</option>
-                              <option value="11">PID B out</option>
-                              <option value="12">sin_ref</option>
-                              <option value="13">cos_ref</option>
-                              <option value="14">sin_1f</option>
-                              <option value="15">sin_2f</option>
-                              <option value="16">sin_3f</option>
-                              <option value="17">sq_ref</option>
-                              <option value="18">sq_quad</option>
-                              <option value="19">sq_phas</option>
-                              <option value="20">{1'b0,sq_ref_b,12'b0}</option>
-                              <option value="21">signal_i</option>
-                              <option value="22">Xo</option>
-                              <option value="23">Yo</option>
-                              <option value="24">F1</option>
-                              <option value="25">F2</option>
-                              <option value="26">F3</option>
-                              <option value="27">sqx</option>
-                              <option value="28">sqy</option>
-                              <option value="29">sqf</option>
-                              <option value="30">0</option>
-                              <option value="31">0</option>
+                              <option  value="0">0</option>
+                              <option  value="1">in1</option>
+                              <option  value="2" selected="selected">in2</option>
+                              <option  value="3">error</option>
+                              <option  value="4">ctrl_A</option>
+                              <option  value="5">ctrl_B</option>
+                              <option  value="6">Ramp A</option>
+                              <option  value="7">Ramp B</option>
+                              <option  value="8">pidA_in</option>
+                              <option  value="9">pidB_in</option>
+                              <option  value="10">PID A out</option>
+                              <option  value="11">PID B out</option>
+                              <option  value="12">sin_ref</option>
+                              <option  value="13">cos_ref</option>
+                              <option  value="14">sin_1f</option>
+                              <option  value="15">sin_2f</option>
+                              <option  value="16">sin_3f</option>
+                              <option  value="17">sq_ref</option>
+                              <option  value="18">sq_quad</option>
+                              <option  value="19">sq_phas</option>
+                              <option  value="20">square ref (bin)</option>
+                              <option  value="21">signal_i</option>
+                              <option  value="22">Xo</option>
+                              <option  value="23">Yo</option>
+                              <option  value="24">F1</option>
+                              <option  value="25">F2</option>
+                              <option  value="26">F3</option>
+                              <option  value="27">sqx</option>
+                              <option  value="28">sqy</option>
+                              <option  value="29">sqf</option>
+                              <!--option value="30">0</option-->
+                              <!--option value="31">0</option-->
                             </select>
                           </div>
                         </div>
@@ -4238,15 +4241,15 @@
                           <label for="lock_trig_sw" class="col-xs-4 control-label">Ext Trig:</label>
                           <div class="col-xs-8">
                             <select id="lock_trig_sw" class="form-control">
-                              <option value="0" selected="selected">None</option>
-                              <option value="1">Pin</option>
-                              <option value="2">Scan floor</option>
-                              <option value="4">Scan ceil</option>
-                              <option value="8">harmonic mod.</option>
-                              <option value="16">Square mod.</option>
-                              <option value="32">Out of lock</option>
-                              <option value="64">Jump trigger</option>
-                              <option value="128">Lock control trig</option>
+                              <option  value="0" selected="selected">None</option>
+                              <option  value="1">Pin</option>
+                              <option  value="2">Scan floor</option>
+                              <option  value="4">Scan ceil</option>
+                              <option  value="8">harmonic mod.</option>
+                              <option  value="16">Square mod.</option>
+                              <option  value="32">Out of lock</option>
+                              <option  value="64">Jump trigger</option>
+                              <option  value="128">Lock control trig</option>
                             </select>
                           </div>
                         </div>
@@ -4302,22 +4305,22 @@
                           <label for="lock_out1_sw" class="col-xs-4 control-label">Out1:</label>
                           <div class="col-xs-8">
                             <select id="lock_out1_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">sin_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_ref</option>
-                              <option value="9">sq_quad</option>
-                              <option value="10">sq_phas</option>
-                              <option value="11">pidA_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_A</option>
+                              <option  value="0" selected="selected">0</option>
+                              <option  value="1">in1</option>
+                              <option  value="2">in2</option>
+                              <option  value="3">in1-in2</option>
+                              <option  value="4">sin_ref</option>
+                              <option  value="5">sin_1f</option>
+                              <option  value="6">sin_2f</option>
+                              <option  value="7">sin_3f</option>
+                              <option  value="8">sq_ref</option>
+                              <option  value="9">sq_quad</option>
+                              <option  value="10">sq_phas</option>
+                              <option  value="11">PID A out</option>
+                              <option  value="12">ctrl_A</option>
+                              <option  value="13">ctrl_B</option>
+                              <option  value="14">error</option>
+                              <option  value="15">aux_A</option>
                             </select>
                           </div>
                         </div>
@@ -4329,136 +4332,152 @@
                           <label for="lock_out2_sw" class="col-xs-4 control-label">Out2:</label>
                           <div class="col-xs-8">
                             <select id="lock_out2_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">cos_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_ref</option>
-                              <option value="9">sq_quad</option>
-                              <option value="10">sq_phas</option>
-                              <option value="11">pidB_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_B</option>
+                              <option  value="0" selected="selected">0</option>
+                              <option  value="1">in1</option>
+                              <option  value="2">in2</option>
+                              <option  value="3">in1-in2</option>
+                              <option  value="4">cos_ref</option>
+                              <option  value="5">sin_1f</option>
+                              <option  value="6">sin_2f</option>
+                              <option  value="7">sin_3f</option>
+                              <option  value="8">sq_ref</option>
+                              <option  value="9">sq_quad</option>
+                              <option  value="10">sq_phas</option>
+                              <option  value="11">PID B out</option>
+                              <option  value="12">ctrl_A</option>
+                              <option  value="13">ctrl_B</option>
+                              <option  value="14">error</option>
+                              <option  value="15">aux_B</option>
                             </select>
                           </div>
                         </div>
                       </form>
                     </div>
                     <hr>
+                    <!---------------------------------------------------------------------->
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_slow_out1_sw" class="col-xs-4 control-label">Slow out1:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_slow_out1_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">sin_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_ref</option>
-                              <option value="9">sq_phas</option>
-                              <option value="10">Scan A</option>
-                              <option value="11">pidA_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_A</option>
-                            </select>
-                          </div>
-                        </div>
-                      </form>
+                      <p class="text-center">
+                        <a data-toggle="collapse" href="#ShowSlowOuts" aria-expanded="true" aria-controls="ShowSlowOuts">
+                          Slow outputs
+                        </a>
+                      </p>
                     </div>
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_slow_out2_sw" class="col-xs-4 control-label">Slow out2:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_slow_out2_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">cos_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_quad</option>
-                              <option value="9">sq_phas</option>
-                              <option value="10">scan_B</option>
-                              <option value="11">pidA_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_B</option>
-                            </select>
-                          </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="ShowSlowOuts">
+                      <div class="row">
+
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <label for="lock_slow_out1_sw" class="col-xs-4 control-label">Slow out1:</label>
+                              <div class="col-xs-8">
+                                <select id="lock_slow_out1_sw" class="form-control">
+                                  <option  value="0" selected="selected">0</option>
+                                  <option  value="1">in1</option>
+                                  <option  value="2">in2</option>
+                                  <option  value="3">in1-in2</option>
+                                  <option  value="4">sin_ref</option>
+                                  <option  value="5">sin_1f</option>
+                                  <option  value="6">sin_2f</option>
+                                  <option  value="7">sin_3f</option>
+                                  <option  value="8">sq_ref</option>
+                                  <option  value="9">sq_phas</option>
+                                  <option  value="10">Ramp A</option>
+                                  <option  value="11">PID A out</option>
+                                  <option  value="12">ctrl_A</option>
+                                  <option  value="13">ctrl_B</option>
+                                  <option  value="14">error</option>
+                                  <option  value="15">aux_A</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
                         </div>
-                      </form>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_slow_out3_sw" class="col-xs-4 control-label">Slow out3:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_slow_out3_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">sin_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_ref</option>
-                              <option value="9">sq_phas</option>
-                              <option value="10">Scan A</option>
-                              <option value="11">pidA_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_A</option>
-                            </select>
-                          </div>
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <label for="lock_slow_out2_sw" class="col-xs-4 control-label">Slow out2:</label>
+                              <div class="col-xs-8">
+                                <select id="lock_slow_out2_sw" class="form-control">
+                                  <option  value="0" selected="selected">0</option>
+                                  <option  value="1">in1</option>
+                                  <option  value="2">in2</option>
+                                  <option  value="3">in1-in2</option>
+                                  <option  value="4">cos_ref</option>
+                                  <option  value="5">sin_1f</option>
+                                  <option  value="6">sin_2f</option>
+                                  <option  value="7">sin_3f</option>
+                                  <option  value="8">sq_quad</option>
+                                  <option  value="9">sq_phas</option>
+                                  <option  value="10">Ramp B</option>
+                                  <option  value="11">PID A out</option>
+                                  <option  value="12">ctrl_A</option>
+                                  <option  value="13">ctrl_B</option>
+                                  <option  value="14">error</option>
+                                  <option  value="15">aux_B</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
                         </div>
-                      </form>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_slow_out4_sw" class="col-xs-4 control-label">Slow out4:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_slow_out4_sw" class="form-control">
-                              <option value="0" selected="selected">0</option>
-                              <option value="1">in1</option>
-                              <option value="2">in2</option>
-                              <option value="3">in1-in2</option>
-                              <option value="4">cos_ref</option>
-                              <option value="5">sin_1f</option>
-                              <option value="6">sin_2f</option>
-                              <option value="7">sin_3f</option>
-                              <option value="8">sq_quad</option>
-                              <option value="9">sq_phas</option>
-                              <option value="10">scan_B</option>
-                              <option value="11">pidA_out</option>
-                              <option value="12">ctrl_A</option>
-                              <option value="13">ctrl_B</option>
-                              <option value="14">error</option>
-                              <option value="15">aux_B</option>
-                            </select>
-                          </div>
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <label for="lock_slow_out3_sw" class="col-xs-4 control-label">Slow out3:</label>
+                              <div class="col-xs-8">
+                                <select id="lock_slow_out3_sw" class="form-control">
+                                  <option  value="0" selected="selected">0</option>
+                                  <option  value="1">in1</option>
+                                  <option  value="2">in2</option>
+                                  <option  value="3">in1-in2</option>
+                                  <option  value="4">sin_ref</option>
+                                  <option  value="5">sin_1f</option>
+                                  <option  value="6">sin_2f</option>
+                                  <option  value="7">sin_3f</option>
+                                  <option  value="8">sq_ref</option>
+                                  <option  value="9">sq_phas</option>
+                                  <option  value="10">Ramp A</option>
+                                  <option  value="11">PID A out</option>
+                                  <option  value="12">ctrl_A</option>
+                                  <option  value="13">ctrl_B</option>
+                                  <option  value="14">error</option>
+                                  <option  value="15">aux_A</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
                         </div>
-                      </form>
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <label for="lock_slow_out4_sw" class="col-xs-4 control-label">Slow out4:</label>
+                              <div class="col-xs-8">
+                                <select id="lock_slow_out4_sw" class="form-control">
+                                  <option  value="0" selected="selected">0</option>
+                                  <option  value="1">in1</option>
+                                  <option  value="2">in2</option>
+                                  <option  value="3">in1-in2</option>
+                                  <option  value="4">cos_ref</option>
+                                  <option  value="5">sin_1f</option>
+                                  <option  value="6">sin_2f</option>
+                                  <option  value="7">sin_3f</option>
+                                  <option  value="8">sq_quad</option>
+                                  <option  value="9">sq_phas</option>
+                                  <option  value="10">Ramp B</option>
+                                  <option  value="11">PID A out</option>
+                                  <option  value="12">ctrl_A</option>
+                                  <option  value="13">ctrl_B</option>
+                                  <option  value="14">error</option>
+                                  <option  value="15">aux_B</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
                     </div>
+
+
                   </div>
 
                 </div>
@@ -4581,12 +4600,12 @@
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
-                <a data-toggle="collapse" href="#gen_scan">
-                  Scan
+                <a data-toggle="collapse" href="#gen_ramp">
+                  Ramp
                 </a>
               </h4>
             </div>
-            <div id="gen_scan" class="panel-collapse collapse">
+            <div id="gen_ramp" class="panel-collapse collapse">
               <div class="panel-body">
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
 
@@ -4594,16 +4613,16 @@
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="form-group">
-                          <label for="lock_scan_step" class="col-xs-4 control-label"
+                          <label for="lock_ramp_step" class="col-xs-4 control-label"
                             data-toggle="tooltip" data-placement="right" title="Sets Scan Period in a way I should tell you"> Scan period: </label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_scan_step" step="1" min="0" max="4294967295">
-                            <span style="display: none;" class="input-group-btn" id="lock_scan_step_apply">
+                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_ramp_step" step="1" min="0" max="4294967295">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_step_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
                           </div>
                           <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_scan_step_text">lock_scan_step</div>
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_step_text">lock_ramp_step</div>
                           </div>
                         </div>
                       </form>
@@ -4612,15 +4631,15 @@
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="form-group">
-                          <label for="lock_scan_hig_lim" class="col-xs-4 control-label">Scan hig&nbsp;lim:</label>
+                          <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Scan hig&nbsp;lim:</label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="5000" id="lock_scan_hig_lim" step="1" min="-8192" max="8191">
-                            <span style="display: none;" class="input-group-btn" id="lock_scan_hig_lim_apply">
+                            <input type="number" autocomplete="off" class="form-control" value="5000" id="lock_ramp_hig_lim" step="1" min="-8192" max="8191">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_hig_lim_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
                           </div>
                           <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_scan_hig_lim_text">lock_scan_hig_lim</div>
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_hig_lim_text">lock_ramp_hig_lim</div>
                           </div>
                         </div>
                       </form>
@@ -4629,15 +4648,15 @@
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="form-group">
-                          <label for="lock_scan_low_lim" class="col-xs-4 control-label">Scan low&nbsp;lim:</label>
+                          <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Scan low&nbsp;lim:</label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="-5000" id="lock_scan_low_lim" step="1" min="-8192" max="8191">
-                            <span style="display: none;" class="input-group-btn" id="lock_scan_low_lim_apply">
+                            <input type="number" autocomplete="off" class="form-control" value="-5000" id="lock_ramp_low_lim" step="1" min="-8192" max="8191">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_low_lim_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
                           </div>
                           <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_scan_low_lim_text">lock_scan_low_lim</div>
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_low_lim_text">lock_ramp_low_lim</div>
                           </div>
                         </div>
                       </form>
@@ -4646,15 +4665,15 @@
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="form-group">
-                          <label for="lock_scan_B_factor" class="col-xs-4 control-label">Scan B&nbsp;factor:</label>
+                          <label for="lock_ramp_B_factor" class="col-xs-4 control-label">Scan B&nbsp;factor:</label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="4096" id="lock_scan_B_factor" step="1" min="-4096" max="4096">
-                            <span style="display: none;" class="input-group-btn" id="lock_scan_B_factor_apply">
+                            <input type="number" autocomplete="off" class="form-control" value="4096" id="lock_ramp_B_factor" step="1" min="-4096" max="4096">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_B_factor_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
                           </div>
                           <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_scan_B_factor_text">scan_B_factor</div>
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_B_factor_text">ramp_B_factor</div>
                           </div>
                         </div>
                       </form>
@@ -4664,7 +4683,7 @@
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
                       <div class="col-xs-12 col-sm-12">
-                        <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_scan_text">lock_scan_text</div>
+                        <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_ramp_text">lock_ramp_text</div>
                       </div>
                     </div>
 
@@ -4674,7 +4693,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_scan_reset">Scan reset
+                            <input type="checkbox" id="lock_ramp_reset">Scan reset
                           </label>
                         </div>
                       </form>
@@ -4683,7 +4702,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_scan_enable">Scan enable
+                            <input type="checkbox" id="lock_ramp_enable">Scan enable
                           </label>
                         </div>
                       </form>
@@ -4692,7 +4711,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_scan_direction">Scan direction
+                            <input type="checkbox" id="lock_ramp_direction">Scan direction
                           </label>
                         </div>
                       </form>
@@ -4720,44 +4739,44 @@
 
 
                     <div class="row">  <!-- label + reset -->
-                        <div class="panel-group col-xs-12 col-sm-8 col-md-8">
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group">
-                              <label for="lock_pidA_sw" class="col-xs-4 control-label">IN:</label>
+                              <label for="lock_pidA_sw" class="col-xs-4 control-label">input:</label>
                               <div class="col-xs-8">
                                 <select id="lock_pidA_sw" class="form-control">
-                                  <option value="0" selected="selected">error_reg</option>
-                                  <option value="1">Xo</option>
-                                  <option value="2">Yo</option>
-                                  <option value="3">F1</option>
-                                  <option value="4">F2</option>
-                                  <option value="5">F3</option>
-                                  <option value="6">sqx</option>
-                                  <option value="7">sqy</option>
-                                  <option value="8">sqf</option>
-                                  <option value="9">signal_i</option>
-                                  <option value="10">Scan A</option>
-                                  <option value="11">sin_ref</option>
-                                  <option value="12">cos_ref</option>
-                                  <option value="13">sin_1f</option>
-                                  <option value="14">sin_2f</option>
-                                  <option value="15">sin_3f</option>
-                                  <option value="16">sq_ref</option>
-                                  <option value="17">sq_quad</option>
-                                  <option value="18">sq_phas</option>
-                                  <option value="19">aux_A</option>
-                                  <option value="20">aux_B</option>
-                                  <option value="21">test14</option>
-                                  <option value="22">in1</option>
-                                  <option value="23">in2</option>
-                                  <option value="24">in1-in2</option>
-                                  <option value="25">0</option>
-                                  <option value="26">0</option>
-                                  <option value="27">0</option>
-                                  <option value="28">0</option>
-                                  <option value="29">0</option>
-                                  <option value="30">0</option>
-                                  <option value="31">0</option>
+                                  <option  value="0" selected="selected">error</option>
+                                  <option data-tag="pidA_more" value="1">Xo</option>
+                                  <option data-tag="pidA_more" value="2">Yo</option>
+                                  <option data-tag="pidA_more" value="3">F1</option>
+                                  <option data-tag="pidA_more" value="4">F2</option>
+                                  <option data-tag="pidA_more" value="5">F3</option>
+                                  <option data-tag="pidA_more" value="6">sqx</option>
+                                  <option data-tag="pidA_more" value="7">sqy</option>
+                                  <option data-tag="pidA_more" value="8">sqf</option>
+                                  <option  value="9">signal_i</option>
+                                  <option data-tag="pidA_more" value="10">Ramp A</option>
+                                  <option data-tag="pidA_more" value="11">sin_ref</option>
+                                  <option data-tag="pidA_more" value="12">cos_ref</option>
+                                  <option data-tag="pidA_more" value="13">sin_1f</option>
+                                  <option data-tag="pidA_more" value="14">sin_2f</option>
+                                  <option data-tag="pidA_more" value="15">sin_3f</option>
+                                  <option data-tag="pidA_more" value="16">sq_ref</option>
+                                  <option data-tag="pidA_more" value="17">sq_quad</option>
+                                  <option data-tag="pidA_more" value="18">sq_phas</option>
+                                  <option data-tag="pidA_more" value="19">aux_A</option>
+                                  <option data-tag="pidA_more" value="20">aux_B</option>
+                                  <option data-tag="pidA_more" value="21">test14</option>
+                                  <option  value="22">in1</option>
+                                  <option  value="23">in2</option>
+                                  <option  value="24">in1-in2</option>
+                                  <!--option value="25">0</option-->
+                                  <!--option value="26">0</option-->
+                                  <!--option value="27">0</option-->
+                                  <!--option value="28">0</option-->
+                                  <!--option value="29">0</option-->
+                                  <!--option value="30">0</option-->
+                                  <!--option value="31">0</option-->
                                 </select>
                               </div>
                             </div>
@@ -4767,25 +4786,25 @@
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_irst">rst
+                                <input type="checkbox" id="lock_pidA_irst">reset integral
                               </label>
                             </div>
                           </form>
                         </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_freeze">Freeze out
+                                <input type="checkbox" id="lock_pidA_freeze">freeze out
                               </label>
                             </div>
                           </form>
                         </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                        <div class="panel-group col-xs-12 col-sm-4 col-md-4">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidA_ifreeze">Freeze integrator
+                                <input type="checkbox" id="lock_pidA_ifreeze">freeze integral
                               </label>
                             </div>
                           </form>
@@ -4795,7 +4814,7 @@
                     <hr style="margin: 7px 7px">
 
                     <div class="row">
-                      <div class="row"> <!-- sp control -->
+                      <div class="row collapse" data-tag="PidAOptions"> <!-- sp control -->
                         <div class="panel-group col-xs-12 col-sm-5 col-md-5">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group">
@@ -4817,7 +4836,8 @@
                         </div>
                       </div>
 
-                      <hr style="margin: 7px 7px">
+                      <!--hr style="margin: 7px 7px"-->
+
                       <div style="border-style: solid; border-color: #FF9999;">
                         <div class="row"> <!-- kp control -->
                           <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
@@ -4838,11 +4858,11 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidA_PSR" class="form-control">
-                                    <option value="0">/1</option>
-                                    <option value="1">/8</option>
-                                    <option value="2">/64</option>
-                                    <option value="3" selected="selected">/1024</option>
-                                    <option value="4">/4096</option>
+                                    <option  value="0">/1</option>
+                                    <option  value="1">/8</option>
+                                    <option  value="2">/64</option>
+                                    <option  value="3" selected="selected">/1024</option>
+                                    <option  value="4">/4096</option>
                                   </select>
                                 </div>
                               </div>
@@ -4879,16 +4899,16 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidA_ISR" class="form-control">
-                                    <option value="0">8 ns</option>
-                                    <option value="1">64 ns</option>
-                                    <option value="2">512 ns</option>
-                                    <option value="3">8 us</option>
-                                    <option value="4">6 us</option>
-                                    <option value="5">524 us</option>
-                                    <option value="6">8 ms</option>
-                                    <option value="7">67 ms</option>
-                                    <option value="8" selected="selected">537 ms</option>
-                                    <option value="9">9 s</option>
+                                    <option  value="0">8 ns</option>
+                                    <option  value="1">64 ns</option>
+                                    <option  value="2">512 ns</option>
+                                    <option  value="3">8 us</option>
+                                    <option  value="4">6 us</option>
+                                    <option  value="5">524 us</option>
+                                    <option  value="6">8 ms</option>
+                                    <option  value="7">67 ms</option>
+                                    <option  value="8" selected="selected">537 ms</option>
+                                    <option  value="9">9 s</option>
                                   </select>
                                 </div>
                               </div>
@@ -4925,12 +4945,12 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidA_DSR" class="form-control">
-                                    <option value="0" selected="selected"> 0</option>
-                                    <option value="1"> 3</option>
-                                    <option value="2"> 6</option>
-                                    <option value="3">10</option>
-                                    <option value="4">13</option>
-                                    <option value="5">16</option>
+                                    <option  value="0" selected="selected"> 0</option>
+                                    <option  value="1"> 3</option>
+                                    <option  value="2"> 6</option>
+                                    <option  value="3">10</option>
+                                    <option  value="4">13</option>
+                                    <option  value="5">16</option>
                                   </select>
                                 </div>
                               </div>
@@ -4957,20 +4977,20 @@
                                   <label for="lock_pidA_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
                                   <div class="col-xs-8">
                                     <select id="lock_pidA_SAT" class="form-control">
-                                      <option value="0">&plusmn;122uV</option>
-                                      <option value="1">&plusmn;244uV</option>
-                                      <option value="2">&plusmn;488uV</option>
-                                      <option value="3">&plusmn;977uV</option>
-                                      <option value="4">&plusmn;2mV</option>
-                                      <option value="5">&plusmn;4mV</option>
-                                      <option value="6">&plusmn;8mV</option>
-                                      <option value="7">&plusmn;16mV</option>
-                                      <option value="8">&plusmn;31mV</option>
-                                      <option value="9">&plusmn;62mV</option>
-                                      <option value="10">&plusmn;125mV</option>
-                                      <option value="11">&plusmn;250mV</option>
-                                      <option value="12">&plusmn;500mV</option>
-                                      <option value="13" selected="selected">&plusmn;1 V</option>
+                                      <option  value="0">&plusmn;122uV</option>
+                                      <option  value="1">&plusmn;244uV</option>
+                                      <option  value="2">&plusmn;488uV</option>
+                                      <option  value="3">&plusmn;977uV</option>
+                                      <option  value="4">&plusmn;2mV</option>
+                                      <option  value="5">&plusmn;4mV</option>
+                                      <option  value="6">&plusmn;8mV</option>
+                                      <option  value="7">&plusmn;16mV</option>
+                                      <option  value="8">&plusmn;31mV</option>
+                                      <option  value="9">&plusmn;62mV</option>
+                                      <option  value="10">&plusmn;125mV</option>
+                                      <option  value="11">&plusmn;250mV</option>
+                                      <option  value="12">&plusmn;500mV</option>
+                                      <option  value="13" selected="selected">&plusmn;1 V</option>
                                     </select>
                                   </div>
                                 </div>
@@ -4979,8 +4999,8 @@
                         </div>
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                           <p class="text-center">
-                            <button id="btn_PidAOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidAOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidAOptions]').toggleClass('in collapse') ; $('div[data-tag=PidActrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ;">
-                              Options
+                            <button id="btn_PidAOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidAOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidAOptions]').toggleClass('in collapse') ; $('div[data-tag=PidActrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ; $('option[data-tag=pidA_more]').toggle() ; ">
+                              More Options
                             </button>
                           </p>
                         </div>
@@ -5011,41 +5031,41 @@
                         <div class="panel-group col-xs-12 col-sm-8 col-md-8">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group">
-                              <label for="lock_pidB_sw" class="col-xs-4 control-label">IN:</label>
+                              <label for="lock_pidB_sw" class="col-xs-4 control-label">input:</label>
                               <div class="col-xs-8">
                                 <select id="lock_pidB_sw" class="form-control">
-                                  <option value="0" selected="selected">error</option>
-                                  <option value="1">Xo</option>
-                                  <option value="2">Yo</option>
-                                  <option value="3">F1</option>
-                                  <option value="4">F2</option>
-                                  <option value="5">F3</option>
-                                  <option value="6">sqx</option>
-                                  <option value="7">sqy</option>
-                                  <option value="8">sqf</option>
-                                  <option value="9">signal_i</option>
-                                  <option value="10">Scan A</option>
-                                  <option value="11">sin_ref</option>
-                                  <option value="12">cos_ref</option>
-                                  <option value="13">sin_1f</option>
-                                  <option value="14">sin_2f</option>
-                                  <option value="15">sin_3f</option>
-                                  <option value="16">sq_ref</option>
-                                  <option value="17">sq_quad</option>
-                                  <option value="18">sq_phas</option>
-                                  <option value="19">aux_A</option>
-                                  <option value="20">aux_B</option>
-                                  <option value="21">test14</option>
-                                  <option value="22">in1</option>
-                                  <option value="23">in2</option>
-                                  <option value="24">in1-in2</option>
-                                  <option value="25">0</option>
-                                  <option value="26">0</option>
-                                  <option value="27">0</option>
-                                  <option value="28">0</option>
-                                  <option value="29">0</option>
-                                  <option value="30">0</option>
-                                  <option value="31">0</option>
+                                  <option  value="0" selected="selected">error</option>
+                                  <option data-tag="pidB_more" value="1">Xo</option>
+                                  <option data-tag="pidB_more" value="2">Yo</option>
+                                  <option data-tag="pidB_more" value="3">F1</option>
+                                  <option data-tag="pidB_more" value="4">F2</option>
+                                  <option data-tag="pidB_more" value="5">F3</option>
+                                  <option data-tag="pidB_more" value="6">sqx</option>
+                                  <option data-tag="pidB_more" value="7">sqy</option>
+                                  <option data-tag="pidB_more" value="8">sqf</option>
+                                  <option  value="9">signal_i</option>
+                                  <option data-tag="pidB_more" value="10">Ramp A</option>
+                                  <option data-tag="pidB_more" value="11">sin_ref</option>
+                                  <option data-tag="pidB_more" value="12">cos_ref</option>
+                                  <option data-tag="pidB_more" value="13">sin_1f</option>
+                                  <option data-tag="pidB_more" value="14">sin_2f</option>
+                                  <option data-tag="pidB_more" value="15">sin_3f</option>
+                                  <option data-tag="pidB_more" value="16">sq_ref</option>
+                                  <option data-tag="pidB_more" value="17">sq_quad</option>
+                                  <option data-tag="pidB_more" value="18">sq_phas</option>
+                                  <option data-tag="pidB_more" value="19">aux_A</option>
+                                  <option data-tag="pidB_more" value="20">aux_B</option>
+                                  <option data-tag="pidB_more" value="21">test14</option>
+                                  <option  value="22">in1</option>
+                                  <option  value="23">in2</option>
+                                  <option  value="24">in1-in2</option>
+                                  <!--option value="25">0</option-->
+                                  <!--option value="26">0</option-->
+                                  <!--option value="27">0</option-->
+                                  <!--option value="28">0</option-->
+                                  <!--option value="29">0</option-->
+                                  <!--option value="30">0</option-->
+                                  <!--option value="31">0</option-->
                                 </select>
                               </div>
                             </div>
@@ -5055,7 +5075,7 @@
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidB_irst">rst
+                                <input type="checkbox" id="lock_pidB_irst">reset integral
                               </label>
                             </div>
                           </form>
@@ -5064,7 +5084,7 @@
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidB_freeze">Freeze out
+                                <input type="checkbox" id="lock_pidB_freeze">freeze out
                               </label>
                             </div>
                           </form>
@@ -5073,7 +5093,7 @@
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidB_ifreeze">Freeze integrator
+                                <input type="checkbox" id="lock_pidB_ifreeze">freeze integral
                               </label>
                             </div>
                           </form>
@@ -5083,7 +5103,7 @@
                     <hr style="margin: 7px 7px">
 
                     <div class="row">
-                      <div class="row"> <!-- sp control -->
+                      <div class="row collapse"  data-tag="PidBOptions"> <!-- sp control -->
                         <div class="panel-group col-xs-12 col-sm-5 col-md-5">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group">
@@ -5105,7 +5125,7 @@
                         </div>
                       </div>
 
-                      <hr style="margin: 7px 7px">
+                      <!--hr style="margin: 7px 7px"-->
 
                       <div style="border-style: solid; border-color: #FF9999;">
                         <div class="row"> <!-- kp control -->
@@ -5127,11 +5147,11 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidB_PSR" class="form-control">
-                                    <option value="0">/1</option>
-                                    <option value="1">/8</option>
-                                    <option value="2">/64</option>
-                                    <option value="3" selected="selected">/1024</option>
-                                    <option value="4">/4096</option>
+                                    <option  value="0">/1</option>
+                                    <option  value="1">/8</option>
+                                    <option  value="2">/64</option>
+                                    <option  value="3" selected="selected">/1024</option>
+                                    <option  value="4">/4096</option>
                                   </select>
                                 </div>
                               </div>
@@ -5168,16 +5188,16 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidB_ISR" class="form-control">
-                                    <option value="0">8 ns</option>
-                                    <option value="1">64 ns</option>
-                                    <option value="2">512 ns</option>
-                                    <option value="3">8 us</option>
-                                    <option value="4">6 us</option>
-                                    <option value="5">524 us</option>
-                                    <option value="6">8 ms</option>
-                                    <option value="7">67 ms</option>
-                                    <option value="8" selected="selected">537 ms</option>
-                                    <option value="9">9 s</option>
+                                    <option  value="0">8 ns</option>
+                                    <option  value="1">64 ns</option>
+                                    <option  value="2">512 ns</option>
+                                    <option  value="3">8 us</option>
+                                    <option  value="4">6 us</option>
+                                    <option  value="5">524 us</option>
+                                    <option  value="6">8 ms</option>
+                                    <option  value="7">67 ms</option>
+                                    <option  value="8" selected="selected">537 ms</option>
+                                    <option  value="9">9 s</option>
                                   </select>
                                 </div>
                               </div>
@@ -5214,12 +5234,12 @@
                               <div class="form-group">
                                 <div class="col-xs-12">
                                   <select id="lock_pidB_DSR" class="form-control">
-                                    <option value="0" selected="selected"> 0</option>
-                                    <option value="1"> 3</option>
-                                    <option value="2"> 6</option>
-                                    <option value="3">10</option>
-                                    <option value="4">13</option>
-                                    <option value="5">16</option>
+                                    <option  value="0" selected="selected"> 0</option>
+                                    <option  value="1"> 3</option>
+                                    <option  value="2"> 6</option>
+                                    <option  value="3">10</option>
+                                    <option  value="4">13</option>
+                                    <option  value="5">16</option>
                                   </select>
                                 </div>
                               </div>
@@ -5246,20 +5266,20 @@
                                   <label for="lock_pidB_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
                                   <div class="col-xs-8">
                                     <select id="lock_pidB_SAT" class="form-control">
-                                      <option value="0">&plusmn;122uV</option>
-                                      <option value="1">&plusmn;244uV</option>
-                                      <option value="2">&plusmn;488uV</option>
-                                      <option value="3">&plusmn;977uV</option>
-                                      <option value="4">&plusmn;2mV</option>
-                                      <option value="5">&plusmn;4mV</option>
-                                      <option value="6">&plusmn;8mV</option>
-                                      <option value="7">&plusmn;16mV</option>
-                                      <option value="8">&plusmn;31mV</option>
-                                      <option value="9">&plusmn;62mV</option>
-                                      <option value="10">&plusmn;125mV</option>
-                                      <option value="11">&plusmn;250mV</option>
-                                      <option value="12">&plusmn;500mV</option>
-                                      <option value="13" selected="selected">&plusmn;1 V</option>
+                                      <option  value="0">&plusmn;122uV</option>
+                                      <option  value="1">&plusmn;244uV</option>
+                                      <option  value="2">&plusmn;488uV</option>
+                                      <option  value="3">&plusmn;977uV</option>
+                                      <option  value="4">&plusmn;2mV</option>
+                                      <option  value="5">&plusmn;4mV</option>
+                                      <option  value="6">&plusmn;8mV</option>
+                                      <option  value="7">&plusmn;16mV</option>
+                                      <option  value="8">&plusmn;31mV</option>
+                                      <option  value="9">&plusmn;62mV</option>
+                                      <option  value="10">&plusmn;125mV</option>
+                                      <option  value="11">&plusmn;250mV</option>
+                                      <option  value="12">&plusmn;500mV</option>
+                                      <option  value="13" selected="selected">&plusmn;1 V</option>
                                     </select>
                                   </div>
                                 </div>
@@ -5268,8 +5288,8 @@
                         </div>
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                           <p class="text-center">
-                            <button id="btn_PidBOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidBOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidBOptions]').toggleClass('in collapse') ; $('div[data-tag=PidBctrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ;">
-                              Options
+                            <button id="btn_PidBOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidBOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidBOptions]').toggleClass('in collapse') ; $('div[data-tag=PidBctrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ; $('option[data-tag=pidB_more]').toggle() ;">
+                              More Options
                             </button>
                           </p>
                         </div>
@@ -5352,14 +5372,14 @@
                               <!--label for="lock_rl_signal_sw" class="col-xs-4 control-label">Signal:</label-->
                               <div class="col-xs-5">
                                 <select id="lock_rl_signal_sw" class="form-control">
-                                  <option value="0" selected="selected">in1</option>
-                                  <option value="1">in2</option>
-                                  <option value="2">in1-in2</option>
-                                  <option value="3">aux_A</option>
-                                  <option value="4">aux_B</option>
-                                  <option value="5">0</option>
-                                  <option value="6">0</option>
-                                  <option value="7">0</option>
+                                  <option  value="0" selected="selected">in1</option>
+                                  <option  value="1">in2</option>
+                                  <option  value="2">in1-in2</option>
+                                  <option  value="3">aux_A</option>
+                                  <option  value="4">aux_B</option>
+                                  <option  value="5">0</option>
+                                  <option  value="6">0</option>
+                                  <option  value="7">0</option>
                                 </select>
                               </div>
                               <div class="col-xs-1">
@@ -5513,7 +5533,7 @@
                         <div class="panel-group col-xs-12">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group text-center">
-                              <button id="lock_ctrl_aux_scan_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
+                              <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
                             </div>
                           </form>
                         </div>
@@ -5574,7 +5594,7 @@
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
-                              <input type="checkbox" id="lock_ctrl_aux_set_scan_enable">Scan enable
+                              <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
                             </label>
                           </div>
                         </form>
@@ -5606,10 +5626,10 @@
                               <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
                               <div class="col-xs-8">
                                 <select id="lock_ctrl_aux_trig_type" class="form-control">
-                                  <option value="0" selected="selected">OFF</option>
-                                  <option value="1">Time trigger</option>
-                                  <option value="2">Level Trigger</option>
-                                  <option value="3">Level+time Trigger</option>
+                                  <option  value="0" selected="selected">OFF</option>
+                                  <option  value="1">Time trigger</option>
+                                  <option  value="2">Level Trigger</option>
+                                  <option  value="3">Level+time Trigger</option>
                                 </select>
                               </div>
                             </div>
@@ -5622,22 +5642,22 @@
                               <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
                               <div class="col-xs-8">
                                 <select id="lock_lock_trig_sw" class="form-control">
-                                  <option value="0" selected="selected">error</option>
-                                  <option value="1">Xo</option>
-                                  <option value="2">Yo</option>
-                                  <option value="3">F1</option>
-                                  <option value="4">F2</option>
-                                  <option value="5">F3</option>
-                                  <option value="6">sqx</option>
-                                  <option value="7">sqy</option>
-                                  <option value="8">sqf</option>
-                                  <option value="9">signal_i</option>
-                                  <option value="10">Scan A</option>
-                                  <option value="11">aux_A</option>
-                                  <option value="12">in1</option>
-                                  <option value="13">in2</option>
-                                  <option value="14">in1-in2</option>
-                                  <option value="15">PID A out</option>
+                                  <option  value="0" selected="selected">error</option>
+                                  <option  value="1">Xo</option>
+                                  <option  value="2">Yo</option>
+                                  <option  value="3">F1</option>
+                                  <option  value="4">F2</option>
+                                  <option  value="5">F3</option>
+                                  <option  value="6">sqx</option>
+                                  <option  value="7">sqy</option>
+                                  <option  value="8">sqf</option>
+                                  <option  value="9">signal_i</option>
+                                  <option  value="10">Ramp A</option>
+                                  <option  value="11">aux_A</option>
+                                  <option  value="12">in1</option>
+                                  <option  value="13">in2</option>
+                                  <option  value="14">in1-in2</option>
+                                  <option  value="15">PID A out</option>
                                 </select>
                               </div>
                             </div>
@@ -5841,22 +5861,22 @@
                             <label for="lock_signal_sw" class="col-xs-4 control-label">Lock-in input:</label>
                             <div class="col-xs-8">
                               <select id="lock_signal_sw" class="form-control">
-                                <option value="0" selected="selected">in1</option>
-                                <option value="1">in2</option>
-                                <option value="2">in1-in2</option>
-                                <option value="3">sin_ref</option>
-                                <option value="4">sin_1f</option>
-                                <option value="5">sq_ref</option>
-                                <option value="6">sq_phas</option>
-                                <option value="7">Scan A</option>
-                                <option value="8">sq_ref_b</option>
-                                <option value="9">sq_phas_b</option>
-                                <option value="10">aux_A</option>
-                                <option value="11">aux_B</option>
-                                <option value="12">0</option>
-                                <option value="13">0</option>
-                                <option value="14">0</option>
-                                <option value="15">0</option>
+                                <option  value="0" selected="selected">in1</option>
+                                <option  value="1">in2</option>
+                                <option  value="2">in1-in2</option>
+                                <option  value="3">sin_ref</option>
+                                <option  value="4">sin_1f</option>
+                                <option  value="5">sq_ref</option>
+                                <option  value="6">sq_phas</option>
+                                <option  value="7">Ramp A</option>
+                                <option  value="8">square ref (bin)</option>
+                                <option  value="9">square phas (bin)</option>
+                                <option  value="10">aux_A</option>
+                                <option  value="11">aux_B</option>
+                                <option  value="12">0</option>
+                                <option  value="13">0</option>
+                                <option  value="14">0</option>
+                                <option  value="15">0</option>
                               </select>
                             </div>
                           </div>
@@ -5869,14 +5889,14 @@
                             <label for="lock_error_sw" class="col-xs-4 control-label">Error signal:</label>
                             <div class="col-xs-8">
                               <select id="lock_error_sw" class="form-control">
-                                <option value="0" selected="selected">0</option>
-                                <option value="1">in1</option>
-                                <option value="2">Xo</option>
-                                <option value="3">F1</option>
-                                <option value="4">F3</option>
-                                <option value="5">sqx</option>
-                                <option value="6">sqy</option>
-                                <option value="7">sqf</option>
+                                <option  value="0" selected="selected">0</option>
+                                <option  value="1">in1</option>
+                                <option  value="2">Xo</option>
+                                <option  value="3">F1</option>
+                                <option  value="4">F3</option>
+                                <option  value="5">sqx</option>
+                                <option  value="6">sqy</option>
+                                <option  value="7">sqf</option>
                               </select>
                             </div>
                           </div>
@@ -5909,16 +5929,16 @@
                             <label for="lock_sg_amp1" class="col-xs-4 control-label">gain&nbsp;F1:</label>
                             <div class="col-xs-8">
                               <select id="lock_sg_amp1" class="form-control">
-                                <option value="0" selected="selected">x1</option>
-                                <option value="1">x2</option>
-                                <option value="2">x4</option>
-                                <option value="3">x8</option>
-                                <option value="4">x16</option>
-                                <option value="5">x32</option>
-                                <option value="6">x64</option>
-                                <option value="7">x128</option>
-                                <option value="8">x256</option>
-                                <option value="9">x512</option>
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
                               </select>
                             </div>
                           </div>
@@ -5931,16 +5951,16 @@
                             <label for="lock_sg_amp2" class="col-xs-4 control-label">gain&nbsp;F2:</label>
                             <div class="col-xs-8">
                               <select id="lock_sg_amp2" class="form-control">
-                                <option value="0" selected="selected">x1</option>
-                                <option value="1">x2</option>
-                                <option value="2">x4</option>
-                                <option value="3">x8</option>
-                                <option value="4">x16</option>
-                                <option value="5">x32</option>
-                                <option value="6">x64</option>
-                                <option value="7">x128</option>
-                                <option value="8">x256</option>
-                                <option value="9">x512</option>
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
                               </select>
                             </div>
                           </div>
@@ -5953,16 +5973,16 @@
                             <label for="lock_sg_amp3" class="col-xs-4 control-label">gain&nbsp;F3:</label>
                             <div class="col-xs-8">
                               <select id="lock_sg_amp3" class="form-control">
-                                <option value="0" selected="selected">x1</option>
-                                <option value="1">x2</option>
-                                <option value="2">x4</option>
-                                <option value="3">x8</option>
-                                <option value="4">x16</option>
-                                <option value="5">x32</option>
-                                <option value="6">x64</option>
-                                <option value="7">x128</option>
-                                <option value="8">x256</option>
-                                <option value="9">x512</option>
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
                               </select>
                             </div>
                           </div>
@@ -5975,16 +5995,16 @@
                             <label for="lock_sg_amp_sq" class="col-xs-4 control-label">gain&nbsp;SQ:</label>
                             <div class="col-xs-8">
                               <select id="lock_sg_amp_sq" class="form-control">
-                                <option value="0" selected="selected">x1</option>
-                                <option value="1">x2</option>
-                                <option value="2">x4</option>
-                                <option value="3">x8</option>
-                                <option value="4">x16</option>
-                                <option value="5">x32</option>
-                                <option value="6">x64</option>
-                                <option value="7">x128</option>
-                                <option value="8">x256</option>
-                                <option value="9">x512</option>
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
                               </select>
                             </div>
                           </div>
@@ -6002,29 +6022,29 @@
                             <label for="lock_lpf_F1_tau" class="col-xs-2 control-label">LPF&nbsp;F1:</label>
                             <div class="col-xs-6">
                               <select id="lock_lpf_F1_tau" class="form-control">
-                                <option value="0" selected="selected">131us |  7.6kHz</option>
-                                <option value="1">262us |  3.8kHz</option>
-                                <option value="2">524us |  1.9kHz</option>
-                                <option value="3">  1ms | 953.7 Hz</option>
-                                <option value="4">  2ms | 476.8 Hz</option>
-                                <option value="5">  4ms | 238.4 Hz</option>
-                                <option value="6">  8ms | 119.2 Hz</option>
-                                <option value="7"> 17ms | 59.6 Hz</option>
-                                <option value="8"> 34ms | 29.8 Hz</option>
-                                <option value="9"> 67ms | 14.9 Hz</option>
-                                <option value="10">134ms |  7.5 Hz</option>
-                                <option value="11">268ms |  3.7 Hz</option>
-                                <option value="12">537ms |  1.9 Hz</option>
-                                <option value="13">  1 s | 931.3mHz</option>
-                                <option value="14">  2 s | 465.7mHz</option>
-                                <option value="15">  4 s | 232.8mHz</option>
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
                               </select>
                             </div>
                             <div class="col-xs-4">
                               <select id="lock_lpf_F1_order" class="form-control">
-                                <option value="0">OFF</option>
-                                <option value="1">1</option>
-                                <option value="2" selected="selected">2</option>
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
                               </select>
                             </div>
                           </div>
@@ -6037,29 +6057,29 @@
                             <label for="lock_lpf_F2_tau" class="col-xs-2 control-label">LPF&nbsp;F2:</label>
                             <div class="col-xs-6">
                               <select id="lock_lpf_F2_tau" class="form-control">
-                                <option value="0" selected="selected">131us |  7.6kHz</option>
-                                <option value="1">262us |  3.8kHz</option>
-                                <option value="2">524us |  1.9kHz</option>
-                                <option value="3">  1ms | 953.7 Hz</option>
-                                <option value="4">  2ms | 476.8 Hz</option>
-                                <option value="5">  4ms | 238.4 Hz</option>
-                                <option value="6">  8ms | 119.2 Hz</option>
-                                <option value="7"> 17ms | 59.6 Hz</option>
-                                <option value="8"> 34ms | 29.8 Hz</option>
-                                <option value="9"> 67ms | 14.9 Hz</option>
-                                <option value="10">134ms |  7.5 Hz</option>
-                                <option value="11">268ms |  3.7 Hz</option>
-                                <option value="12">537ms |  1.9 Hz</option>
-                                <option value="13">  1 s | 931.3mHz</option>
-                                <option value="14">  2 s | 465.7mHz</option>
-                                <option value="15">  4 s | 232.8mHz</option>
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
                               </select>
                             </div>
                             <div class="col-xs-4">
                               <select id="lock_lpf_F2_order" class="form-control">
-                                <option value="0">OFF</option>
-                                <option value="1">1</option>
-                                <option value="2" selected="selected">2</option>
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
                               </select>
                             </div>
                           </div>
@@ -6072,29 +6092,29 @@
                             <label for="lock_lpf_F3_tau" class="col-xs-2 control-label">LPF&nbsp;F3:</label>
                             <div class="col-xs-6">
                               <select id="lock_lpf_F3_tau" class="form-control">
-                                <option value="0" selected="selected">131us |  7.6kHz</option>
-                                <option value="1">262us |  3.8kHz</option>
-                                <option value="2">524us |  1.9kHz</option>
-                                <option value="3">  1ms | 953.7 Hz</option>
-                                <option value="4">  2ms | 476.8 Hz</option>
-                                <option value="5">  4ms | 238.4 Hz</option>
-                                <option value="6">  8ms | 119.2 Hz</option>
-                                <option value="7"> 17ms | 59.6 Hz</option>
-                                <option value="8"> 34ms | 29.8 Hz</option>
-                                <option value="9"> 67ms | 14.9 Hz</option>
-                                <option value="10">134ms |  7.5 Hz</option>
-                                <option value="11">268ms |  3.7 Hz</option>
-                                <option value="12">537ms |  1.9 Hz</option>
-                                <option value="13">  1 s | 931.3mHz</option>
-                                <option value="14">  2 s | 465.7mHz</option>
-                                <option value="15">  4 s | 232.8mHz</option>
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
                               </select>
                             </div>
                             <div class="col-xs-4">
                               <select id="lock_lpf_F3_order" class="form-control">
-                                <option value="0">OFF</option>
-                                <option value="1">1</option>
-                                <option value="2" selected="selected">2</option>
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
                               </select>
                             </div>
                           </div>
@@ -6107,29 +6127,29 @@
                             <label for="lock_lpf_sq_tau" class="col-xs-2 control-label">LPF&nbsp;SQ:</label>
                             <div class="col-xs-6">
                               <select id="lock_lpf_sq_tau" class="form-control">
-                                <option value="0" selected="selected">512ns |  2.0MHz</option>
-                                <option value="1">  1us | 976.6kHz</option>
-                                <option value="2">  2us | 488.3kHz</option>
-                                <option value="3">  4us | 244.1kHz</option>
-                                <option value="4">  8us | 122.1kHz</option>
-                                <option value="5"> 16us | 61.0kHz</option>
-                                <option value="6"> 33us | 30.5kHz</option>
-                                <option value="7"> 66us | 15.3kHz</option>
-                                <option value="8">131us |  7.6kHz</option>
-                                <option value="9">262us |  3.8kHz</option>
-                                <option value="10">524us |  1.9kHz</option>
-                                <option value="11">  1ms | 953.7 Hz</option>
-                                <option value="12">  2ms | 476.8 Hz</option>
-                                <option value="13">  4ms | 238.4 Hz</option>
-                                <option value="14">  8ms | 119.2 Hz</option>
-                                <option value="15"> 17ms | 59.6 Hz</option>
+                                <option  value="0" selected="selected">512ns |  2.0MHz</option>
+                                <option  value="1">  1us | 976.6kHz</option>
+                                <option  value="2">  2us | 488.3kHz</option>
+                                <option  value="3">  4us | 244.1kHz</option>
+                                <option  value="4">  8us | 122.1kHz</option>
+                                <option  value="5"> 16us | 61.0kHz</option>
+                                <option  value="6"> 33us | 30.5kHz</option>
+                                <option  value="7"> 66us | 15.3kHz</option>
+                                <option  value="8">131us |  7.6kHz</option>
+                                <option  value="9">262us |  3.8kHz</option>
+                                <option  value="10">524us |  1.9kHz</option>
+                                <option  value="11">  1ms | 953.7 Hz</option>
+                                <option  value="12">  2ms | 476.8 Hz</option>
+                                <option  value="13">  4ms | 238.4 Hz</option>
+                                <option  value="14">  8ms | 119.2 Hz</option>
+                                <option  value="15"> 17ms | 59.6 Hz</option>
                               </select>
                             </div>
                             <div class="col-xs-4">
                               <select id="lock_lpf_sq_order" class="form-control">
-                                <option value="0">OFF</option>
-                                <option value="1">1</option>
-                                <option value="2" selected="selected">2</option>
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
                               </select>
                             </div>
                           </div>
@@ -6226,7 +6246,7 @@
                                 <option value="3">sin_ref</option>
                                 <option value="4">sin_2f</option>
                                 <option value="5">sq_ref</option>
-                                <option value="6">scan_signal</option>
+                                <option value="6">ramp_signal</option>
                                 <option value="7">sq_ref_b</option>
                                 <option value="8">aux_A</option>
                                 <option value="9">Xo</option>
@@ -6299,7 +6319,7 @@
                                 <option value="3">sin_1f</option>
                                 <option value="4">sin_3f</option>
                                 <option value="5">sq_fase</option>
-                                <option value="6">scan_signal</option>
+                                <option value="6">ramp_signal</option>
                                 <option value="7">sq_quad_b</option>
                                 <option value="8">aux_B</option>
                                 <option value="9">F1</option>

@@ -364,77 +364,77 @@ typedef struct lock_reg_t {
       */
     uint32_t gen_mod_sqp;
     
-    /** @brief Offset 20'h000A8 - scan_A
-      *  scan signal A
+    /** @brief Offset 20'h000A8 - ramp_A
+      *  ramp signal A
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  scan_A;
+    int32_t  ramp_A;
     
-    /** @brief Offset 20'h000AC - scan_B
-      *  scan signal B
+    /** @brief Offset 20'h000AC - ramp_B
+      *  ramp signal B
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  scan_B;
+    int32_t  ramp_B;
     
-    /** @brief Offset 20'h000B0 - scan_step
-      *  period of the triangular scan signal
+    /** @brief Offset 20'h000B0 - ramp_step
+      *  period of the triangular ramp signal
       *
       *  bits [31: 0] - Data
       */
-    uint32_t scan_step;
+    uint32_t ramp_step;
     
-    /** @brief Offset 20'h000B4 - scan_low_lim
-      *  scan low limit
+    /** @brief Offset 20'h000B4 - ramp_low_lim
+      *  ramp low limit
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  scan_low_lim;
+    int32_t  ramp_low_lim;
     
-    /** @brief Offset 20'h000B8 - scan_hig_lim
-      *  scan high limit
+    /** @brief Offset 20'h000B8 - ramp_hig_lim
+      *  ramp high limit
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  scan_hig_lim;
+    int32_t  ramp_hig_lim;
     
-    /** @brief Offset 20'h000BC - scan_reset
-      *  scan reset config
+    /** @brief Offset 20'h000BC - ramp_reset
+      *  ramp reset config
       *
       *  bits [31: 1] - Reserved
       *  bit  [0]     - Data
       */
-    uint32_t scan_reset;
+    uint32_t ramp_reset;
     
-    /** @brief Offset 20'h000C0 - scan_enable
-      *  scan enable/disable switch
+    /** @brief Offset 20'h000C0 - ramp_enable
+      *  ramp enable/disable switch
       *
       *  bits [31: 1] - Reserved
       *  bit  [0]     - Data
       */
-    uint32_t scan_enable;
+    uint32_t ramp_enable;
     
-    /** @brief Offset 20'h000C4 - scan_direction
-      *  scan starting direction (up/down)
+    /** @brief Offset 20'h000C4 - ramp_direction
+      *  ramp starting direction (up/down)
       *
       *  bits [31: 1] - Reserved
       *  bit  [0]     - Data
       */
-    uint32_t scan_direction;
+    uint32_t ramp_direction;
     
-    /** @brief Offset 20'h000C8 - scan_B_factor
-      *  proportional factor scan_A/scan_B.
-      *  scan_B=scan_A*scan_B_factor/4096
+    /** @brief Offset 20'h000C8 - ramp_B_factor
+      *  proportional factor ramp_A/ramp_B.
+      *  ramp_B=ramp_A*ramp_B_factor/4096
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  scan_B_factor;
+    int32_t  ramp_B_factor;
     
     /** @brief Offset 20'h000CC - sin_ref
       *  lock-in modulation sinus harmonic reference
@@ -787,7 +787,7 @@ typedef struct lock_reg_t {
     uint32_t pidA_ctrl;
     
     /** @brief Offset 20'h0017C - ctrl_A
-      *  control_A: pidA_out + scan_A
+      *  control_A: pidA_out + ramp_A
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
@@ -891,7 +891,7 @@ typedef struct lock_reg_t {
     uint32_t pidB_ctrl;
     
     /** @brief Offset 20'h001B0 - ctrl_B
-      *  control_B: pidA_out + scan_B
+      *  control_B: pidA_out + ramp_B
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data

@@ -103,10 +103,10 @@ int lock_update(rp_app_params_t *params)
                                            ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value)   *     2  + 
                                            ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value)   *     4  + 
                                            ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value)   *     8  + 
-                                           ((int)params[LOCK_CTRL_AUX_SCAN_ENABLE_CTRL].value)   *    16  + 
+                                           ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value)   *    16  + 
                                            ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value)   *    32  + 
                                            ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value)   *    64  + 
-                                           ((int)params[LOCK_CTRL_AUX_SET_SCAN_ENABLE ].value)   *   128  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value)   *   128  + 
                                            ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value)   *   256  + 
                                            ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value)   *  1024  ) ;
   //g_lock_reg->lock_feedback             = (int)params[LOCK_LOCK_FEEDBACK            ].value;
@@ -140,15 +140,15 @@ int lock_update(rp_app_params_t *params)
     g_lock_reg->gen_mod_phase_sq          = (int)params[LOCK_GEN_MOD_PHASE_SQ         ].value;
     g_lock_reg->gen_mod_hp                = (int)params[LOCK_GEN_MOD_HP               ].value;
     g_lock_reg->gen_mod_sqp               = (int)params[LOCK_GEN_MOD_SQP              ].value;
-  //g_lock_reg->scan_A                    = (int)params[LOCK_SCAN_A                   ].value;
-  //g_lock_reg->scan_B                    = (int)params[LOCK_SCAN_B                   ].value;
-    g_lock_reg->scan_step                 = (int)params[LOCK_SCAN_STEP                ].value;
-    g_lock_reg->scan_low_lim              = (int)params[LOCK_SCAN_LOW_LIM             ].value;
-    g_lock_reg->scan_hig_lim              = (int)params[LOCK_SCAN_HIG_LIM             ].value;
-    g_lock_reg->scan_reset                = (int)params[LOCK_SCAN_RESET               ].value;
-    g_lock_reg->scan_enable               = (int)params[LOCK_SCAN_ENABLE              ].value;
-    g_lock_reg->scan_direction            = (int)params[LOCK_SCAN_DIRECTION           ].value;
-    g_lock_reg->scan_B_factor             = (int)params[LOCK_SCAN_B_FACTOR            ].value;
+  //g_lock_reg->ramp_A                    = (int)params[LOCK_RAMP_A                   ].value;
+  //g_lock_reg->ramp_B                    = (int)params[LOCK_RAMP_B                   ].value;
+    g_lock_reg->ramp_step                 = (int)params[LOCK_RAMP_STEP                ].value;
+    g_lock_reg->ramp_low_lim              = (int)params[LOCK_RAMP_LOW_LIM             ].value;
+    g_lock_reg->ramp_hig_lim              = (int)params[LOCK_RAMP_HIG_LIM             ].value;
+    g_lock_reg->ramp_reset                = (int)params[LOCK_RAMP_RESET               ].value;
+    g_lock_reg->ramp_enable               = (int)params[LOCK_RAMP_ENABLE              ].value;
+    g_lock_reg->ramp_direction            = (int)params[LOCK_RAMP_DIRECTION           ].value;
+    g_lock_reg->ramp_B_factor             = (int)params[LOCK_RAMP_B_FACTOR            ].value;
   //g_lock_reg->sin_ref                   = (int)params[LOCK_SIN_REF                  ].value;
   //g_lock_reg->cos_ref                   = (int)params[LOCK_COS_REF                  ].value;
   //g_lock_reg->sin_1f                    = (int)params[LOCK_SIN_1F                   ].value;
@@ -285,15 +285,15 @@ int lock_update_main(rp_app_params_t *params)
     params[133].value = (float)g_lock_reg->gen_mod_phase_sq      ; // lock_gen_mod_phase_sq
     params[134].value = (float)g_lock_reg->gen_mod_hp            ; // lock_gen_mod_hp
     params[135].value = (float)g_lock_reg->gen_mod_sqp           ; // lock_gen_mod_sqp
-    params[136].value = (float)g_lock_reg->scan_A                ; // lock_scan_A
-    params[137].value = (float)g_lock_reg->scan_B                ; // lock_scan_B
-    params[138].value = (float)g_lock_reg->scan_step             ; // lock_scan_step
-    params[139].value = (float)g_lock_reg->scan_low_lim          ; // lock_scan_low_lim
-    params[140].value = (float)g_lock_reg->scan_hig_lim          ; // lock_scan_hig_lim
-    params[141].value = (float)g_lock_reg->scan_reset            ; // lock_scan_reset
-    params[142].value = (float)g_lock_reg->scan_enable           ; // lock_scan_enable
-    params[143].value = (float)g_lock_reg->scan_direction        ; // lock_scan_direction
-    params[144].value = (float)g_lock_reg->scan_B_factor         ; // lock_scan_B_factor
+    params[136].value = (float)g_lock_reg->ramp_A                ; // lock_ramp_A
+    params[137].value = (float)g_lock_reg->ramp_B                ; // lock_ramp_B
+    params[138].value = (float)g_lock_reg->ramp_step             ; // lock_ramp_step
+    params[139].value = (float)g_lock_reg->ramp_low_lim          ; // lock_ramp_low_lim
+    params[140].value = (float)g_lock_reg->ramp_hig_lim          ; // lock_ramp_hig_lim
+    params[141].value = (float)g_lock_reg->ramp_reset            ; // lock_ramp_reset
+    params[142].value = (float)g_lock_reg->ramp_enable           ; // lock_ramp_enable
+    params[143].value = (float)g_lock_reg->ramp_direction        ; // lock_ramp_direction
+    params[144].value = (float)g_lock_reg->ramp_B_factor         ; // lock_ramp_B_factor
     params[145].value = (float)g_lock_reg->sin_ref               ; // lock_sin_ref
     params[146].value = (float)g_lock_reg->cos_ref               ; // lock_cos_ref
     params[147].value = (float)g_lock_reg->sin_1f                ; // lock_sin_1f
@@ -362,10 +362,10 @@ int lock_update_main(rp_app_params_t *params)
     params[210].value = (float) (( g_lock_reg->lock_feedback >> 1 ) & 0x01 ) ; // lock_ctrl_aux_launch_lock_trig
     params[211].value = (float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 ) ; // lock_ctrl_aux_pidB_enable_ctrl
     params[212].value = (float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 ) ; // lock_ctrl_aux_pidA_enable_ctrl
-    params[213].value = (float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 ) ; // lock_ctrl_aux_scan_enable_ctrl
+    params[213].value = (float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 ) ; // lock_ctrl_aux_ramp_enable_ctrl
     params[214].value = (float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 ) ; // lock_ctrl_aux_set_pidB_enable
     params[215].value = (float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 ) ; // lock_ctrl_aux_set_pidA_enable
-    params[216].value = (float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 ) ; // lock_ctrl_aux_set_scan_enable
+    params[216].value = (float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 ) ; // lock_ctrl_aux_set_ramp_enable
     params[217].value = (float) (( g_lock_reg->lock_feedback >> 8 ) & 0x03 ) ; // lock_ctrl_aux_trig_type
     params[218].value = (float) (( g_lock_reg->lock_feedback >>10 ) & 0x01 ) ; // lock_ctrl_aux_lock_trig_rise
     // [PARAMSUPDATE DOCK END]

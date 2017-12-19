@@ -60,11 +60,11 @@ module lock(
     reg         [14-1:0] gen_mod_hp;
     reg         [32-1:0] gen_mod_phase_sq,gen_mod_sqp;
     
-    // gen_scan --------------------------
-    reg                  scan_reset,scan_enable,scan_direction;
-    reg         [32-1:0] scan_step;
-    reg  signed [14-1:0] scan_low_lim,scan_hig_lim,scan_B_factor;
-    wire signed [14-1:0] scan_A,scan_B;
+    // gen_ramp --------------------------
+    reg                  ramp_reset,ramp_enable,ramp_direction;
+    reg         [32-1:0] ramp_step;
+    reg  signed [14-1:0] ramp_low_lim,ramp_hig_lim,ramp_B_factor;
+    wire signed [14-1:0] ramp_A,ramp_B;
     
     // inout --------------------------
     wire        [12-1:0] slow_out1,slow_out2,slow_out3,slow_out4;
@@ -146,7 +146,7 @@ module lock(
     //pidA_ctrl: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]
     wire                 pidA_irst,pidB_irst,  pidA_freeze,pidB_freeze  , pidA_ifreeze,pidB_ifreeze;
     
-    wire                 scan_floor_trig,scan_ceil_trig,harmonic_trig,square_trig,param_change,lock_ctrl_trig;
+    wire                 ramp_floor_trig,ramp_ceil_trig,harmonic_trig,square_trig,param_change,lock_ctrl_trig;
     
     assign    pidA_irst    = pidA_ctrl[0];
     assign    pidA_freeze  = pidA_ctrl[1];
@@ -180,11 +180,11 @@ module lock(
     // Definition of wires and regs ************************************
 
     wire                 lock_trig_rise ;
-    wire                 trig_val,trig_time,set_scan_enable,set_pidA_enable,set_pidB_enable,scan_enable_ctrl,pidA_enable_ctrl,pidB_enable_ctrl,launch_lock_trig,lock_now;
+    wire                 trig_val,trig_time,set_ramp_enable,set_pidA_enable,set_pidB_enable,ramp_enable_ctrl,pidA_enable_ctrl,pidB_enable_ctrl,launch_lock_trig,lock_now;
     
     wire                 trigger_took_effect;
     
-    // ERASE lolo // wire                 scan_trig ;
+    // ERASE lolo // wire                 ramp_trig ;
     
         
     wire signed [14-1:0] Xo,Yo,F1,F2,F3 ;
@@ -198,8 +198,8 @@ module lock(
     wire signed [14-1:0] pidA_out_cache,pidB_out_cache ;
     
     wire signed [15-1:0] in1_m_in2,in1_m_in2_aux;
-    // ERASE wire signed [15-1:0] pidA_plus_scan,pidA_plus_scan_aux,pidB_plus_scan,pidB_plus_scan_aux;
-    wire signed [16-1:0] pidA_plus_scan,pidB_plus_scan;
+    
+    wire signed [16-1:0] pidA_plus_ramp,pidB_plus_ramp;
     wire  jump_started,jump_trigger;
     wire signed [14-1:0] sf_jumpA_val,sf_jumpB_val;
     
@@ -236,15 +236,15 @@ module lock(
     assign sf_jumpA_val = jump_started ? sf_jumpA : 14'b0 ;
     assign sf_jumpB_val = jump_started ? sf_jumpB : 14'b0 ;
     
-    assign pidA_plus_scan  = $signed(pidA_out) + $signed(scan_A) + $signed(sf_jumpA_val) ;
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_A  ( .in(pidA_plus_scan),  .out(ctrl_A) );
+    assign pidA_plus_ramp  = $signed(pidA_out) + $signed(ramp_A) + $signed(sf_jumpA_val) ;
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_A  ( .in(pidA_plus_ramp),  .out(ctrl_A) );
     
-    assign pidB_plus_scan = $signed(pidB_out) + $signed(scan_B)  + $signed(sf_jumpB_val) ;
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_B  ( .in(pidB_plus_scan),  .out(ctrl_B) );
+    assign pidB_plus_ramp = $signed(pidB_out) + $signed(ramp_B)  + $signed(sf_jumpB_val) ;
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_B  ( .in(pidB_plus_ramp),  .out(ctrl_B) );
     
     
-    // ERASE sat14 #(.RES(15)) i_sat15_B_plus_scan ( .in(pidB_plus_scan_aux), .lim( 15'd13  ), .out(pidB_plus_scan) );
-    // ERASE sat14 #(.RES(15)) i_sat15_A_plus_scan ( .in(pidA_plus_scan_aux), .lim( 15'd13  ), .out(pidA_plus_scan) );
+    // ERASE sat14 #(.RES(15)) i_sat15_B_plus_ramp ( .in(pidB_plus_ramp_aux), .lim( 15'd13  ), .out(pidB_plus_ramp) );
+    // ERASE sat14 #(.RES(15)) i_sat15_A_plus_ramp ( .in(pidA_plus_ramp_aux), .lim( 15'd13  ), .out(pidA_plus_ramp) );
     
     // Muxers  *********************************************************
     
@@ -257,7 +257,7 @@ module lock(
         .in1  ( in1     ),   .in2  ( in2     ),
         .in3  ( error  ), 
         .in4  ( ctrl_A  ),   .in5  ( ctrl_B  ),
-        .in6  ( scan_A  ),   .in7  ( scan_B  ),
+        .in6  ( ramp_A  ),   .in7  ( ramp_B  ),
         .in8  ( pidA_in ),   .in9  ( pidB_in ),
         .in10 ( pidA_out_cache ),    .in11 ( pidB_out_cache  ),
         .in12 ( sin_ref ),   .in13 ( cos_ref ),
@@ -281,7 +281,7 @@ module lock(
         .in1  ( in1     ),   .in2  ( in2     ),
         .in3  ( error  ), 
         .in4  ( ctrl_A  ),   .in5  ( ctrl_B  ),
-        .in6  ( scan_A  ),   .in7  ( scan_B  ),
+        .in6  ( ramp_A  ),   .in7  ( ramp_B  ),
         .in8  ( pidA_in ),   .in9  ( pidB_in ),
         .in10 ( pidA_out_cache ),    .in11 ( pidB_out_cache  ),
         .in12 ( sin_ref ),   .in13 ( cos_ref ),
@@ -303,8 +303,8 @@ module lock(
     
     //  External Trigger  selection ******************
     
-    //assign trigger          = trig_time ? scan_trig : external_trigger ;
-    // items=['Pin','Scan floor','Scan ceil','harmonic mod.','Square mod.','Out of lock','Param. change'],
+    //assign trigger          = trig_time ? ramp_trig : external_trigger ;
+    // items=['Pin','Ramp floor','Ramp ceil','harmonic mod.','Square mod.','Out of lock','Param. change'],
     
     assign  param_change    = 1'b0; // LOLO complete
     
@@ -313,8 +313,8 @@ module lock(
                                  out_of_lock      ,
                                  square_trig      ,
                                  harmonic_trig    ,
-                                 scan_ceil_trig   ,
-                                 scan_floor_trig  ,
+                                 ramp_ceil_trig   ,
+                                 ramp_floor_trig  ,
                                  external_trigger 
                               } ;
     
@@ -454,7 +454,7 @@ module lock(
         .in7  ( sin_3f            ), // in7 
         .in8  ( sq_ref            ), // in8 
         .in9  ( sq_phas           ), // in9 
-        .in10 ( scan_A            ), // in10 
+        .in10 ( ramp_A            ), // in10 
         .in11 ( pidA_out          ), // in11
         .in12 ( ctrl_A            ), // in12
         .in13 ( ctrl_B            ), // in13
@@ -477,7 +477,7 @@ module lock(
         .in7  ( sin_3f            ), // in7 
         .in8  ( sq_quad           ), // in8 
         .in9  ( sq_phas           ), // in9 
-        .in10 ( scan_B            ), // in10 
+        .in10 ( ramp_B            ), // in10 
         .in11 ( pidA_out          ), // in11
         .in12 ( ctrl_A            ), // in12
         .in13 ( ctrl_B            ), // in13
@@ -505,7 +505,7 @@ module lock(
         .in7  ( sin_3f            ), // in7 
         .in8  ( sq_ref            ), // in8 
         .in9  ( sq_phas           ), // in9 
-        .in10 ( scan_A            ), // in10 
+        .in10 ( ramp_A            ), // in10 
         .in11 ( pidA_out          ), // in11
         .in12 ( ctrl_A            ), // in12
         .in13 ( ctrl_B            ), // in13
@@ -530,7 +530,7 @@ module lock(
         .in7  ( sin_3f            ), // in7 
         .in8  ( sq_quad           ), // in8 
         .in9  ( sq_phas           ), // in9 
-        .in10 ( scan_B            ), // in10 
+        .in10 ( ramp_B            ), // in10 
         .in11 ( pidA_out          ), // in11
         .in12 ( ctrl_A            ), // in12
         .in13 ( ctrl_B            ), // in13
@@ -555,7 +555,7 @@ module lock(
         .in4  ( sin_1f ), // in4 
         .in5  ( sq_ref ), // in5 
         .in6  ( sq_phas ), // in6 
-        .in7  ( scan_A ), // in7 
+        .in7  ( ramp_A ), // in7 
         .in8  ( {1'b0, sq_ref_b  , 12'b0  } ), // in8 
         .in9  ( {1'b0, sq_phas_b , 12'b0  } ), // in9 
         .in10 ( aux_A ), // in10
@@ -660,30 +660,30 @@ module lock(
     /* end function generator *****************************************/
     
     
-    // Scan generator **************************************************
+    // Ramp generator **************************************************
     
-    gen_scan #(.R(14)) i_gen_scan (
+    gen_ramp #(.R(14)) i_gen_ramp (
         .clk(clk),  .rst(rst),
         // inputs
-        .scan_step     ( scan_step       ),
-        .scan_low_lim  ( scan_low_lim    ),
-        .scan_hig_lim  ( scan_hig_lim    ),
-        .scan_reset    ( scan_reset      ),
-        .scan_enable   ( scan_enable & scan_enable_ctrl    ),
-        .scan_direction( scan_direction  ),
-        .scan_B_factor ( scan_B_factor   ),
+        .ramp_step     ( ramp_step       ),
+        .ramp_low_lim  ( ramp_low_lim    ),
+        .ramp_hig_lim  ( ramp_hig_lim    ),
+        .ramp_reset    ( ramp_reset      ),
+        .ramp_enable   ( ramp_enable & ramp_enable_ctrl    ),
+        .ramp_direction( ramp_direction  ),
+        .ramp_B_factor ( ramp_B_factor   ),
         .relock_enable ( |rl_config[1:0] ),
         .out_of_lock   ( out_of_lock     ),
         .relock_reset  ( rl_config[2]    ),
         // outputs
-        .trigger_low   ( scan_floor_trig ),
-        .trigger_hig   ( scan_ceil_trig  ),
-        .outA          ( scan_A          ),
-        .outB          ( scan_B          )  
+        .trigger_low   ( ramp_floor_trig ),
+        .trigger_hig   ( ramp_ceil_trig  ),
+        .outA          ( ramp_A          ),
+        .outB          ( ramp_B          )  
     );
     
     
-    /* end scan generator *********************************************/
+    /* end Ramp generator *********************************************/
     
     
     // LOCK control  ***************************************************
@@ -703,7 +703,7 @@ module lock(
         .in7  ( sqy               ), // in7 
         .in8  ( sqf               ), // in8 
         .in9  ( signal_i          ), // in9 
-        .in10 ( scan_A            ), // in10 
+        .in10 ( ramp_A            ), // in10 
         .in11 ( aux_A             ), // in11
         .in12 ( in1               ), // in12
         .in13 ( in2               ), // in13
@@ -720,24 +720,24 @@ module lock(
         // inputs
         .lock_ctrl            ( lock_control[9:0]  ),
         .signal               ( lock_ctrl_signal   ),
-        .scan_trigger         ( scan_floor_trig    ),
+        .ramp_trigger         ( ramp_floor_trig    ),
         .time_threshold       ( lock_trig_time     ),
         .level_threshold      ( lock_trig_val      ),
         .level_rising_trigger ( lock_trig_rise     ),
         // outputs
-        .scan_enable          ( scan_enable_ctrl   ),
+        .ramp_enable          ( ramp_enable_ctrl   ),
         .pidA_enable          ( pidA_enable_ctrl   ),
         .pidB_enable          ( pidB_enable_ctrl   ),
         .lock_ctrl_trig       ( lock_ctrl_trig     )
     );
     
     assign lock_trig_rise      =  lock_control[10];
-    assign trigger_took_effect = &{ ~(scan_enable_ctrl^lock_control[7]) , ~(pidA_enable_ctrl^lock_control[6]) , ~(pidB_enable_ctrl^lock_control[5]) } ;
+    assign trigger_took_effect = &{ ~(ramp_enable_ctrl^lock_control[7]) , ~(pidA_enable_ctrl^lock_control[6]) , ~(pidB_enable_ctrl^lock_control[5]) } ;
     
     wire  [2-1:0]  next_lock_cmd;
     assign next_lock_cmd       = trigger_took_effect ? 2'b0 : lock_control[1:0] ;
     assign lock_feedback =   { lock_control[10:5]  ,
-                               scan_enable_ctrl ,
+                               ramp_enable_ctrl ,
                                pidA_enable_ctrl ,
                                pidB_enable_ctrl ,
                                next_lock_cmd
@@ -981,7 +981,7 @@ module lock(
         .in3  ( sin_ref ), // in3 
         .in4  ( sin_2f ), // in3 
         .in5  ( sq_ref ), // in4 
-        .in6  ( scan_A ), // in5 
+        .in6  ( ramp_A ), // in5 
         .in7  ( {1'b0, sq_ref_b  , 12'b0  } ), // in6 
         .in8  ( aux_A ), // in7 
         .in9  ( Xo ), // in8 
@@ -1006,7 +1006,7 @@ module lock(
         .in3  ( sin_1f ), // in3 
         .in4  ( sin_3f ), // in3 
         .in5  ( sq_phas ), // in4 
-        .in6  ( scan_A ), // in5 
+        .in6  ( ramp_A ), // in5 
         .in7  ( {1'b0, sq_quad_b  , 12'b0  } ), // in6 
         .in8  ( aux_B ), // in7 
         .in9  ( F1 ), // in8 
@@ -1042,7 +1042,7 @@ module lock(
         .in1   ( Xo             ),        .in2   ( Yo             ),
         .in3   ( F1             ),        .in4   ( F2             ),        .in5   ( F3             ),
         .in6   ( sqx            ),        .in7   ( sqy            ),        .in8   ( sqf            ),
-        .in9   ( signal_i       ),        .in10  ( scan_A         ),
+        .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
         .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
@@ -1091,7 +1091,7 @@ module lock(
         .in1   ( Xo             ),        .in2   ( Yo             ),
         .in3   ( F1             ),        .in4   ( F2             ),        .in5   ( F3             ),
         .in6   ( sqx            ),        .in7   ( sqy            ),        .in8   ( sqf            ),
-        .in9   ( signal_i       ),        .in10  ( scan_A         ),
+        .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
         .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
@@ -1183,13 +1183,13 @@ module lock(
         gen_mod_phase_sq       <=  32'd0     ; // phase relation of sqf signal
         gen_mod_hp             <=  14'd0     ; // harmonic period set
         gen_mod_sqp            <=  32'd0     ; // square signal period
-        scan_step              <=  32'd0     ; // period of the triangular scan signal
-        scan_low_lim           <= -14'd5000  ; // scan low limit
-        scan_hig_lim           <=  14'd5000  ; // scan high limit
-        scan_reset             <=   1'd0     ; // scan reset config
-        scan_enable            <=   1'd0     ; // scan enable/disable switch
-        scan_direction         <=   1'd0     ; // scan starting direction (up/down)
-        scan_B_factor          <=  14'd4096  ; // proportional factor scan_A/scan_B. // scan_B=scan_A*scan_B_factor/4096
+        ramp_step              <=  32'd0     ; // period of the triangular ramp signal
+        ramp_low_lim           <= -14'd5000  ; // ramp low limit
+        ramp_hig_lim           <=  14'd5000  ; // ramp high limit
+        ramp_reset             <=   1'd0     ; // ramp reset config
+        ramp_enable            <=   1'd0     ; // ramp enable/disable switch
+        ramp_direction         <=   1'd0     ; // ramp starting direction (up/down)
+        ramp_B_factor          <=  14'd4096  ; // proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096
         read_ctrl              <=   3'd0     ; // [unused,start_clk,Freeze]
         pidA_sw                <=   5'd0     ; // switch selector for pidA input
         pidA_PSR               <=   3'd3     ; // pidA PSR
@@ -1257,15 +1257,15 @@ module lock(
             if (sys_addr[19:0]==20'h0009C)  gen_mod_phase_sq      <=  sys_wdata[32-1: 0] ; // phase relation of sqf signal
             if (sys_addr[19:0]==20'h000A0)  gen_mod_hp            <=  sys_wdata[14-1: 0] ; // harmonic period set
             if (sys_addr[19:0]==20'h000A4)  gen_mod_sqp           <=  sys_wdata[32-1: 0] ; // square signal period
-          //if (sys_addr[19:0]==20'h000A8)  scan_A                <=  sys_wdata[14-1: 0] ; // scan signal A
-          //if (sys_addr[19:0]==20'h000AC)  scan_B                <=  sys_wdata[14-1: 0] ; // scan signal B
-            if (sys_addr[19:0]==20'h000B0)  scan_step             <=  sys_wdata[32-1: 0] ; // period of the triangular scan signal
-            if (sys_addr[19:0]==20'h000B4)  scan_low_lim          <=  sys_wdata[14-1: 0] ; // scan low limit
-            if (sys_addr[19:0]==20'h000B8)  scan_hig_lim          <=  sys_wdata[14-1: 0] ; // scan high limit
-            if (sys_addr[19:0]==20'h000BC)  scan_reset            <= |sys_wdata[32-1: 0] ; // scan reset config
-            if (sys_addr[19:0]==20'h000C0)  scan_enable           <= |sys_wdata[32-1: 0] ; // scan enable/disable switch
-            if (sys_addr[19:0]==20'h000C4)  scan_direction        <= |sys_wdata[32-1: 0] ; // scan starting direction (up/down)
-            if (sys_addr[19:0]==20'h000C8)  scan_B_factor         <=  sys_wdata[14-1: 0] ; // proportional factor scan_A/scan_B. // scan_B=scan_A*scan_B_factor/4096
+          //if (sys_addr[19:0]==20'h000A8)  ramp_A                <=  sys_wdata[14-1: 0] ; // ramp signal A
+          //if (sys_addr[19:0]==20'h000AC)  ramp_B                <=  sys_wdata[14-1: 0] ; // ramp signal B
+            if (sys_addr[19:0]==20'h000B0)  ramp_step             <=  sys_wdata[32-1: 0] ; // period of the triangular ramp signal
+            if (sys_addr[19:0]==20'h000B4)  ramp_low_lim          <=  sys_wdata[14-1: 0] ; // ramp low limit
+            if (sys_addr[19:0]==20'h000B8)  ramp_hig_lim          <=  sys_wdata[14-1: 0] ; // ramp high limit
+            if (sys_addr[19:0]==20'h000BC)  ramp_reset            <= |sys_wdata[32-1: 0] ; // ramp reset config
+            if (sys_addr[19:0]==20'h000C0)  ramp_enable           <= |sys_wdata[32-1: 0] ; // ramp enable/disable switch
+            if (sys_addr[19:0]==20'h000C4)  ramp_direction        <= |sys_wdata[32-1: 0] ; // ramp starting direction (up/down)
+            if (sys_addr[19:0]==20'h000C8)  ramp_B_factor         <=  sys_wdata[14-1: 0] ; // proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096
           //if (sys_addr[19:0]==20'h000CC)  sin_ref               <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic reference
           //if (sys_addr[19:0]==20'h000D0)  cos_ref               <=  sys_wdata[14-1: 0] ; // lock-in modulation cosinus harmonic reference
           //if (sys_addr[19:0]==20'h000D4)  sin_1f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference
@@ -1310,7 +1310,7 @@ module lock(
           //if (sys_addr[19:0]==20'h00170)  pidA_in               <=  sys_wdata[14-1: 0] ; // pidA input
           //if (sys_addr[19:0]==20'h00174)  pidA_out              <=  sys_wdata[14-1: 0] ; // pidA output
             if (sys_addr[19:0]==20'h00178)  pidA_ctrl             <=  sys_wdata[ 3-1: 0] ; // pidA control: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]
-          //if (sys_addr[19:0]==20'h0017C)  ctrl_A                <=  sys_wdata[14-1: 0] ; // control_A: pidA_out + scan_A
+          //if (sys_addr[19:0]==20'h0017C)  ctrl_A                <=  sys_wdata[14-1: 0] ; // control_A: pidA_out + ramp_A
             if (sys_addr[19:0]==20'h00180)  pidB_sw               <=  sys_wdata[ 5-1: 0] ; // switch selector for pidB input
             if (sys_addr[19:0]==20'h00184)  pidB_PSR              <=  sys_wdata[ 3-1: 0] ; // pidB PSR
             if (sys_addr[19:0]==20'h00188)  pidB_ISR              <=  sys_wdata[ 4-1: 0] ; // pidB ISR
@@ -1323,7 +1323,7 @@ module lock(
           //if (sys_addr[19:0]==20'h001A4)  pidB_in               <=  sys_wdata[14-1: 0] ; // pidB input
           //if (sys_addr[19:0]==20'h001A8)  pidB_out              <=  sys_wdata[14-1: 0] ; // pidB output
             if (sys_addr[19:0]==20'h001AC)  pidB_ctrl             <=  sys_wdata[ 3-1: 0] ; // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidA_out + scan_B
+          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidA_out + ramp_B
             if (sys_addr[19:0]==20'h001B4)  aux_A                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
             if (sys_addr[19:0]==20'h001B8)  aux_B                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
         end
@@ -1383,15 +1383,15 @@ module lock(
             20'h0009C : begin sys_ack <= sys_en;  sys_rdata <=                              gen_mod_phase_sq   ; end // phase relation of sqf signal
             20'h000A0 : begin sys_ack <= sys_en;  sys_rdata <= {  18'b0                   ,       gen_mod_hp  }; end // harmonic period set
             20'h000A4 : begin sys_ack <= sys_en;  sys_rdata <=                                   gen_mod_sqp   ; end // square signal period
-            20'h000A8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{scan_A[13]}}        ,           scan_A  }; end // scan signal A
-            20'h000AC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{scan_B[13]}}        ,           scan_B  }; end // scan signal B
-            20'h000B0 : begin sys_ack <= sys_en;  sys_rdata <=                                     scan_step   ; end // period of the triangular scan signal
-            20'h000B4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{scan_low_lim[13]}}  ,     scan_low_lim  }; end // scan low limit
-            20'h000B8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{scan_hig_lim[13]}}  ,     scan_hig_lim  }; end // scan high limit
-            20'h000BC : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,       scan_reset  }; end // scan reset config
-            20'h000C0 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,      scan_enable  }; end // scan enable/disable switch
-            20'h000C4 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,   scan_direction  }; end // scan starting direction (up/down)
-            20'h000C8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{scan_B_factor[13]}} ,    scan_B_factor  }; end // proportional factor scan_A/scan_B. // scan_B=scan_A*scan_B_factor/4096
+            20'h000A8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_A[13]}}        ,           ramp_A  }; end // ramp signal A
+            20'h000AC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_B[13]}}        ,           ramp_B  }; end // ramp signal B
+            20'h000B0 : begin sys_ack <= sys_en;  sys_rdata <=                                     ramp_step   ; end // period of the triangular ramp signal
+            20'h000B4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_low_lim[13]}}  ,     ramp_low_lim  }; end // ramp low limit
+            20'h000B8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_hig_lim[13]}}  ,     ramp_hig_lim  }; end // ramp high limit
+            20'h000BC : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,       ramp_reset  }; end // ramp reset config
+            20'h000C0 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,      ramp_enable  }; end // ramp enable/disable switch
+            20'h000C4 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,   ramp_direction  }; end // ramp starting direction (up/down)
+            20'h000C8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_B_factor[13]}} ,    ramp_B_factor  }; end // proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096
             20'h000CC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_ref[13]}}       ,          sin_ref  }; end // lock-in modulation sinus harmonic reference
             20'h000D0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{cos_ref[13]}}       ,          cos_ref  }; end // lock-in modulation cosinus harmonic reference
             20'h000D4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_1f[13]}}        ,           sin_1f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference
@@ -1436,7 +1436,7 @@ module lock(
             20'h00170 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidA_in[13]}}       ,          pidA_in  }; end // pidA input
             20'h00174 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidA_out[13]}}      ,         pidA_out  }; end // pidA output
             20'h00178 : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,        pidA_ctrl  }; end // pidA control: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]
-            20'h0017C : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_A_reg[13]}}    ,       ctrl_A_reg  }; end // control_A: pidA_out + scan_A
+            20'h0017C : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_A_reg[13]}}    ,       ctrl_A_reg  }; end // control_A: pidA_out + ramp_A
             20'h00180 : begin sys_ack <= sys_en;  sys_rdata <= {  27'b0                   ,          pidB_sw  }; end // switch selector for pidB input
             20'h00184 : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,         pidB_PSR  }; end // pidB PSR
             20'h00188 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,         pidB_ISR  }; end // pidB ISR
@@ -1449,7 +1449,7 @@ module lock(
             20'h001A4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidB_in[13]}}       ,          pidB_in  }; end // pidB input
             20'h001A8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidB_out[13]}}      ,         pidB_out  }; end // pidB output
             20'h001AC : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,        pidB_ctrl  }; end // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-            20'h001B0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; end // control_B: pidA_out + scan_B
+            20'h001B0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; end // control_B: pidA_out + ramp_B
             20'h001B4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{aux_A[13]}}         ,            aux_A  }; end // auxiliar value of 14 bits
             20'h001B8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{aux_B[13]}}         ,            aux_B  }; end // auxiliar value of 14 bits
             default   : begin sys_ack <= sys_en;  sys_rdata <=  32'h0        ; end
