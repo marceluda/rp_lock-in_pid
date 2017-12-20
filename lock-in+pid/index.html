@@ -1126,39 +1126,6 @@
 
     // LOLO begin ------------------------------------------------------
 
-    /*
-    $("#bottom_panel input[type=text]").keydown(function(e) {
-      switch(e.which) {
-        case 38: // up
-          $(this).val((parseInt($(this).val())+1).toString())
-          e.preventDefault();
-        break;
-
-        case 40: // down
-          $(this).val((parseInt($(this).val())-1).toString())
-          e.preventDefault();
-        break;
-
-        default: return;
-      }
-    });
-
-    $("#leftpanel input[type=text]").keydown(function(e) {
-      switch(e.which) {
-        case 38: // up
-          $(this).val((parseInt($(this).val())+1).toString())
-          e.preventDefault();
-        break;
-
-        case 40: // down
-          $(this).val((parseInt($(this).val())-1).toString())
-          e.preventDefault();
-        break;
-
-        default: return;
-      }
-    });
-    */
 
     // [LOLO DOCK PAGELOAD]
 
@@ -1475,6 +1442,17 @@
     $('#btn_config_load_file')[0].addEventListener('change', config_load_file, false);
 
     $('#config_name_input').on('change', function() {  config_save_file();  });
+
+    $(document).on('click', '#Fnavtabs .nav-tabs li', function() {
+        $(".nav-tabs li").removeClass("active");
+        $(this).addClass("active");
+        //$('#slow_lock_in_hide div.row[id!="tab_header"]').hide();
+        $('#tab_F1_body,#tab_F2_body,#tab_F3_body').hide();
+        var tab_name = $(this).text().slice(-2) ;
+        //console.log(tab_name);
+        $('#tab_'+tab_name+'_body').show();
+
+    });
 
     $('#btn_set_trig').prop('disabled', false);
     $('#btn_disp_sq').data('checked', false);
@@ -4120,7 +4098,7 @@
             <div class="panel-heading">
               <h4 class="panel-title">
                 <a data-toggle="collapse" href="#scope_panel">
-                  SCOPE
+                  Oscilloscope
                 </a>
               </h4>
             </div>
@@ -4285,12 +4263,11 @@
             </div>
           </div>
 
-
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
                 <a data-toggle="collapse" href="#out_panel">
-                  OUTPUTS
+                  Outputs
                 </a>
               </h4>
             </div>
@@ -4486,113 +4463,457 @@
           </div>
 
 
-        <!-- Modulation ----------------------------------------------->
 
+          <!-- Lock-in controls ---------------------------------------------------->
           <div class="panel panel-default">
             <div class="panel-heading">
               <h4 class="panel-title">
-                <a data-toggle="collapse" href="#gen_mod">
-                  Modulation
+                <a data-toggle="collapse" href="#lock-in-module">
+                  Lock-in modules
                 </a>
               </h4>
             </div>
-            <div id="gen_mod" class="panel-collapse collapse">
+            <div id="lock-in-module" class="panel-collapse collapse">
               <div class="panel-body">
-                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-                  <div class="row">
-                    <div class="panel-group col-xs-6">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group text-center">
-                          <button id="lock_mod_harmonic_on" class="btn btn-primary btn-lg" data-checked="true" disabled>Harmonic</button>
+                <!-- Input ---------------------------------------------------->
+                <div class="row">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <div class="form-group">
+                        <label for="lock_signal_sw" class="col-xs-4 control-label">Lock-in input:</label>
+                        <div class="col-xs-8">
+                          <select id="lock_signal_sw" class="form-control">
+                            <option  value="0" selected="selected">in1</option>
+                            <option  value="1">in2</option>
+                            <option  value="2">in1-in2</option>
+                            <option  value="3">sin_ref</option>
+                            <option  value="4">sin_1f</option>
+                            <option  value="5">sq_ref</option>
+                            <option  value="6">sq_phas</option>
+                            <option  value="7">Ramp A</option>
+                            <option  value="8">square ref (bin)</option>
+                            <option  value="9">square phas (bin)</option>
+                            <option  value="10">aux_A</option>
+                            <option  value="11">aux_B</option>
+                            <!--option value="12">0</option-->
+                            <!--option value="13">0</option-->
+                            <!--option value="14">0</option-->
+                            <!--option value="15">0</option-->
+                          </select>
                         </div>
-                      </form>
-                    </div>
-                    <div class="panel-group col-xs-6">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group text-center">
-                          <button id="lock_mod_sq_on" class="btn btn-primary btn-lg" data-checked="true" disabled>Square</button>
-                        </div>
-                      </form>
-                    </div>
+                      </div>
+                    </form>
                   </div>
-
-                  <div class="row in" data-tag="HarmonicParams">
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_gen_mod_phase" class="col-xs-4 control-label">Phase:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_phase" step="1" min="0" max="2519">
-                            <span style="display: none;" class="input-group-btn" id="lock_gen_mod_phase_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12  text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_phase_text">lock_gen_mod_phase</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_gen_mod_hp" class="col-xs-4 control-label">Harmonic Period:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_hp" step="1" min="0" max="16383">
-                            <span style="display: none;" class="input-group-btn" id="lock_gen_mod_hp_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_hp_text">lock_gen_mod_hp</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                  </div>
-
-                  <div class="row collapse"  data-tag="SquareParams">
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_gen_mod_phase_sq" class="col-xs-4 control-label">Phase SQ:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_phase_sq" step="1" min="0" max="4294967295">
-                            <span style="display: none;" class="input-group-btn" id="lock_gen_mod_phase_sq_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12  text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_phase_sq_text">lock_gen_mod_phase_sq</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_gen_mod_sqp" class="col-xs-4 control-label">Square Period:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_sqp" step="1" min="0" max="4294967295">
-                            <span style="display: none;" class="input-group-btn" id="lock_gen_mod_sqp_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_sqp_text">lock_gen_mod_sqp</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-                  </div>
-
                 </div>
+
+                <hr style="margin: 7px 7px">
+                <!-- Slow harmonic lock-in ------------------------------------>
+                <div class="row">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#slow_lock_in_hide" aria-expanded="true" aria-controls="slow_lock_in_hide">
+                        <strong>Slow harmonic lock-in</strong>
+                      </a>
+                    </p>
+                  </div>
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="slow_lock_in_hide">
+                    <div class="row" data-tag="HarmonicParams">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <p><strong>Harmonic oscilator</strong></p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_gen_mod_hp" class="col-xs-4 control-label">Period:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_hp" step="1" min="0" max="16383">
+                              <span style="display: none;" class="input-group-btn" id="lock_gen_mod_hp_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                            <div class="col-xs-12 col-sm-12  text-center">
+                              <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_hp_text">lock_gen_mod_hp</div>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+
+                      <hr style="margin: 7px 7px">
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_gen_mod_phase" class="col-xs-4 control-label">Phase:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_phase" step="1" min="0" max="2519">
+                              <span style="display: none;" class="input-group-btn" id="lock_gen_mod_phase_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                            <div class="col-xs-12 col-sm-12 text-center">
+                              <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_phase_text">lock_gen_mod_phase</div>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <div class="row" style="background-color: #F2F2F2;">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <p><strong>Demodulation</strong></p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12" id='Fnavtabs'>
+                        <ul class="nav nav-tabs">
+                          <li id="tab_F1_head" class="active"><a href="#!">X, Y & F1</a></li>
+                          <li id="tab_F2_head"><a href="#!">F2</a></li>
+                          <li id="tab_F3_head"><a href="#!">F3</a></li>
+                        </ul>
+                      </div>
+                    </div>
+                    <div class="row" id="tab_F1_body" style="background-color: #F2F2F2;">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                        <p>Low Pass Filter</p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <div class="col-xs-8"> cut
+                              <select id="lock_lpf_F1_tau" class="form-control">
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
+                              </select>
+                            </div>
+                            <div class="col-xs-4"> order
+                              <select id="lock_lpf_F1_order" class="form-control">
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_sg_amp1" class="col-xs-6 control-label">Amplification</label>
+                            <div class="col-xs-6">
+                              <select id="lock_sg_amp1" class="form-control">
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row" id="tab_F2_body" style="background-color: #F2F2F2; display: none;">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                        <p>Low Pass Filter</p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <div class="col-xs-8"> cut
+                              <select id="lock_lpf_F2_tau" class="form-control">
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
+                              </select>
+                            </div>
+                            <div class="col-xs-4"> order
+                              <select id="lock_lpf_F2_order" class="form-control">
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_sg_amp2" class="col-xs-6 control-label">Amplification</label>
+                            <div class="col-xs-6">
+                              <select id="lock_sg_amp2" class="form-control">
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row" id="tab_F3_body" style="background-color: #F2F2F2; display: none;">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                        <p>Low Pass Filter</p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <div class="col-xs-8"> cut
+                              <select id="lock_lpf_F3_tau" class="form-control">
+                                <option  value="0" selected="selected">131us |  7.6kHz</option>
+                                <option  value="1">262us |  3.8kHz</option>
+                                <option  value="2">524us |  1.9kHz</option>
+                                <option  value="3">  1ms | 953.7 Hz</option>
+                                <option  value="4">  2ms | 476.8 Hz</option>
+                                <option  value="5">  4ms | 238.4 Hz</option>
+                                <option  value="6">  8ms | 119.2 Hz</option>
+                                <option  value="7"> 17ms | 59.6 Hz</option>
+                                <option  value="8"> 34ms | 29.8 Hz</option>
+                                <option  value="9"> 67ms | 14.9 Hz</option>
+                                <option  value="10">134ms |  7.5 Hz</option>
+                                <option  value="11">268ms |  3.7 Hz</option>
+                                <option  value="12">537ms |  1.9 Hz</option>
+                                <option  value="13">  1 s | 931.3mHz</option>
+                                <option  value="14">  2 s | 465.7mHz</option>
+                                <option  value="15">  4 s | 232.8mHz</option>
+                              </select>
+                            </div>
+                            <div class="col-xs-4"> order
+                              <select id="lock_lpf_F3_order" class="form-control">
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_sg_amp3" class="col-xs-6 control-label">Amplification</label>
+                            <div class="col-xs-6">
+                              <select id="lock_sg_amp3" class="form-control">
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <hr style="margin: 7px 7px">
+
+                <!-- Fast square lock-in -------------------------------------->
+                <div class="row">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#fast_lock_in_hide" aria-expanded="true" aria-controls="fast_lock_in_hide">
+                        <strong>Fast square lock-in</strong>
+                      </a>
+                    </p>
+                  </div>
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="fast_lock_in_hide">
+                    <div class="row"  data-tag="SquareParams">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <p><strong>Square oscilator</strong></p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_gen_mod_sqp" class="col-xs-4 control-label">Period:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_sqp" step="1" min="0" max="4294967295">
+                              <span style="display: none;" class="input-group-btn" id="lock_gen_mod_sqp_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                            <div class="col-xs-12 col-sm-12 text-center">
+                              <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_sqp_text">lock_gen_mod_sqp</div>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_gen_mod_phase_sq" class="col-xs-4 control-label">Phase:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_gen_mod_phase_sq" step="1" min="0" max="4294967295">
+                              <span style="display: none;" class="input-group-btn" id="lock_gen_mod_phase_sq_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                            <div class="col-xs-12 col-sm-12 text-center">
+                              <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_gen_mod_phase_sq_text">lock_gen_mod_phase_sq</div>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <div class="row" id="tab_F1_body" style="background-color: #F2F2F2;">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <p><strong>Demodulation</strong></p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                        <p>Low Pass Filter</p>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <div class="col-xs-8"> cut
+                              <select id="lock_lpf_sq_tau" class="form-control">
+                                <option  value="0" selected="selected">512ns |  2.0MHz</option>
+                                <option  value="1">  1us | 976.6kHz</option>
+                                <option  value="2">  2us | 488.3kHz</option>
+                                <option  value="3">  4us | 244.1kHz</option>
+                                <option  value="4">  8us | 122.1kHz</option>
+                                <option  value="5"> 16us | 61.0kHz</option>
+                                <option  value="6"> 33us | 30.5kHz</option>
+                                <option  value="7"> 66us | 15.3kHz</option>
+                                <option  value="8">131us |  7.6kHz</option>
+                                <option  value="9">262us |  3.8kHz</option>
+                                <option  value="10">524us |  1.9kHz</option>
+                                <option  value="11">  1ms | 953.7 Hz</option>
+                                <option  value="12">  2ms | 476.8 Hz</option>
+                                <option  value="13">  4ms | 238.4 Hz</option>
+                                <option  value="14">  8ms | 119.2 Hz</option>
+                                <option  value="15"> 17ms | 59.6 Hz</option>
+                              </select>
+                            </div>
+                            <div class="col-xs-4"> order
+                              <select id="lock_lpf_sq_order" class="form-control">
+                                <option  value="0">OFF</option>
+                                <option  value="1">1</option>
+                                <option  value="2" selected="selected">2</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_sg_amp_sq" class="col-xs-6 control-label">Amplification</label>
+                            <div class="col-xs-6">
+                              <select id="lock_sg_amp_sq" class="form-control">
+                                <option  value="0" selected="selected">x1</option>
+                                <option  value="1">x2</option>
+                                <option  value="2">x4</option>
+                                <option  value="3">x8</option>
+                                <option  value="4">x16</option>
+                                <option  value="5">x32</option>
+                                <option  value="6">x64</option>
+                                <option  value="7">x128</option>
+                                <option  value="8">x256</option>
+                                <option  value="9">x512</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                  </div>
+                </div>
+
+                <hr style="margin: 7px 7px">
+
+                <!-- Aux ---------------------------------------------------->
+                <div class="row">
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#aux_lock_in_hide" aria-expanded="true" aria-controls="aux_lock_in_hide">
+                        <strong>Auxiliar</strong>
+                      </a>
+                    </p>
+                  </div>
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="aux_lock_in_hide">
+                    <div class="row">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_aux_A" class="col-xs-4 control-label">Aux A:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_aux_A" step="1" min="-8192" max="8191">
+                              <span style="display: none;" class="input-group-btn" id="lock_aux_A_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_aux_B" class="col-xs-4 control-label">Aux B:</label>
+                            <div class="col-xs-4 col-sm-8">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_aux_B" step="1" min="-8192" max="8191">
+                              <span style="display: none;" class="input-group-btn" id="lock_aux_B_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
               </div>
-            </div>
+            </div> <!-- Lock-in collapse end -->
           </div>
 
         <!-- Scan ----------------------------------------------------->
@@ -4601,7 +4922,7 @@
             <div class="panel-heading">
               <h4 class="panel-title">
                 <a data-toggle="collapse" href="#gen_ramp">
-                  Ramp
+                  Ramp Controller
                 </a>
               </h4>
             </div>
@@ -4734,6 +5055,53 @@
             </div>
             <div id="lock_pids" class="panel-collapse collapse">
               <div class="panel-body">
+                <!-- Error ---------------------------------------------------->
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <p class="text-center">
+                    <a data-toggle="collapse" href="#error_hide" aria-expanded="true" aria-controls="error_hide">
+                      <strong>Error signal selector</strong>
+                    </a>
+                  </p>
+                </div>
+                <hr style="margin: 7px 7px">
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12 in" id="error_hide">
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <div class="form-group">
+                        <label for="lock_error_sw" class="col-xs-4 control-label">Error signal:</label>
+                        <div class="col-xs-8">
+                          <select id="lock_error_sw" class="form-control">
+                            <option  value="0" selected="selected">0</option>
+                            <option  value="1">in1</option>
+                            <option  value="2">Xo</option>
+                            <option  value="3">F1</option>
+                            <option  value="4">F3</option>
+                            <option  value="5">sqx</option>
+                            <option  value="6">sqy</option>
+                            <option  value="7">sqf</option>
+                          </select>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <div class="form-group">
+                        <label for="lock_error_offset" class="col-xs-4 control-label">offset for error signal:</label>
+                        <div class="col-xs-4 col-sm-8">
+                          <input type="number" autocomplete="off" class="form-control" value="0" id="lock_error_offset" step="1" min="-8192" max="8191">
+                          <span style="display: none;" class="input-group-btn" id="lock_error_offset_apply">
+                            <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                          </span>
+                        </div>
+                      </div>
+                    </form>
+                  </div>
+
+                </div>
+
                 <!-- PID A ---------------------------------------------------->
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                   <p class="text-center">
@@ -4802,7 +5170,7 @@
                             <form class="form-horizontal" role="form" onsubmit="return false;">
                               <div class="checkbox" style="padding-bottom: 12px;">
                                 <label class="group-label">
-                                  <input type="checkbox" id="lock_pidA_freeze">freeze output
+                                  <input type="checkbox" id="lock_pidA_freeze">freeze out
                                 </label>
                               </div>
                             </form>
@@ -5086,7 +5454,7 @@
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
-                                <input type="checkbox" id="lock_pidB_freeze">freeze output
+                                <input type="checkbox" id="lock_pidB_freeze">freeze out
                               </label>
                             </div>
                           </form>
@@ -5401,23 +5769,6 @@
                           </form>
                         </div>
 
-                        <!--div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
-                            <div class="form-group">
-                              <label for="lock_rl_signal_threshold" class="col-xs-4 control-label">Signal Threshold:</label>
-                              <div class="col-xs-4 col-sm-8">
-                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_rl_signal_threshold" step="1" min="-8192" max="8191">
-                                <span style="display: none;" class="input-group-btn" id="lock_rl_signal_threshold_apply">
-                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                </span>
-                              </div>
-                              <div class="col-xs-12 col-sm-12  text-center">
-                                <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_rl_signal_threshold_text">lock_rl_signal_threshold</div>
-                              </div>
-                            </div>
-                          </form>
-                        </div-->
-
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="checkbox" style="padding-bottom: 12px;">
@@ -5571,7 +5922,7 @@
                         <div class="panel-group col-xs-6">
                           <form class="form-horizontal" role="form" onsubmit="return false;">
                             <div class="form-group text-center">
-                              <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock&nbsp;on<br>Trigger</button>
+                              <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
                             </div>
                           </form>
                         </div>
@@ -5845,573 +6196,6 @@
                 </div>
               </div>
             </div>
-
-
-            <!-- [LOLO DOCK HTML] -->
-
-            <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
-                  <a data-toggle="collapse" href="#lock">
-                    Lock-in Paramaters
-                  </a>
-                </h4>
-              </div>
-              <div id="lock" class="panel-collapse collapse">
-                <div class="panel-body">
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-                    <div class="row" id="lock_in_inout">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_signal_sw" class="col-xs-4 control-label">Lock-in input:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_signal_sw" class="form-control">
-                                <option  value="0" selected="selected">in1</option>
-                                <option  value="1">in2</option>
-                                <option  value="2">in1-in2</option>
-                                <option  value="3">sin_ref</option>
-                                <option  value="4">sin_1f</option>
-                                <option  value="5">sq_ref</option>
-                                <option  value="6">sq_phas</option>
-                                <option  value="7">Ramp A</option>
-                                <option  value="8">square ref (bin)</option>
-                                <option  value="9">square phas (bin)</option>
-                                <option  value="10">aux_A</option>
-                                <option  value="11">aux_B</option>
-                                <option  value="12">0</option>
-                                <option  value="13">0</option>
-                                <option  value="14">0</option>
-                                <option  value="15">0</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_error_sw" class="col-xs-4 control-label">Error signal:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_error_sw" class="form-control">
-                                <option  value="0" selected="selected">0</option>
-                                <option  value="1">in1</option>
-                                <option  value="2">Xo</option>
-                                <option  value="3">F1</option>
-                                <option  value="4">F3</option>
-                                <option  value="5">sqx</option>
-                                <option  value="6">sqy</option>
-                                <option  value="7">sqf</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_error_offset" class="col-xs-4 control-label">offset for error signal:</label>
-                            <div class="col-xs-4 col-sm-8">
-                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_error_offset" step="1" min="-8192" max="8191">
-                              <span style="display: none;" class="input-group-btn" id="lock_error_offset_apply">
-                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                              </span>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div>
-
-                    <hr>
-
-                    <div class="row" id="AmpControl">
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_sg_amp1" class="col-xs-4 control-label">gain&nbsp;F1:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_sg_amp1" class="form-control">
-                                <option  value="0" selected="selected">x1</option>
-                                <option  value="1">x2</option>
-                                <option  value="2">x4</option>
-                                <option  value="3">x8</option>
-                                <option  value="4">x16</option>
-                                <option  value="5">x32</option>
-                                <option  value="6">x64</option>
-                                <option  value="7">x128</option>
-                                <option  value="8">x256</option>
-                                <option  value="9">x512</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_sg_amp2" class="col-xs-4 control-label">gain&nbsp;F2:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_sg_amp2" class="form-control">
-                                <option  value="0" selected="selected">x1</option>
-                                <option  value="1">x2</option>
-                                <option  value="2">x4</option>
-                                <option  value="3">x8</option>
-                                <option  value="4">x16</option>
-                                <option  value="5">x32</option>
-                                <option  value="6">x64</option>
-                                <option  value="7">x128</option>
-                                <option  value="8">x256</option>
-                                <option  value="9">x512</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_sg_amp3" class="col-xs-4 control-label">gain&nbsp;F3:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_sg_amp3" class="form-control">
-                                <option  value="0" selected="selected">x1</option>
-                                <option  value="1">x2</option>
-                                <option  value="2">x4</option>
-                                <option  value="3">x8</option>
-                                <option  value="4">x16</option>
-                                <option  value="5">x32</option>
-                                <option  value="6">x64</option>
-                                <option  value="7">x128</option>
-                                <option  value="8">x256</option>
-                                <option  value="9">x512</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_sg_amp_sq" class="col-xs-4 control-label">gain&nbsp;SQ:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_sg_amp_sq" class="form-control">
-                                <option  value="0" selected="selected">x1</option>
-                                <option  value="1">x2</option>
-                                <option  value="2">x4</option>
-                                <option  value="3">x8</option>
-                                <option  value="4">x16</option>
-                                <option  value="5">x32</option>
-                                <option  value="6">x64</option>
-                                <option  value="7">x128</option>
-                                <option  value="8">x256</option>
-                                <option  value="9">x512</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-
-                    </div>
-                    <hr>
-                    <div class="row" id="LPFilters">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_lpf_F1_tau" class="col-xs-2 control-label">LPF&nbsp;F1:</label>
-                            <div class="col-xs-6">
-                              <select id="lock_lpf_F1_tau" class="form-control">
-                                <option  value="0" selected="selected">131us |  7.6kHz</option>
-                                <option  value="1">262us |  3.8kHz</option>
-                                <option  value="2">524us |  1.9kHz</option>
-                                <option  value="3">  1ms | 953.7 Hz</option>
-                                <option  value="4">  2ms | 476.8 Hz</option>
-                                <option  value="5">  4ms | 238.4 Hz</option>
-                                <option  value="6">  8ms | 119.2 Hz</option>
-                                <option  value="7"> 17ms | 59.6 Hz</option>
-                                <option  value="8"> 34ms | 29.8 Hz</option>
-                                <option  value="9"> 67ms | 14.9 Hz</option>
-                                <option  value="10">134ms |  7.5 Hz</option>
-                                <option  value="11">268ms |  3.7 Hz</option>
-                                <option  value="12">537ms |  1.9 Hz</option>
-                                <option  value="13">  1 s | 931.3mHz</option>
-                                <option  value="14">  2 s | 465.7mHz</option>
-                                <option  value="15">  4 s | 232.8mHz</option>
-                              </select>
-                            </div>
-                            <div class="col-xs-4">
-                              <select id="lock_lpf_F1_order" class="form-control">
-                                <option  value="0">OFF</option>
-                                <option  value="1">1</option>
-                                <option  value="2" selected="selected">2</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_lpf_F2_tau" class="col-xs-2 control-label">LPF&nbsp;F2:</label>
-                            <div class="col-xs-6">
-                              <select id="lock_lpf_F2_tau" class="form-control">
-                                <option  value="0" selected="selected">131us |  7.6kHz</option>
-                                <option  value="1">262us |  3.8kHz</option>
-                                <option  value="2">524us |  1.9kHz</option>
-                                <option  value="3">  1ms | 953.7 Hz</option>
-                                <option  value="4">  2ms | 476.8 Hz</option>
-                                <option  value="5">  4ms | 238.4 Hz</option>
-                                <option  value="6">  8ms | 119.2 Hz</option>
-                                <option  value="7"> 17ms | 59.6 Hz</option>
-                                <option  value="8"> 34ms | 29.8 Hz</option>
-                                <option  value="9"> 67ms | 14.9 Hz</option>
-                                <option  value="10">134ms |  7.5 Hz</option>
-                                <option  value="11">268ms |  3.7 Hz</option>
-                                <option  value="12">537ms |  1.9 Hz</option>
-                                <option  value="13">  1 s | 931.3mHz</option>
-                                <option  value="14">  2 s | 465.7mHz</option>
-                                <option  value="15">  4 s | 232.8mHz</option>
-                              </select>
-                            </div>
-                            <div class="col-xs-4">
-                              <select id="lock_lpf_F2_order" class="form-control">
-                                <option  value="0">OFF</option>
-                                <option  value="1">1</option>
-                                <option  value="2" selected="selected">2</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_lpf_F3_tau" class="col-xs-2 control-label">LPF&nbsp;F3:</label>
-                            <div class="col-xs-6">
-                              <select id="lock_lpf_F3_tau" class="form-control">
-                                <option  value="0" selected="selected">131us |  7.6kHz</option>
-                                <option  value="1">262us |  3.8kHz</option>
-                                <option  value="2">524us |  1.9kHz</option>
-                                <option  value="3">  1ms | 953.7 Hz</option>
-                                <option  value="4">  2ms | 476.8 Hz</option>
-                                <option  value="5">  4ms | 238.4 Hz</option>
-                                <option  value="6">  8ms | 119.2 Hz</option>
-                                <option  value="7"> 17ms | 59.6 Hz</option>
-                                <option  value="8"> 34ms | 29.8 Hz</option>
-                                <option  value="9"> 67ms | 14.9 Hz</option>
-                                <option  value="10">134ms |  7.5 Hz</option>
-                                <option  value="11">268ms |  3.7 Hz</option>
-                                <option  value="12">537ms |  1.9 Hz</option>
-                                <option  value="13">  1 s | 931.3mHz</option>
-                                <option  value="14">  2 s | 465.7mHz</option>
-                                <option  value="15">  4 s | 232.8mHz</option>
-                              </select>
-                            </div>
-                            <div class="col-xs-4">
-                              <select id="lock_lpf_F3_order" class="form-control">
-                                <option  value="0">OFF</option>
-                                <option  value="1">1</option>
-                                <option  value="2" selected="selected">2</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_lpf_sq_tau" class="col-xs-2 control-label">LPF&nbsp;SQ:</label>
-                            <div class="col-xs-6">
-                              <select id="lock_lpf_sq_tau" class="form-control">
-                                <option  value="0" selected="selected">512ns |  2.0MHz</option>
-                                <option  value="1">  1us | 976.6kHz</option>
-                                <option  value="2">  2us | 488.3kHz</option>
-                                <option  value="3">  4us | 244.1kHz</option>
-                                <option  value="4">  8us | 122.1kHz</option>
-                                <option  value="5"> 16us | 61.0kHz</option>
-                                <option  value="6"> 33us | 30.5kHz</option>
-                                <option  value="7"> 66us | 15.3kHz</option>
-                                <option  value="8">131us |  7.6kHz</option>
-                                <option  value="9">262us |  3.8kHz</option>
-                                <option  value="10">524us |  1.9kHz</option>
-                                <option  value="11">  1ms | 953.7 Hz</option>
-                                <option  value="12">  2ms | 476.8 Hz</option>
-                                <option  value="13">  4ms | 238.4 Hz</option>
-                                <option  value="14">  8ms | 119.2 Hz</option>
-                                <option  value="15"> 17ms | 59.6 Hz</option>
-                              </select>
-                            </div>
-                            <div class="col-xs-4">
-                              <select id="lock_lpf_sq_order" class="form-control">
-                                <option  value="0">OFF</option>
-                                <option  value="1">1</option>
-                                <option  value="2" selected="selected">2</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div>
-                    <hr>
-
-                    <div class="row" id="Outs">
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_aux_A" class="col-xs-4 control-label">Aux A:</label>
-                            <div class="col-xs-4 col-sm-8">
-                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_aux_A" step="1" min="-8192" max="8191">
-                              <span style="display: none;" class="input-group-btn" id="lock_aux_A_apply">
-                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                              </span>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_aux_B" class="col-xs-4 control-label">Aux B:</label>
-                            <div class="col-xs-4 col-sm-8">
-                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_aux_B" step="1" min="-8192" max="8191">
-                              <span style="display: none;" class="input-group-btn" id="lock_aux_B_apply">
-                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                              </span>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-
-                    <hr>
-                    <!-- LOLO
-                    <div class="row" id="TESTSW">
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_test_sw" class="col-xs-4 control-label">Test sw:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_test_sw" class="form-control">
-                                <option value="0" selected="selected">0</option>
-                                <option value="1">sin_ref_mult[27-1:13]</option>
-                                <option value="2">sin_ref_lpf2[27-1:13]</option>
-                                <option value="3">Xo</option>
-                                <option value="4">cos_ref_mult[27-1:13]</option>
-                                <option value="5">cos_ref_lpf2[27-1:13]</option>
-                                <option value="6">Yo</option>
-                                <option value="7">sin_1f_mult[27-1:13]</option>
-                                <option value="8">sin_1f_lpf2[27-1:13]</option>
-                                <option value="9">F1</option>
-                                <option value="10">sin_2f_mult[27-1:13]</option>
-                                <option value="11">sin_2f_lpf2[27-1:13]</option>
-                                <option value="12">F2</option>
-                                <option value="13">sin_3f_mult[27-1:13]</option>
-                                <option value="14">sin_3f_lpf2[27-1:13]</option>
-                                <option value="15">F3</option>
-                                <option value="16">sq_ref_mult[27-1:13]</option>
-                                <option value="17">sq_ref_lpf2[27-1:13]</option>
-                                <option value="18">sqx</option>
-                                <option value="19">sq_quad_mult[27-1:13]</option>
-                                <option value="20">sq_quad_lpf2[27-1:13]</option>
-                                <option value="21">sqy</option>
-                                <option value="22">Aux A</option>
-                                <option value="23">Aux B</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-                    -->
-
-                    <hr>
-
-
-                    <!--div class="row" id="LPF_A">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_LPF_A_sw" class="col-xs-4 control-label">LPF_A:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_LPF_A_sw" class="form-control">
-                                <option value="0" selected="selected">in1</option>
-                                <option value="1">in2</option>
-                                <option value="2">in1_m_in2</option>
-                                <option value="3">sin_ref</option>
-                                <option value="4">sin_2f</option>
-                                <option value="5">sq_ref</option>
-                                <option value="6">ramp_signal</option>
-                                <option value="7">sq_ref_b</option>
-                                <option value="8">aux_A</option>
-                                <option value="9">Xo</option>
-                                <option value="10">pidA_out</option>
-                                <option value="11">pidB_out</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_LPF_A_tau" class="col-xs-4 control-label">LPF Tau A:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_LPF_A_tau" class="form-control">
-                                <option value="0" selected="selected">  8.00 ns | 19.89 MHz  </option>
-                                <option value="1"> 16.00 ns |  9.95 MHz  </option>
-                                <option value="2"> 32.00 ns |  4.97 MHz  </option>
-                                <option value="3"> 64.00 ns |  2.49 MHz  </option>
-                                <option value="4">128.00 ns |  1.24 MHz  </option>
-                                <option value="5">256.00 ns |621.70 kHz  </option>
-                                <option value="6">512.00 ns |310.85 kHz  </option>
-                                <option value="7">  1.02 us |155.42 kHz  </option>
-                                <option value="8">  2.05 us | 77.71 kHz  </option>
-                                <option value="9">  4.10 us | 38.86 kHz  </option>
-                                <option value="10">  8.19 us | 19.43 kHz  </option>
-                                <option value="11"> 16.38 us |  9.71 kHz  </option>
-                                <option value="12"> 32.77 us |  4.86 kHz  </option>
-                                <option value="13"> 65.54 us |  2.43 kHz  </option>
-                                <option value="14">131.07 us |  1.21 kHz  </option>
-                                <option value="15">262.14 us |607.13  Hz  </option>
-                                <option value="16">524.29 us |303.56  Hz  </option>
-                                <option value="17">  1.05 ms |151.78  Hz  </option>
-                                <option value="18">  2.10 ms | 75.89  Hz  </option>
-                                <option value="19">  4.19 ms | 37.95  Hz  </option>
-                                <option value="20">  8.39 ms | 18.97  Hz  </option>
-                                <option value="21"> 16.78 ms |  9.49  Hz  </option>
-                                <option value="22"> 33.55 ms |  4.74  Hz  </option>
-                                <option value="23"> 67.11 ms |  2.37  Hz  </option>
-                                <option value="24">134.22 ms |  1.19  Hz  </option>
-                                <option value="25">268.44 ms |592.90 mHz  </option>
-                                <option value="26">536.87 ms |296.45 mHz  </option>
-                                <option value="27">  1.07  s |148.22 mHz  </option>
-                                <option value="28">  2.15  s | 74.11 mHz  </option>
-                                <option value="29">  4.29  s | 37.06 mHz  </option>
-                                <option value="30">  8.59  s | 18.53 mHz  </option>
-                                <option value="31"> 17.18  s |  9.26 mHz  </option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div-->
-
-
-                    <!--div class="row" id="LPF_B">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_LPF_B_sw" class="col-xs-4 control-label">LPF_B:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_LPF_B_sw" class="form-control">
-                                <option value="0" selected="selected">in1</option>
-                                <option value="1">in2</option>
-                                <option value="2">in1_m_in2</option>
-                                <option value="3">sin_1f</option>
-                                <option value="4">sin_3f</option>
-                                <option value="5">sq_fase</option>
-                                <option value="6">ramp_signal</option>
-                                <option value="7">sq_quad_b</option>
-                                <option value="8">aux_B</option>
-                                <option value="9">F1</option>
-                                <option value="10">pidA_out</option>
-                                <option value="11">pidB_out</option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_LPF_B_tau" class="col-xs-4 control-label">LPF Tau B:</label>
-                            <div class="col-xs-8">
-                              <select id="lock_LPF_B_tau" class="form-control">
-                                <option value="0" selected="selected">  8.00 ns | 19.89 MHz  </option>
-                                <option value="1"> 16.00 ns |  9.95 MHz  </option>
-                                <option value="2"> 32.00 ns |  4.97 MHz  </option>
-                                <option value="3"> 64.00 ns |  2.49 MHz  </option>
-                                <option value="4">128.00 ns |  1.24 MHz  </option>
-                                <option value="5">256.00 ns |621.70 kHz  </option>
-                                <option value="6">512.00 ns |310.85 kHz  </option>
-                                <option value="7">  1.02 us |155.42 kHz  </option>
-                                <option value="8">  2.05 us | 77.71 kHz  </option>
-                                <option value="9">  4.10 us | 38.86 kHz  </option>
-                                <option value="10">  8.19 us | 19.43 kHz  </option>
-                                <option value="11"> 16.38 us |  9.71 kHz  </option>
-                                <option value="12"> 32.77 us |  4.86 kHz  </option>
-                                <option value="13"> 65.54 us |  2.43 kHz  </option>
-                                <option value="14">131.07 us |  1.21 kHz  </option>
-                                <option value="15">262.14 us |607.13  Hz  </option>
-                                <option value="16">524.29 us |303.56  Hz  </option>
-                                <option value="17">  1.05 ms |151.78  Hz  </option>
-                                <option value="18">  2.10 ms | 75.89  Hz  </option>
-                                <option value="19">  4.19 ms | 37.95  Hz  </option>
-                                <option value="20">  8.39 ms | 18.97  Hz  </option>
-                                <option value="21"> 16.78 ms |  9.49  Hz  </option>
-                                <option value="22"> 33.55 ms |  4.74  Hz  </option>
-                                <option value="23"> 67.11 ms |  2.37  Hz  </option>
-                                <option value="24">134.22 ms |  1.19  Hz  </option>
-                                <option value="25">268.44 ms |592.90 mHz  </option>
-                                <option value="26">536.87 ms |296.45 mHz  </option>
-                                <option value="27">  1.07  s |148.22 mHz  </option>
-                                <option value="28">  2.15  s | 74.11 mHz  </option>
-                                <option value="29">  4.29  s | 37.06 mHz  </option>
-                                <option value="30">  8.59  s | 18.53 mHz  </option>
-                                <option value="31"> 17.18  s |  9.26 mHz  </option>
-                              </select>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div-->
-
-                    <!--hr-->
-                    <!--
-                    <div class="row" id="oscctrl">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
-                          <div class="form-group">
-                            <label for="lock_osc_ctrl" class="col-xs-4 control-label">Oscilloscope Control:</label>
-                            <div class="col-xs-4 col-sm-8">
-                              <input type="number" autocomplete="off" class="form-control" value="3" id="lock_osc_ctrl" step="1" min="0" max="4294967295">
-                              <span style="display: none;" class="input-group-btn" id="lock_osc_ctrl_apply">
-                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                              </span>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div>
-
-                    -->
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <!-- [LOLO DOCK HTML END] -->
 
           </div>
 
@@ -6706,449 +6490,6 @@
             </div>
           </div> <!--  ------------------------------------------------------- -->
         </div>
-
-
-        <!-- Disabling Function Generator by LOLO
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#generator">
-                Signal generator
-              </a>
-            </h4>
-          </div>
-          <div id="generator" class="panel-collapse collapse">
-            <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="gen_enable_ch1" checked> Channel 1
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch1_sigtype" class="col-xs-4 control-label">Signal type:</label>
-                  <div class="col-xs-4 col-sm-7">
-                    <select class="form-control" id="gen_ch1_sigtype">
-                      <option value="0">Sine</option>
-                      <option value="1">Square</option>
-                      <option value="2">Triangle</option>
-                      <option value="3">From file</option>
-                    </select>
-                  </div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch1_ampl" class="col-xs-4 control-label">Amplitude:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch1_ampl">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch1_ampl">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch1_ampl_units">Vpp</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch1_freq" class="col-xs-4 control-label">Frequency:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch1_freq">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch1_freq">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch1_freq_units">Hz</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch1_dc" class="col-xs-4 control-label">DC offset:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch1_dc">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch1_dc">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch1_dc_units">V</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch1_trigmode" class="col-xs-4 control-label" style="white-space: nowrap;">Trigger mode:</label>
-                  <div class="col-xs-4 col-sm-7">
-                    <select class="form-control" id="gen_ch1_trigmode">
-                      <option value="0">Continuous</option>
-                      <option value="1">Single</option>
-                      <option value="2">External</option>
-                    </select>
-                  </div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="row">
-                  <div class="col-xs-8 col-md-12 col-lg-8 col-sm-offset-4 col-md-offset-0 col-lg-offset-4">
-                    <button id="gen_ch1_single" class="btn btn-primary" onclick="return postGenSingle(1)">
-                      <span class="glyphicon glyphicon-step-forward"></span> Single
-                    </button>
-                    <button id="gen_ch1_upload" class="btn btn-primary" onclick="return showUploadForm(1)">
-                      <span class="glyphicon glyphicon-upload"></span> File upload
-                    </button>
-                  </div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-top: 15px; padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="gen_enable_ch2" checked> Channel 2
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch2_sigtype" class="col-xs-4 control-label">Signal type:</label>
-                  <div class="col-xs-4 col-sm-7">
-                    <select class="form-control" id="gen_ch2_sigtype">
-                      <option value="0">Sine</option>
-                      <option value="1">Square</option>
-                      <option value="2">Triangle</option>
-                      <option value="3">From file</option>
-                    </select>
-                  </div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch2_ampl" class="col-xs-4 control-label">Amplitude:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch2_ampl">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch2_ampl">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch2_ampl_units">Vpp</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch2_freq" class="col-xs-4 control-label">Frequency:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch2_freq">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch2_freq">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch2_freq_units">Hz</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch2_dc" class="col-xs-4 control-label">DC offset:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="gen_ch2_dc">
-                    <span style="display: none;" class="input-group-btn" id="apply_gen_ch2_dc">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="gen_ch2_dc_units">V</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="gen_ch2_trigmode" class="col-xs-4 control-label" style="white-space: nowrap;">Trigger mode:</label>
-                  <div class="col-xs-4 col-sm-7">
-                    <select class="form-control" id="gen_ch2_trigmode">
-                      <option value="0">Continuous</option>
-                      <option value="1">Single</option>
-                      <option value="2">External</option>
-                    </select>
-                  </div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="row">
-                  <div class="col-xs-8 col-md-12 col-lg-8 col-sm-offset-4 col-md-offset-0 col-lg-offset-4">
-                    <button id="gen_ch2_single" class="btn btn-primary" onclick="return postGenSingle(2)">
-                      <span class="glyphicon glyphicon-step-forward"></span> Single
-                    </button>
-                    <button id="gen_ch2_upload" class="btn btn-primary" onclick="return showUploadForm(2)">
-                      <span class="glyphicon glyphicon-upload"></span> File upload
-                    </button>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        -->
-
-        <!-- Disabling PID module by LOLO
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#pid">
-                PID Controller
-              </a>
-            </h4>
-          </div>
-          <div id="pid" class="panel-collapse collapse">
-            <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_11_enable" checked> PID 11
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_11_rst" checked> Integrator reset
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_11_sp" class="col-xs-4 control-label">Setpoint:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_11_sp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_11_sp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_11_sp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_11_kp" class="col-xs-4 control-label">Kp:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_11_kp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_11_kp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_11_kp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_11_ki" class="col-xs-4 control-label">Ki:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_11_ki">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_11_ki">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_11_ki_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_11_kd" class="col-xs-4 control-label">Kd:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_11_kd">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_11_kd">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_11_kd_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_12_enable" checked> PID 12
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_12_rst" checked> Integrator reset
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_12_sp" class="col-xs-4 control-label">Setpoint:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_12_sp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_12_sp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_12_sp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_12_kp" class="col-xs-4 control-label">Kp:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_12_kp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_12_kp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_12_kp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_12_ki" class="col-xs-4 control-label">Ki:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_12_ki">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_12_ki">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_12_ki_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_12_kd" class="col-xs-4 control-label">Kd:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_12_kd">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_12_kd">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_12_kd_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_21_enable" checked> PID 21
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_21_rst" checked> Integrator reset
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_21_sp" class="col-xs-4 control-label">Setpoint:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_21_sp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_21_sp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_21_sp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_21_kp" class="col-xs-4 control-label">Kp:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_21_kp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_21_kp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_21_kp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_21_ki" class="col-xs-4 control-label">Ki:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_21_ki">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_21_ki">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_21_ki_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_21_kd" class="col-xs-4 control-label">Kd:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_21_kd">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_21_kd">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_21_kd_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_22_enable" checked> PID 22
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="checkbox" style="padding-bottom: 12px;">
-                  <label class="group-label">
-                    <input type="checkbox" id="pid_22_rst" checked> Integrator reset
-                  </label>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_22_sp" class="col-xs-4 control-label">Setpoint:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_22_sp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_22_sp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_22_sp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_22_kp" class="col-xs-4 control-label">Kp:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_22_kp">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_22_kp">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_22_kp_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_22_ki" class="col-xs-4 control-label">Ki:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_22_ki">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_22_ki">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_22_ki_units">cnt</div>
-                </div>
-              </form>
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="pid_22_kd" class="col-xs-4 control-label">Kd:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <input type="text" autocomplete="off" class="form-control" value="0" id="pid_22_kd">
-                    <span style="display: none;" class="input-group-btn" id="apply_pid_22_kd">
-                      <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div style="padding: 7px 0 0;" class="col-xs-2" id="pid_22_kd_units">cnt</div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-        -->
 
       </div>
     </div>
