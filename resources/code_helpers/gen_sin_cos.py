@@ -11,6 +11,8 @@ from numpy import *
 import matplotlib.pyplot as plt
 
 
+write_files=False
+
 T=int(2520)
 xx=arange(0,T)
 A=(2**12-1)
@@ -352,12 +354,12 @@ disp('Está perfecto!!')
 fn='data_sin.dat'
 tmp=y1.astype(uint16)
 
-
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
 
 
 fn='data_sin2.dat'
@@ -365,12 +367,12 @@ tmp=y2.astype(uint16)
 
 # for i in tmp:
 #     print('{0:016b} '.format(i)[-15:])
-
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
 
 
 fn='data_sin3.dat'
@@ -379,12 +381,13 @@ tmp=y3.astype(uint16)
 # for i in tmp:
 #     print('{0:016b} '.format(i)[-15:])
 
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
-
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
+    
 
 
 # Para los cosenos hacemos lo mismo
@@ -419,11 +422,12 @@ tmp=cy1.astype(uint16)
 # for i in tmp:
 #     print('{0:016b} '.format(i)[-15:])
 
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
 
 
 fn='data_cos2.dat'
@@ -432,11 +436,12 @@ tmp=cy2.astype(uint16)
 # for i in tmp:
 #     print('{0:016b} '.format(i)[-15:])
 
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
 
 
 fn='data_cos3.dat'
@@ -445,8 +450,26 @@ tmp=cy3.astype(uint16)
 # for i in tmp:
 #     print('{0:016b} '.format(i)[-15:])
 
-with open(fn, 'w') as content_file:
-    tmp2=[]
-    for i in tmp:
-        tmp2.append('{0:016b}'.format(i)[-14:])
-    content_file.write(' '.join(tmp2))
+if write_files:
+    with open(fn, 'w') as content_file:
+        tmp2=[]
+        for i in tmp:
+            tmp2.append('{0:016b}'.format(i)[-14:])
+        content_file.write(' '.join(tmp2))
+
+
+plot_things=True
+if plot_things:
+    plt.figure()
+    plt.plot( xx , y1 , label='y1' )
+    plt.plot( xx,  sin((xx+0.5)*2*pi/T) * A ,  label='sin' )
+    plt.grid(b=True)
+    plt.legend()
+    
+    plt.figure()
+    plt.plot( xx,  sin((xx+0.5)*2*pi/T) * A - y1 ,  label='sin' )
+    
+    
+    
+    
+    

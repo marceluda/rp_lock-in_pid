@@ -886,6 +886,8 @@ module lock(
     satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqf_37 ( .in( sqf_37), .out( sqf_28) );
     
     
+    
+    
     always @(posedge clk) begin
         if(rst) begin
             Xo_28_reg   <=  28'b0;
@@ -953,16 +955,29 @@ module lock(
     assign sqf =   sqf_28[27-1:13];
     */
     
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Xo  ( .in(Xo_28[28-1:13]),  .out(Xo ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Yo  ( .in(Yo_28[28-1:13]),  .out(Yo ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F1  ( .in(F1_28[28-1:13]),  .out(F1 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F2  ( .in(F2_28[28-1:13]),  .out(F2 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F3  ( .in(F3_28[28-1:13]),  .out(F3 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqx ( .in(sqx_28[28-1:13]), .out(sqx) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqy ( .in(sqy_28[28-1:13]), .out(sqy) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqf ( .in(sqf_28[28-1:13]), .out(sqf) );
+    /*  This implementation has a 0.5 factor
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Xo  ( .in(Xo_28[26-1:11]),  .out(Xo ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Yo  ( .in(Yo_28[26-1:11]),  .out(Yo ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F1  ( .in(F1_28[26-1:11]),  .out(F1 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F2  ( .in(F2_28[26-1:11]),  .out(F2 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F3  ( .in(F3_28[26-1:11]),  .out(F3 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqx ( .in(sqx_28[26-1:11]), .out(sqx) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqy ( .in(sqy_28[26-1:11]), .out(sqy) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqf ( .in(sqf_28[26-1:11]), .out(sqf) );
+    */
     
-    //assign  Xo = $signed(Xo_37[28-1:13]);
+    // This is better, 2 factor to compensate the Amplitude / 2 lock-in measurement.
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Xo  ( .in( Xo_28[26-1:11]),  .out(Xo ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Yo  ( .in( Yo_28[26-1:11]),  .out(Yo ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F1  ( .in( F1_28[26-1:11]),  .out(F1 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F2  ( .in( F2_28[26-1:11]),  .out(F2 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F3  ( .in( F3_28[26-1:11]),  .out(F3 ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqx ( .in(sqx_28[26-1:11]), .out(sqx) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqy ( .in(sqy_28[26-1:11]), .out(sqy) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqf ( .in(sqf_28[26-1:11]), .out(sqf) );
+    
+    
+    //assign  Xo = $signed(Xo_37[26-1:11]);
     
     /* end Signal Processing  *****************************************/
     

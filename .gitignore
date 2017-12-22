@@ -6,6 +6,9 @@ lock-in+pid/src/old/
 _settings.env
 _build_number
 lock-in+pid/target/
+lock-in+pid/fpga/out/
+lock-in+pid/fpga/.srcs/
+
 
 # Compiled source #
 ###################

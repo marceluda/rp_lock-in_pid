@@ -93,8 +93,8 @@ read_verilog                      $path_rtl/lock/muxer_reg4.v
 read_verilog                      $path_rtl/lock/muxer_reg5.v
 #read_verilog                      $path_rtl/lock/gen_mod.v
 read_verilog                      $path_rtl/lock/gen_mod2.v
-read_verilog                      $path_rtl/lock/gen_scan.v
-read_verilog                      $path_rtl/lock/gen_scan_relock.v
+read_verilog                      $path_rtl/lock/gen_ramp.v
+read_verilog                      $path_rtl/lock/gen_ramp_relock.v
 read_verilog                      $path_rtl/lock/lock_ctrl.v
 read_verilog                      $path_rtl/lock/lock_pid_block.v
 read_verilog                      $path_rtl/lock/slope9.v

@@ -74,8 +74,8 @@ add_files                      $path_rtl/lock/muxer_reg4.v
 add_files                      $path_rtl/lock/muxer_reg5.v
 #add_files                      $path_rtl/lock/gen_mod.v
 add_files                      $path_rtl/lock/gen_mod2.v
-add_files                      $path_rtl/lock/gen_scan.v
-add_files                      $path_rtl/lock/gen_scan_relock.v
+add_files                      $path_rtl/lock/gen_ramp.v
+add_files                      $path_rtl/lock/gen_ramp_relock.v
 add_files                      $path_rtl/lock/lock_ctrl.v
 add_files                      $path_rtl/lock/lock_pid_block.v
 add_files                      $path_rtl/lock/slope9.v
