@@ -12,6 +12,16 @@ import os
 
 import enum
 
+
+
+do_verilog = True
+do_main    = True
+do_html    = True
+do_py      = True
+
+folder=''
+
+
 #%%
 
 
@@ -67,6 +77,18 @@ class fpga_registers():
                                        desc=desc, fpga_update=fpga_update , index=self.len ))
         self.names.append(name)
         self.len = len(self.names)
+    
+    def print_hugo(self,ret=False):
+        txt=''
+        txt+='li = fpga_lock_in(base_addr=0x40600000,dev_file="/dev/mem")\n'
+        txt+='\n'
+        for r in self:
+            txt+="li.add( fpga_reg(name={:21s}, index={:3d}, rw={:5s}, nbits={:2d},signed={:5s}) )\n".format(
+                    "'"+r.name+"'" , r.index , str(r.rw) , r.nbits , str(r.signed) )
+        if ret:
+            return txt
+        else:
+            print(txt)
 
 
 f = fpga_registers()
@@ -111,12 +133,12 @@ f.add( name="sf_config"          , group=grp , val=    0, rw=True ,  nbits= 5, m
 grp='lock-in'
 f.add( name="signal_sw"          , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="Input selector for signal_i" )
 f.add( name="signal_i"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="signal for demodulation" )
-f.add( name="sg_amp1"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of Xo, Yo and F1" )
-f.add( name="sg_amp2"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of F2" )
-f.add( name="sg_amp3"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of F3" )
-f.add( name="sg_amp_sq"          , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of SQ" )
+f.add( name="sg_amp1"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of Xo, Yo and F1o" )
+f.add( name="sg_amp2"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of F2o" )
+f.add( name="sg_amp3"            , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of F3o" )
+f.add( name="sg_amp_sq"          , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="amplification of SQo" )
 
-f.add( name="lpf_F1"             , group=grp , val=   32, rw=True ,  nbits= 6, min_val=          0, max_val=         63, fpga_update=True , signed=False, desc="Low Pass Filter of Xo, Yo and F1" )
+f.add( name="lpf_F1"             , group=grp , val=   32, rw=True ,  nbits= 6, min_val=          0, max_val=         63, fpga_update=True , signed=False, desc="Low Pass Filter of X, Y and F1" )
 f.add( name="lpf_F2"             , group=grp , val=   32, rw=True ,  nbits= 6, min_val=          0, max_val=         63, fpga_update=True , signed=False, desc="Low Pass Filter of F2" )
 f.add( name="lpf_F3"             , group=grp , val=   32, rw=True ,  nbits= 6, min_val=          0, max_val=         63, fpga_update=True , signed=False, desc="Low Pass Filter of F3" )
 f.add( name="lpf_sq"             , group=grp , val=   32, rw=True ,  nbits= 6, min_val=          0, max_val=         63, fpga_update=True , signed=False, desc="Low Pass Filter of SQ" )
@@ -135,17 +157,17 @@ f.add( name="gen_mod_phase_sq"   , group=grp , val=    0, rw=True ,  nbits=32, m
 f.add( name="gen_mod_hp"         , group=grp , val=    0, rw=True ,  nbits=14, min_val=          0, max_val=      16383, fpga_update=True , signed=False, desc="harmonic period set" )
 f.add( name="gen_mod_sqp"        , group=grp , val=    0, rw=True ,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=True , signed=False, desc="square signal period" )
 
-# Scan control
-grp='gen_scan'
-f.add( name="scan_A"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="scan signal A" )
-f.add( name="scan_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="scan signal B" )
-f.add( name="scan_step"          , group=grp , val=    0, rw=True ,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=True , signed=False, desc="period of the triangular scan signal" )
-f.add( name="scan_low_lim"       , group=grp , val=-5000, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="scan low limit" )
-f.add( name="scan_hig_lim"       , group=grp , val= 5000, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="scan high limit" )
-f.add( name="scan_reset"         , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="scan reset config" )
-f.add( name="scan_enable"        , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="scan enable/disable switch" )
-f.add( name="scan_direction"     , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="scan starting direction (up/down)" )
-f.add( name="scan_B_factor"      , group=grp , val= 4096, rw=True ,  nbits=14, min_val=      -4096, max_val=       4096, fpga_update=True , signed=True , desc="proportional factor scan_A/scan_B.\nscan_B=scan_A*scan_B_factor/4096" )
+# Ramp control
+grp='gen_ramp'
+f.add( name="ramp_A"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="ramp signal A" )
+f.add( name="ramp_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="ramp signal B" )
+f.add( name="ramp_step"          , group=grp , val=    0, rw=True ,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=True , signed=False, desc="period of the triangular ramp signal" )
+f.add( name="ramp_low_lim"       , group=grp , val=-5000, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="ramp low limit" )
+f.add( name="ramp_hig_lim"       , group=grp , val= 5000, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="ramp high limit" )
+f.add( name="ramp_reset"         , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="ramp reset config" )
+f.add( name="ramp_enable"        , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="ramp enable/disable switch" )
+f.add( name="ramp_direction"     , group=grp , val=    0, rw=True ,  nbits= 1, min_val=          0, max_val=          1, fpga_update=True , signed=False, desc="ramp starting direction (up/down)" )
+f.add( name="ramp_B_factor"      , group=grp , val= 4096, rw=True ,  nbits=14, min_val=      -4096, max_val=       4096, fpga_update=True , signed=True , desc="proportional factor ramp_A/ramp_B.\nramp_B=ramp_A*ramp_B_factor/4096" )
 
 
 # Modulation Signals
@@ -176,14 +198,14 @@ f.add( name="oscA"               , group=grp , val=    0, rw=False,  nbits=14, m
 f.add( name="oscB"               , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="signal for Oscilloscope Channel B" )
 
 grp='product_signals'
-f.add( name="Xo_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_ref" )
-f.add( name="Yo_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_ref" )
+f.add( name="X_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_ref" )
+f.add( name="Y_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_ref" )
 f.add( name="F1_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_1f" )
 f.add( name="F2_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_2f" )
 f.add( name="F3_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_3f" )
-f.add( name="sqx_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_ref" )
-f.add( name="sqy_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_quad" )
-f.add( name="sqf_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_phas" )
+f.add( name="sqX_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_ref" )
+f.add( name="sqY_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_quad" )
+f.add( name="sqF_28"             , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sq_phas" )
 f.add( name="cnt_clk"            , group=grp , val=    0, rw=False,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=False, signed=False, desc="Clock count" )
 f.add( name="cnt_clk2"           , group=grp , val=    0, rw=False,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=False, signed=False, desc="Clock count" )
 f.add( name="read_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="[unused,start_clk,Freeze]" )
@@ -204,7 +226,7 @@ f.add( name="pidA_kd"            , group=grp , val=    0, rw=True ,  nbits=14, m
 f.add( name="pidA_in"            , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidA input" )
 f.add( name="pidA_out"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidA output" )
 f.add( name="pidA_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="pidA control: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]" )
-f.add( name="ctrl_A"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_A: pidA_out + scan_A" )
+f.add( name="ctrl_A"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_A: pidA_out + ramp_A" )
 
 grp='pidB'
 f.add( name="pidB_sw"            , group=grp , val=    0, rw=True ,  nbits= 5, min_val=          0, max_val=         31, fpga_update=True , signed=False, desc="switch selector for pidB input" )
@@ -219,7 +241,7 @@ f.add( name="pidB_kd"            , group=grp , val=    0, rw=True ,  nbits=14, m
 f.add( name="pidB_in"            , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB input" )
 f.add( name="pidB_out"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB output" )
 f.add( name="pidB_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]" )
-f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidA_out + scan_B" )
+f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidA_out + ramp_B" )
 
 # aux
 grp='mix'
@@ -242,7 +264,7 @@ for i in ['osc_ctrl','in1','in2','out1','out2']:
     f[i].write_def=False
 
 
-for i in ['Xo_28', 'Yo_28', 'F1_28', 'F2_28', 'F3_28', 'sqx_28', 'sqy_28', 'sqf_28', 'error', 'ctrl_A', 'ctrl_B']:
+for i in ['X_28', 'Y_28', 'F1_28', 'F2_28', 'F3_28', 'sqX_28', 'sqY_28', 'sqF_28', 'error', 'ctrl_A', 'ctrl_B']:
     f[i].reg_read=True
 
 
@@ -464,15 +486,15 @@ def update_verilog(filename,dock,txt):
 #%
 
 
-#os.chdir(folder)
-
 fpga_mod_fn='lock-in+pid/fpga/rtl/lock.v'
 
-if __name__ == '__main__':
+if __name__ == '__main__' and do_verilog:
+    print('do_verilog')
+    if not os.path.isdir(folder):
+        raise ValueError('"folder" variable should be the source code folder path.')
+    os.chdir(folder)
     update_verilog(fpga_mod_fn,dock=['WIREREG','FPGA MEMORY'],
                    txt=[fpga_defs(),fpga_reg_write()+fpga_reg_read()])
-
-
 
 
 
@@ -701,13 +723,13 @@ r=f["sf_config"            ]; r.c_update='(((int)params[{:s}].value) << 4 ) +(((
 # group: lock-in
 m.add( name="lock_signal_sw"     , fpga_reg="signal_sw"     , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="Input selector for signal_i")
 m.add( name="lock_signal_i"      , fpga_reg="signal_i"      , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="lock-in"        , desc="signal for demodulation")
-m.add( name="lock_sg_amp1"       , fpga_reg="sg_amp1"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of Xo, Yo and F1")
-m.add( name="lock_sg_amp2"       , fpga_reg="sg_amp2"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of F2")
-m.add( name="lock_sg_amp3"       , fpga_reg="sg_amp3"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of F3")
-m.add( name="lock_sg_amp_sq"     , fpga_reg="sg_amp_sq"     , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of SQ")
+m.add( name="lock_sg_amp1"       , fpga_reg="sg_amp1"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of Xo, Yo and F1o")
+m.add( name="lock_sg_amp2"       , fpga_reg="sg_amp2"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of F2o")
+m.add( name="lock_sg_amp3"       , fpga_reg="sg_amp3"       , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of F3o")
+m.add( name="lock_sg_amp_sq"     , fpga_reg="sg_amp_sq"     , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="amplification of SQo")
 
 if True:
-    m.add( name="lock_lpf_F1_tau"    , fpga_reg="lpf_F1"        , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter TAU of Xo, Yo and F1")
+    m.add( name="lock_lpf_F1_tau"    , fpga_reg="lpf_F1"        , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter TAU of X, Y and F1")
     m.add( name="lock_lpf_F1_order"  , fpga_reg="lpf_F1"        , val=2    , rw=True , nbits=2 , min_val=0         , max_val=2         , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter order / off")
     r=m["lock_lpf_F1_tau"  ]; r.c_update='(float) ((g_lock_reg->{:s}      )& 0x0f)'.format(r.fpga_reg)
     r=m["lock_lpf_F1_order"]; r.c_update='(float) ((g_lock_reg->{:s} >> 4 )& 0x03)'.format(r.fpga_reg)
@@ -733,7 +755,7 @@ if True:
     r=m["lock_lpf_sq_order"]; r.c_update='(float) ((g_lock_reg->{:s} >> 4 )& 0x03)'.format(r.fpga_reg)
     r=f["lpf_sq"]; r.c_update='(((int)params[{:s}].value)<<4) + ((int)params[{:s}].value)'.format( m["lock_lpf_sq_order"].cdef , m["lock_lpf_sq_tau"].cdef )
 else:
-    m.add( name="lock_lpf_F1"        , fpga_reg="lpf_F1"        , val=0    , rw=True , nbits=6 , min_val=0         , max_val=63        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter of Xo, Yo and F1")
+    m.add( name="lock_lpf_F1"        , fpga_reg="lpf_F1"        , val=0    , rw=True , nbits=6 , min_val=0         , max_val=63        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter of X, Y and F1")
     m.add( name="lock_lpf_F2"        , fpga_reg="lpf_F2"        , val=0    , rw=True , nbits=6 , min_val=0         , max_val=63        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter of F2")
     m.add( name="lock_lpf_F3"        , fpga_reg="lpf_F3"        , val=0    , rw=True , nbits=6 , min_val=0         , max_val=63        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter of F3")
     m.add( name="lock_lpf_sq"        , fpga_reg="lpf_sq"        , val=0    , rw=True , nbits=6 , min_val=0         , max_val=63        , fpga_update=True , signed=False, group="lock-in"        , desc="Low Pass Filter of SQ")
@@ -753,16 +775,16 @@ m.add( name="lock_gen_mod_phase_sq", fpga_reg="gen_mod_phase_sq",val=0 , rw=True
 m.add( name="lock_gen_mod_hp"    , fpga_reg="gen_mod_hp"    , val=0    , rw=True , nbits=14, min_val=0         , max_val=16383     , fpga_update=True , signed=False, group="gen_mod"        , desc="harmonic period set")
 m.add( name="lock_gen_mod_sqp"   , fpga_reg="gen_mod_sqp"   , val=0    , rw=True , nbits=32, min_val=0         , max_val=4294967295, fpga_update=True , signed=False, group="gen_mod"        , desc="square signal period")
 
-# group: gen_scan
-m.add( name="lock_scan_A"        , fpga_reg="scan_A"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="gen_scan"       , desc="scan signal A")
-m.add( name="lock_scan_B"        , fpga_reg="scan_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="gen_scan"       , desc="scan signal B")
-m.add( name="lock_scan_step"     , fpga_reg="scan_step"     , val=0    , rw=True , nbits=32, min_val=0         , max_val=4294967295, fpga_update=True , signed=False, group="gen_scan"       , desc="period of the triangular scan signal")
-m.add( name="lock_scan_low_lim"  , fpga_reg="scan_low_lim"  , val=-5000, rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="gen_scan"       , desc="scan low limit")
-m.add( name="lock_scan_hig_lim"  , fpga_reg="scan_hig_lim"  , val=5000 , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="gen_scan"       , desc="scan high limit")
-m.add( name="lock_scan_reset"    , fpga_reg="scan_reset"    , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_scan"       , desc="scan reset config")
-m.add( name="lock_scan_enable"   , fpga_reg="scan_enable"   , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_scan"       , desc="scan enable/disable switch")
-m.add( name="lock_scan_direction", fpga_reg="scan_direction", val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_scan"       , desc="scan starting direction (up/down)")
-m.add( name="lock_scan_B_factor" , fpga_reg="scan_B_factor" , val= 4096, rw=True , nbits=14, min_val=-4096     , max_val=4096      , fpga_update=True , signed=True , group="gen_scan"       , desc="proportional factor scan_A/scan_B.\nscan_B=scan_A*scan_B_factor/4096")
+# group: gen_ramp
+m.add( name="lock_ramp_A"        , fpga_reg="ramp_A"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="gen_ramp"       , desc="ramp signal A")
+m.add( name="lock_ramp_B"        , fpga_reg="ramp_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="gen_ramp"       , desc="ramp signal B")
+m.add( name="lock_ramp_step"     , fpga_reg="ramp_step"     , val=0    , rw=True , nbits=32, min_val=0         , max_val=4294967295, fpga_update=True , signed=False, group="gen_ramp"       , desc="period of the triangular ramp signal")
+m.add( name="lock_ramp_low_lim"  , fpga_reg="ramp_low_lim"  , val=-5000, rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="gen_ramp"       , desc="ramp low limit")
+m.add( name="lock_ramp_hig_lim"  , fpga_reg="ramp_hig_lim"  , val=5000 , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="gen_ramp"       , desc="ramp high limit")
+m.add( name="lock_ramp_reset"    , fpga_reg="ramp_reset"    , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_ramp"       , desc="ramp reset config")
+m.add( name="lock_ramp_enable"   , fpga_reg="ramp_enable"   , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_ramp"       , desc="ramp enable/disable switch")
+m.add( name="lock_ramp_direction", fpga_reg="ramp_direction", val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="gen_ramp"       , desc="ramp starting direction (up/down)")
+m.add( name="lock_ramp_B_factor" , fpga_reg="ramp_B_factor" , val= 4096, rw=True , nbits=14, min_val=-4096     , max_val=4096      , fpga_update=True , signed=True , group="gen_ramp"       , desc="proportional factor ramp_A/ramp_B.\nramp_B=ramp_A*ramp_B_factor/4096")
 
 # group: modulation
 m.add( name="lock_sin_ref"       , fpga_reg="sin_ref"       , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="modulation"     , desc="lock-in modulation sinus harmonic reference")
@@ -790,14 +812,14 @@ m.add( name="lock_oscA"          , fpga_reg="oscA"          , val=0    , rw=Fals
 m.add( name="lock_oscB"          , fpga_reg="oscB"          , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="inout"          , desc="signal for Oscilloscope Channel B")
 
 # group: product_signals
-m.add( name="lock_Xo_28"         , fpga_reg="Xo_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_ref")
-m.add( name="lock_Yo_28"         , fpga_reg="Yo_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_ref")
+m.add( name="lock_X_28"         , fpga_reg="X_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_ref")
+m.add( name="lock_Y_28"         , fpga_reg="Y_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_ref")
 m.add( name="lock_F1_28"         , fpga_reg="F1_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_1f")
 m.add( name="lock_F2_28"         , fpga_reg="F2_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_2f")
 m.add( name="lock_F3_28"         , fpga_reg="F3_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_3f")
-m.add( name="lock_sqx_28"        , fpga_reg="sqx_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_ref")
-m.add( name="lock_sqy_28"        , fpga_reg="sqy_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_quad")
-m.add( name="lock_sqf_28"        , fpga_reg="sqf_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_phas")
+m.add( name="lock_sqX_28"        , fpga_reg="sqX_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_ref")
+m.add( name="lock_sqY_28"        , fpga_reg="sqY_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_quad")
+m.add( name="lock_sqF_28"        , fpga_reg="sqF_28"        , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sq_phas")
 m.add( name="lock_cnt_clk"       , fpga_reg="cnt_clk"       , val=0    , rw=False, nbits=32, min_val=0          , max_val=4294967295, fpga_update=False, signed=False, group="product_signals", desc="Clock count")
 m.add( name="lock_cnt_clk2"      , fpga_reg="cnt_clk2"      , val=0    , rw=False, nbits=32, min_val=0          , max_val=4294967295, fpga_update=False, signed=False, group="product_signals", desc="Clock count")
 m.add( name="lock_read_ctrl"     , fpga_reg="read_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0          , max_val=7         , fpga_update=True , signed=False, group="product_signals", desc="[unused,start_clk,Freeze]")
@@ -826,7 +848,7 @@ if True:
 else:
     m.add( name="lock_pidA_ctrl"     , fpga_reg="pidA_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0         , max_val=7         , fpga_update=True , signed=False, group="pidA"           , desc="pidA control: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]")
 
-m.add( name="lock_ctrl_A"        , fpga_reg="ctrl_A"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidA"           , desc="control_A: pidA_out + scan_A")
+m.add( name="lock_ctrl_A"        , fpga_reg="ctrl_A"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidA"           , desc="control_A: pidA_out + ramp_A")
 
 # group: pidB
 m.add( name="lock_pidB_sw"       , fpga_reg="pidB_sw"       , val=0    , rw=True , nbits=5 , min_val=0         , max_val=31        , fpga_update=True , signed=False, group="pidB"           , desc="switch selector for pidB input")
@@ -851,7 +873,7 @@ if True:
     r=f["pidB_ctrl"]; r.c_update='(((int)params[{:s}].value)<<2) + (((int)params[{:s}].value)<<1) + ((int)params[{:s}].value)'.format( m["lock_pidB_ifreeze"].cdef, m["lock_pidB_freeze"].cdef, m["lock_pidB_irst"].cdef)
 else:
     m.add( name="lock_pidB_ctrl"     , fpga_reg="pidB_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0         , max_val=7         , fpga_update=True , signed=False, group="pidB"           , desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]")
-m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidA_out + scan_B")
+m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidA_out + ramp_B")
 
 # group: mix
 m.add( name="lock_aux_A"         , fpga_reg="aux_A"         , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="mix"            , desc="auxiliar value of 14 bits")
@@ -865,10 +887,10 @@ m.add(name="lock_ctrl_aux_lock_now"         , val=0 , max_val=1 , fpga_update=Fa
 m.add(name="lock_ctrl_aux_launch_lock_trig" , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_pidB_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_pidA_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_scan_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
+m.add(name="lock_ctrl_aux_ramp_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_set_pidB_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_set_pidA_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_set_scan_enable"  , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
+m.add(name="lock_ctrl_aux_set_ramp_enable"  , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_trig_type"        , val=0 , max_val=3 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_lock_trig_rise"   , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 
@@ -876,10 +898,10 @@ m['lock_ctrl_aux_lock_now'        ].c_update='(float) (( g_lock_reg->lock_feedba
 m['lock_ctrl_aux_launch_lock_trig'].c_update='(float) (( g_lock_reg->lock_feedback >> 1 ) & 0x01 )'
 m['lock_ctrl_aux_pidB_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 )'
 m['lock_ctrl_aux_pidA_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 )'
-m['lock_ctrl_aux_scan_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 )'
+m['lock_ctrl_aux_ramp_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 )'
 m['lock_ctrl_aux_set_pidB_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 )'
 m['lock_ctrl_aux_set_pidA_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 )'
-m['lock_ctrl_aux_set_scan_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 )'
+m['lock_ctrl_aux_set_ramp_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 )'
 m['lock_ctrl_aux_trig_type'       ].c_update='(float) (( g_lock_reg->lock_feedback >> 8 ) & 0x03 )'
 m['lock_ctrl_aux_lock_trig_rise'  ].c_update='(float) (( g_lock_reg->lock_feedback >>10 ) & 0x01 )'
 
@@ -910,10 +932,10 @@ for i,ii in enumerate([ 'lock_ctrl_aux_lock_now',
                         'lock_ctrl_aux_launch_lock_trig',
                         'lock_ctrl_aux_pidB_enable_ctrl',
                         'lock_ctrl_aux_pidA_enable_ctrl',
-                        'lock_ctrl_aux_scan_enable_ctrl',
+                        'lock_ctrl_aux_ramp_enable_ctrl',
                         'lock_ctrl_aux_set_pidB_enable',
                         'lock_ctrl_aux_set_pidA_enable',
-                        'lock_ctrl_aux_set_scan_enable',
+                        'lock_ctrl_aux_set_ramp_enable',
                         'lock_ctrl_aux_trig_type']):
     f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  + \n'.format(m[ii].cdef,2**i)
 f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  ) '.format(m['lock_ctrl_aux_lock_trig_rise'].cdef,2**10)
@@ -1107,70 +1129,40 @@ def replace_pattern(filename,pattern,txt):
 
 #%
 
-if __name__ == '__main__':
-
-
-    #os.chdir(folder)
-
+if __name__ == '__main__' and do_main:
+    print('do_main')
+    if not os.path.isdir(folder):
+        raise ValueError('"folder" variable should be the source code folder path.')
+    os.chdir(folder)
+    
     filename='lock-in+pid/src/lock.c'
-
     update_main(filename , dock = ['PARAMSUPDATE'      , 'FPGAUPDATE'],
                            txt  = [main_update_params(), main_update_fpga()])
-
-
-
-
-    #%
-
-
-    #os.chdir(folder)
-
+    
     filename='lock-in+pid/src/fpga_lock.c'
-
     update_main(filename , dock = ['FPGARESET'],
                            txt  = [main_fpga_regs_reset()])
-
-
-
-    #%
-
-
-    #os.chdir(folder)
-
+    
+    
     filename='lock-in+pid/src/fpga_lock.h'
-
+    
     update_main(filename , dock = ['FPGAREG'],
                            txt  = [main_fpga_regs_def()])
-
-
-    #%
-
-
-    #os.chdir(folder)
-
+    
     filename='lock-in+pid/src/main.c'
-
     update_main(filename , dock = ['MAINDEF'],
                            txt  = [main_def()])
-
-
-    #%
-
-
-    #os.chdir(folder)
-
+    
     filename='lock-in+pid/src/main.h'
-
     update_main(filename , dock = ['MAINDEFH'],
                            txt  = [main_defh()])
-
+    
     replace_pattern(filename , pattern = ['^#define[ ]+PARAMS_NUM[ ]+[0-9]+'],
                                txt     = [ '#define PARAMS_NUM        {:>3d}'.format(m[-1].index+1) ])
 
 
 
 
-#%%
 
 
 
@@ -1324,13 +1316,13 @@ h['lock_gen_mod_hp'               ].type = 'number'
 h['lock_gen_mod_sqp'              ].type = 'number'
 
 
-h['lock_scan_step'                ].type = 'number'
-h['lock_scan_low_lim'             ].type = 'number'
-h['lock_scan_hig_lim'             ].type = 'number'
-h['lock_scan_reset'               ].type = 'checkbox'
-h['lock_scan_enable'              ].type = 'checkbox'
-h['lock_scan_direction'           ].type = 'checkbox'
-h['lock_scan_B_factor'            ].type = 'number'
+h['lock_ramp_step'                ].type = 'number'
+h['lock_ramp_low_lim'             ].type = 'number'
+h['lock_ramp_hig_lim'             ].type = 'number'
+h['lock_ramp_reset'               ].type = 'checkbox'
+h['lock_ramp_enable'              ].type = 'checkbox'
+h['lock_ramp_direction'           ].type = 'checkbox'
+h['lock_ramp_B_factor'            ].type = 'number'
 
 
 h['lock_pidA_sw'                  ].type = 'select'
@@ -1368,10 +1360,10 @@ h['lock_ctrl_aux_lock_now'        ].type = 'button'
 h['lock_ctrl_aux_launch_lock_trig'].type = 'button'
 h['lock_ctrl_aux_pidB_enable_ctrl'].type = 'button'
 h['lock_ctrl_aux_pidA_enable_ctrl'].type = 'button'
-h['lock_ctrl_aux_scan_enable_ctrl'].type = 'button'
+h['lock_ctrl_aux_ramp_enable_ctrl'].type = 'button'
 h['lock_ctrl_aux_set_pidB_enable' ].type = 'checkbox'
 h['lock_ctrl_aux_set_pidA_enable' ].type = 'checkbox'
-h['lock_ctrl_aux_set_scan_enable' ].type = 'checkbox'
+h['lock_ctrl_aux_set_ramp_enable' ].type = 'checkbox'
 h['lock_ctrl_aux_trig_type'       ].type = 'select'
 h['lock_ctrl_aux_lock_trig_rise'  ].type = 'checkbox'
 
@@ -1403,6 +1395,8 @@ class select():
         self.vals    = vals
         self.default = m[idd].val
         self.enable  = [True]*len(vals)
+        self.hide    = []
+        self.hide_group = idd+'_hid'
         for i in range(len(vals)-len(items)):
             self.items.append('-')
             self.enable[-1-i]=False
@@ -1419,8 +1413,9 @@ class select():
         txt.indent_plus()
         for i,v in enumerate(self.vals):
             sel=' selected="selected"' if v==self.default else ''
+            dtag = ' data-tag="{:}"'.format(self.hide_group) if (v in self.hide) else ' '
             if self.enable[i]:
-                txt.add('<option value="{:d}"{:s}>{:s}</option>'.format(v,sel,self.items[i]))
+                txt.add('<option'+dtag+' value="{:d}"{:s}>{:s}</option>'.format(v,sel,self.items[i]))
             else:
                 txt.add('<!--option value="{:d}{:s}">{:s}</option-->'.format(v,sel,self.items[i]))
         txt.indent_minus()
@@ -1533,11 +1528,11 @@ for i in [ y.name for y in filter( lambda x: x.type=='checkbox' , h) ]:
 if True:
     h['lock_osc1_filt_off'].control.text='Ch1'
     h['lock_osc2_filt_off'].control.text='Ch2'
-h['lock_scan_reset'].control.text='Scan reset'
-h['lock_scan_enable'].control.text='Scan enable'
-h['lock_scan_direction'].control.text='Scan direction'
-h['lock_pidA_irst'].control.text='rst'
-h['lock_pidB_irst'].control.text='rst'
+h['lock_ramp_reset'].control.text='Scan reset'
+h['lock_ramp_enable'].control.text='Scan enable'
+h['lock_ramp_direction'].control.text='Scan direction'
+h['lock_pidA_irst'].control.text='reset integral'
+h['lock_pidB_irst'].control.text='reset integral'
 
 
 h['lock_rl_error_threshold'       ].control.text = 'Error Thr'
@@ -1546,12 +1541,12 @@ h['lock_rl_error_enable'          ].control.text = 'Error Enable'
 h['lock_rl_signal_enable'         ].control.text = 'Signal Enable'
 h['lock_rl_reset'                 ].control.text = 'RL reset'
 
-h['lock_pidA_ifreeze'].control.text='Freeze integrator'
-h['lock_pidB_ifreeze'].control.text='Freeze integrator'
-h['lock_pidA_freeze'].control.text ='Freeze out'
-h['lock_pidB_freeze'].control.text ='Freeze out'
+h['lock_pidA_ifreeze'].control.text='freeze integral'
+h['lock_pidB_ifreeze'].control.text='freeze integral'
+h['lock_pidA_freeze'].control.text ='freeze out'
+h['lock_pidB_freeze'].control.text ='freeze out'
 
-h['lock_ctrl_aux_set_scan_enable'].control.text='Scan enable'
+h['lock_ctrl_aux_set_ramp_enable'].control.text='Scan enable'
 h['lock_ctrl_aux_set_pidA_enable'].control.text='PID A enable'
 h['lock_ctrl_aux_set_pidB_enable'].control.text='PID B enable'
 h['lock_ctrl_aux_lock_trig_rise'].control.text='trig upward?'
@@ -1560,7 +1555,7 @@ h['lock_ctrl_aux_lock_trig_rise'].control.text='trig upward?'
 for i in [ y.name for y in filter( lambda x: x.type=='button' , h) ]:
     h[i].control = input_button(idd=h[i])
 
-h['lock_ctrl_aux_scan_enable_ctrl'].control.text='Scan enable'
+h['lock_ctrl_aux_ramp_enable_ctrl'].control.text='Scan enable'
 h['lock_ctrl_aux_pidA_enable_ctrl'].control.text='PID&nbsp;A enable'
 h['lock_ctrl_aux_pidB_enable_ctrl'].control.text='PID&nbsp;B enable'
 h['lock_ctrl_aux_launch_lock_trig'].control.text='Trigger<br>Lock'
@@ -1636,7 +1631,7 @@ h['lock_sf_BfrzO'        ].control.text = 'B out'
 #aaa=select(idd='lock_oscA_sw',
 #           #vals  = list(range(32)),
 #           items = ['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f',
-#                    'sin_3f','sq_ref','sq_quad','sq_fase','scan_signal',
+#                    'sin_3f','sq_ref','sq_quad','sq_fase','ramp_signal',
 #                    'Lock-in input','signal_a','Xo','Yo','F1','F2','F3',
 #                    'sqx','sqy','sqf','pidA_in','pidB_in','pidA_out',
 #                    'pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan']
@@ -1649,16 +1644,37 @@ h['lock_sf_BfrzO'        ].control.text = 'B out'
 
 #%%
 
+#values=[
+#         ['in1_m_in2[14-1:0]','in1-in2'],
+#         ['pidA_out_cache','PID A out'],
+#         ['pidB_out_cache','PID B out'],
+#         ["14'b0",'0'],
+#         ["{1'b0, sq_ref_b  , 12'b0  }",'sq_ref_b'],
+#         ["14'b10000000000000",'0'],
+#         ["{1'b0, sq_phas_b , 12'b0  }",'sq_phas_b'],
+#         ['ramp_A','Scan A'],
+#         ['ramp_A','Scan B'],
+#         ['error_reg', 'error']
+#     ]
+
+
+
+
 def parse_sw(val):
-    val_v  = ['in1_m_in2[14-1:0]','pidA_out_cache','pidB_out_cache',
-              "14'b0","{1'b0, sq_ref_b  , 12'b0  }","14'b10000000000000",
-              "{1'b0, sq_phas_b , 12'b0  }",'scan_A','scan_A']
-    name_v = ['in1-in2', 'PID A out', 'PID B out','0','sq_ref_b','0','sq_phas_b',
-              'Scan A', 'Scan B']
-    if val in val_v:
-        return name_v[val_v.index(val)]
-    else:
-        return val
+    values=[
+             ['in1_m_in2.*','in1-in2'],
+             ['pid(\w)_out.*','PID \\1 out'],
+             ["14'b1?0+\s*",'0'],
+             [".*sq_([a-z]*)_b.*",'square \\1 (bin)'],
+             ['ramp_(\w)','Ramp \\1'],
+             ['error_\w*', 'error']
+         ]
+    for i in values:
+        if bool(re.match(i[0],val)):
+            return re.sub(i[0],i[1],val)
+    return val
+
+
 
 def get_muxer(filename,name):
     with open(filename, 'r') as input:
@@ -1694,7 +1710,6 @@ def get_muxer(filename,name):
         return ret
 
 if False:
-
     filename='lock-in+pid/fpga/rtl/lock.v'
     print(get_muxer(filename,"slow_out1_sw"))
     print(get_muxer(filename,"lpf_F1"))
@@ -1706,8 +1721,9 @@ if False:
 
 
 filename='lock-in+pid/fpga/rtl/lock.v'
-#os.chdir(folder)
-
+if not os.path.isdir(folder):
+    raise ValueError('"folder" variable should be the source code folder path.')
+os.chdir(folder)
 
 for i in [ y.name for y in filter( lambda x: x.type=='select' , h) ]:
     if len(get_muxer(filename,i[5:] ))>0:
@@ -1729,51 +1745,52 @@ if False:
 
     # get_muxer(filename,"oscA_sw")
     h["lock_oscA_sw"].control = select(idd="lock_oscA_sw",
-                 items=["14'b0","in1","in2","sin_ref","cos_ref","sin_1f","sin_2f","sin_3f","sq_ref","sq_quad","sq_phas","scan_A","signal_i","signal_i","Xo","Yo","F1","F2","F3","sqx","sqy","sqf","pidA_in","pidB_in","pidA_out_cache","pidB_out_cache","{1'b0, sq_ref_b  , 12'b0  }","test14","ctrl_A","ctrl_B","14'b0","14'b0"])
+                 items=["14'b0","in1","in2","sin_ref","cos_ref","sin_1f","sin_2f","sin_3f",
+                        "sq_ref","sq_quad","sq_phas","ramp_A","signal_i","signal_i","Xo","Yo","F1o","F2o","F3o","sqXo","sqYo","sqFo","pidA_in","pidB_in","pidA_out_cache","pidB_out_cache","{1'b0, sq_ref_b  , 12'b0  }","test14","ctrl_A","ctrl_B","14'b0","14'b0"])
 
     # get_muxer(filename,"oscB_sw")
     h["lock_oscB_sw"].control = select(idd="lock_oscB_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a',
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
-                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan'])
+                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp'])
 
 
     h["lock_out1_sw"].control = select(idd="lock_out1_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a',
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
-                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan','Aux A'])
+                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp','Aux A'])
 
     h["lock_out2_sw"].control = select(idd="lock_out2_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f','sq_ref',
-                        'sq_quad','sq_fase','scan_signal','Lock-in input','signal_a','Xo','Yo',
+                        'sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a','Xo','Yo',
                         'F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in','pidA_out',
-                        'pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan','Aux B'])
+                        'pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp','Aux B'])
 
     h["lock_slow_out1_sw"].control = select(idd="lock_slow_out1_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a'
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a'
                         ,'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
-                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan'])
+                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp'])
 
 
     h["lock_slow_out2_sw"].control = select(idd="lock_slow_out2_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a',
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
-                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan'])
+                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp'])
 
     h["lock_slow_out3_sw"].control = select(idd="lock_slow_out3_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a'
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a'
                         ,'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
                         'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan'])
 
 
     h["lock_slow_out4_sw"].control = select(idd="lock_slow_out4_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
-                        'sq_ref','sq_quad','sq_fase','scan_signal','Lock-in input','signal_a',
+                        'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
                         'pidA_out','pidB_out','sq_ref_b','test14','PID A + scan','PID B + scan'])
 
@@ -1787,7 +1804,7 @@ if False:
                         'sqy','Aux A','Aux B'])
 
     h["lock_pidA_sw"].control = select(idd="lock_pidA_sw",
-                 items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','scan_signal',
+                 items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','ramp_signal',
                         'sin_ref','cos_ref','sin_1f','sin_2f','sin_3f','sq_ref','sq_quad',
                         'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
 
@@ -1797,7 +1814,7 @@ if False:
     h["lock_pidA_SAT"].control = select(idd="lock_pidA_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
     h["lock_pidB_sw"].control = select(idd="lock_pidB_sw",
-                 items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','scan_signal',
+                 items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','ramp_signal',
                         'sin_ref','cos_ref','sin_1f','sin_2f','sin_3f','sq_ref','sq_quad',
                         'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
 
@@ -1806,8 +1823,8 @@ if False:
     h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=[' 0',' 3',' 6','10','13','16'])
     h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
-    h["lock_LPF_A_sw"].control = select(idd="lock_LPF_A_sw",items=['in1','in2','in1_m_in2','sin_ref','sin_2f','sq_ref','scan_signal','sq_ref_b','aux_A','Xo','pidA_out','pidB_out'])
-    h["lock_LPF_B_sw"].control = select(idd="lock_LPF_B_sw",items=['in1','in2','in1_m_in2','sin_1f','sin_3f','sq_fase','scan_signal','sq_quad_b','aux_B','F1','pidA_out','pidB_out'])
+    h["lock_LPF_A_sw"].control = select(idd="lock_LPF_A_sw",items=['in1','in2','in1_m_in2','sin_ref','sin_2f','sq_ref','ramp_signal','sq_ref_b','aux_A','Xo','pidA_out','pidB_out'])
+    h["lock_LPF_B_sw"].control = select(idd="lock_LPF_B_sw",items=['in1','in2','in1_m_in2','sin_1f','sin_3f','sq_fase','ramp_signal','sq_quad_b','aux_B','F1','pidA_out','pidB_out'])
 
     h["lock_lpf_F1_aux"].control = select(idd="lock_lpf_F1_aux",items=['2nd order','1st order','None','OFF'])
     h["lock_lpf_F1_aux"].control.enable=[True, True, False, True]
@@ -1862,6 +1879,30 @@ h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=[' 0',' 3',' 6','1
 h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
 h["lock_ctrl_aux_trig_type"].control = select(idd="lock_ctrl_aux_trig_type",items=['OFF','Time trigger','Level Trigger','Level+time Trigger'])
+
+
+# h['lock_oscA_sw'].control.items = 
+
+# Hide some intems for advance options
+if False:
+    for i,v in enumerate(h['lock_pidA_sw'].control.items):
+        print('{:2d} {:}'.format(i,v))
+
+h['lock_oscA_sw'].control.enable = [True]*30 + [False]*2
+h['lock_oscB_sw'].control.enable = [True]*30 + [False]*2
+
+h['lock_pidA_sw'].control.enable = [True]*25 + [False]*7
+h['lock_pidB_sw'].control.enable = [True]*25 + [False]*7
+
+h['lock_pidA_sw'].control.hide = list(range(1,9))+list(range(10,22))
+h['lock_pidB_sw'].control.hide = list(range(1,9))+list(range(10,22))
+
+
+h['lock_pidA_sw'].control.hide_group = 'pidA_more'
+h['lock_pidB_sw'].control.hide_group = 'pidB_more'
+
+
+h["lock_signal_sw"].control.enable = [True]*12+[False]*4
 
 
 #%%
@@ -2165,7 +2206,11 @@ def update_html(filename,h):
 #os.chdir(folder)
 filename='lock-in+pid/index.html'
 
-if __name__ == '__main__':
+if __name__ == '__main__' and do_html:
+    print('do_html')
+    if not os.path.isdir(folder):
+        raise ValueError('"folder" variable should be the source code folder path.')
+    os.chdir(folder)
     update_html(filename,h)
 
 
@@ -2217,7 +2262,7 @@ def update_py(filename,h):
 
 py_global_config=[]
 
-if True:
+if False:
     tmp=''
     txt=[]
     txt.append('# [LOLO DOCK]')
@@ -2233,13 +2278,13 @@ if True:
     txt.append('# [LOLO DOCK END]')
     #print('\n'.join(txt))
 
-py_global_config.append(
-        html_global_config( regex_start = ' *# *\[LOLO DOCK\] *',
-                            regex_end   = ' *# *\[LOLO DOCK END\]',
-                            text        = txt )
-        )
+    py_global_config.append(
+            html_global_config( regex_start = ' *# *\[LOLO DOCK\] *',
+                                regex_end   = ' *# *\[LOLO DOCK END\]',
+                                text        = txt )
+            )
 
-if True:
+if False:
     tmp=''
     txt=[]
     txt.append('# [LOLOSET DOCK]')
@@ -2266,16 +2311,27 @@ if True:
     txt.append('# [LOLOSET DOCK END]')
     #print('\n'.join(txt))
 
-py_global_config.append(
-        html_global_config( regex_start = ' *# *\[LOLOSET DOCK\] *',
-                            regex_end   = ' *# *\[LOLOSET DOCK END\]',
-                            text        = txt )
-        )
+    py_global_config.append(
+            html_global_config( regex_start = ' *# *\[LOLOSET DOCK\] *',
+                                regex_end   = ' *# *\[LOLOSET DOCK END\]',
+                                text        = txt )
+            )
 
+
+py_global_config.append(
+        html_global_config( regex_start = ' *# *\[REGSET DOCK\] *',
+                            regex_end   = ' *# *\[REGSET DOCK END\]',
+                            text        = '# [REGSET DOCK]\n'+f.print_hugo(ret=True)+'# [REGSET DOCK END]\n' )
+        )
 
 #os.chdir(folder)
 
-if __name__ == '__main__':
-    update_py('lock-in+pid/resources/RP_py/ver_mem.py',py_global_config)
-    update_py('lock-in+pid/resources/RP_py/set.py',py_global_config)
-    update_py('lock-in+pid/resources/RP_py/data_dump.py',py_global_config)
+if __name__ == '__main__' and do_py:
+    print('do_py')
+    if not os.path.isdir(folder):
+        raise ValueError('"folder" variable should be the source code folder path.')
+    os.chdir(folder)
+    #update_py('resources/rp_cmds/py/ver_mem.py',py_global_config)
+    #update_py('resources/rp_cmds/py/set.py',py_global_config)
+    #update_py('lresources/rp_cmds/py/data_dump.py',py_global_config)
+    update_py('resources/rp_cmds/py/hugo.py',py_global_config)

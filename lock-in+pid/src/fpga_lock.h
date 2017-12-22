@@ -233,7 +233,7 @@ typedef struct lock_reg_t {
     int32_t  signal_i;
     
     /** @brief Offset 20'h00064 - sg_amp1
-      *  amplification of Xo, Yo and F1
+      *  amplification of Xo, Yo and F1o
       *
       *  bits [31: 4] - Reserved
       *  bits [ 3: 0] - Data
@@ -241,7 +241,7 @@ typedef struct lock_reg_t {
     uint32_t sg_amp1;
     
     /** @brief Offset 20'h00068 - sg_amp2
-      *  amplification of F2
+      *  amplification of F2o
       *
       *  bits [31: 4] - Reserved
       *  bits [ 3: 0] - Data
@@ -249,7 +249,7 @@ typedef struct lock_reg_t {
     uint32_t sg_amp2;
     
     /** @brief Offset 20'h0006C - sg_amp3
-      *  amplification of F3
+      *  amplification of F3o
       *
       *  bits [31: 4] - Reserved
       *  bits [ 3: 0] - Data
@@ -257,7 +257,7 @@ typedef struct lock_reg_t {
     uint32_t sg_amp3;
     
     /** @brief Offset 20'h00070 - sg_amp_sq
-      *  amplification of SQ
+      *  amplification of SQo
       *
       *  bits [31: 4] - Reserved
       *  bits [ 3: 0] - Data
@@ -265,7 +265,7 @@ typedef struct lock_reg_t {
     uint32_t sg_amp_sq;
     
     /** @brief Offset 20'h00074 - lpf_F1
-      *  Low Pass Filter of Xo, Yo and F1
+      *  Low Pass Filter of X, Y and F1
       *
       *  bits [31: 6] - Reserved
       *  bits [ 5: 0] - Data
@@ -604,21 +604,21 @@ typedef struct lock_reg_t {
       */
     int32_t  oscB;
     
-    /** @brief Offset 20'h00120 - Xo_28
+    /** @brief Offset 20'h00120 - X_28
       *  Demodulated signal from sin_ref
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
       */
-    int32_t  Xo_28;
+    int32_t  X_28;
     
-    /** @brief Offset 20'h00124 - Yo_28
+    /** @brief Offset 20'h00124 - Y_28
       *  Demodulated signal from cos_ref
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
       */
-    int32_t  Yo_28;
+    int32_t  Y_28;
     
     /** @brief Offset 20'h00128 - F1_28
       *  Demodulated signal from sin_1f
@@ -644,29 +644,29 @@ typedef struct lock_reg_t {
       */
     int32_t  F3_28;
     
-    /** @brief Offset 20'h00134 - sqx_28
+    /** @brief Offset 20'h00134 - sqX_28
       *  Demodulated signal from sq_ref
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
       */
-    int32_t  sqx_28;
+    int32_t  sqX_28;
     
-    /** @brief Offset 20'h00138 - sqy_28
+    /** @brief Offset 20'h00138 - sqY_28
       *  Demodulated signal from sq_quad
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
       */
-    int32_t  sqy_28;
+    int32_t  sqY_28;
     
-    /** @brief Offset 20'h0013C - sqf_28
+    /** @brief Offset 20'h0013C - sqF_28
       *  Demodulated signal from sq_phas
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
       */
-    int32_t  sqf_28;
+    int32_t  sqF_28;
     
     /** @brief Offset 20'h00140 - cnt_clk
       *  Clock count

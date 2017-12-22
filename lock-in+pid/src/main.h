@@ -221,8 +221,8 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_SLOW_OUT4                  163
 #define LOCK_OSCA                       164
 #define LOCK_OSCB                       165
-#define LOCK_XO_28                      166
-#define LOCK_YO_28                      167
+#define LOCK_X_28                       166
+#define LOCK_Y_28                       167
 #define LOCK_F1_28                      168
 #define LOCK_F2_28                      169
 #define LOCK_F3_28                      170

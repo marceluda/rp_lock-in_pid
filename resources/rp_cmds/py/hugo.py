@@ -240,6 +240,7 @@ class fpga_lock_in(fpga_regs):
 # The following code can be printed from config_tool.py
 # f.print_hugo()
 
+# [REGSET DOCK]
 li = fpga_lock_in(base_addr=0x40600000,dev_file="/dev/mem")
 
 li.add( fpga_reg(name='oscA_sw'            , index=  0, rw=True , nbits= 5,signed=False) )
@@ -314,14 +315,14 @@ li.add( fpga_reg(name='slow_out3'          , index= 68, rw=False, nbits=12,signe
 li.add( fpga_reg(name='slow_out4'          , index= 69, rw=False, nbits=12,signed=False) )
 li.add( fpga_reg(name='oscA'               , index= 70, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='oscB'               , index= 71, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='Xo_28'              , index= 72, rw=False, nbits=28,signed=True ) )
-li.add( fpga_reg(name='Yo_28'              , index= 73, rw=False, nbits=28,signed=True ) )
+li.add( fpga_reg(name='X_28'               , index= 72, rw=False, nbits=28,signed=True ) )
+li.add( fpga_reg(name='Y_28'               , index= 73, rw=False, nbits=28,signed=True ) )
 li.add( fpga_reg(name='F1_28'              , index= 74, rw=False, nbits=28,signed=True ) )
 li.add( fpga_reg(name='F2_28'              , index= 75, rw=False, nbits=28,signed=True ) )
 li.add( fpga_reg(name='F3_28'              , index= 76, rw=False, nbits=28,signed=True ) )
-li.add( fpga_reg(name='sqx_28'             , index= 77, rw=False, nbits=28,signed=True ) )
-li.add( fpga_reg(name='sqy_28'             , index= 78, rw=False, nbits=28,signed=True ) )
-li.add( fpga_reg(name='sqf_28'             , index= 79, rw=False, nbits=28,signed=True ) )
+li.add( fpga_reg(name='sqX_28'             , index= 77, rw=False, nbits=28,signed=True ) )
+li.add( fpga_reg(name='sqY_28'             , index= 78, rw=False, nbits=28,signed=True ) )
+li.add( fpga_reg(name='sqF_28'             , index= 79, rw=False, nbits=28,signed=True ) )
 li.add( fpga_reg(name='cnt_clk'            , index= 80, rw=False, nbits=32,signed=False) )
 li.add( fpga_reg(name='cnt_clk2'           , index= 81, rw=False, nbits=32,signed=False) )
 li.add( fpga_reg(name='read_ctrl'          , index= 82, rw=True , nbits= 3,signed=False) )
@@ -353,6 +354,11 @@ li.add( fpga_reg(name='pidB_ctrl'          , index=107, rw=True , nbits= 3,signe
 li.add( fpga_reg(name='ctrl_B'             , index=108, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='aux_A'              , index=109, rw=True , nbits=14,signed=True ) )
 li.add( fpga_reg(name='aux_B'              , index=110, rw=True , nbits=14,signed=True ) )
+# [REGSET DOCK END]
+
+
+
+
 #%%
 
 if __name__ == '__main__':

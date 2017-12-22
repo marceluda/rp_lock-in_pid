@@ -335,11 +335,11 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_sf_BfrzI"                 ,      0, 1, 0,            0,            1 }, /** Step function pidB_ifreeze  **/
     { "lock_signal_sw"                ,      0, 1, 0,            0,           15 }, /** Input selector for signal_i **/
     { "lock_signal_i"                 ,      0, 0, 1,        -8192,         8191 }, /** signal for demodulation **/
-    { "lock_sg_amp1"                  ,      0, 1, 0,            0,           15 }, /** amplification of Xo, Yo and F1 **/
-    { "lock_sg_amp2"                  ,      0, 1, 0,            0,           15 }, /** amplification of F2 **/
-    { "lock_sg_amp3"                  ,      0, 1, 0,            0,           15 }, /** amplification of F3 **/
-    { "lock_sg_amp_sq"                ,      0, 1, 0,            0,           15 }, /** amplification of SQ **/
-    { "lock_lpf_F1_tau"               ,      0, 1, 0,            0,           15 }, /** Low Pass Filter TAU of Xo, Yo and F1 **/
+    { "lock_sg_amp1"                  ,      0, 1, 0,            0,           15 }, /** amplification of Xo, Yo and F1o **/
+    { "lock_sg_amp2"                  ,      0, 1, 0,            0,           15 }, /** amplification of F2o **/
+    { "lock_sg_amp3"                  ,      0, 1, 0,            0,           15 }, /** amplification of F3o **/
+    { "lock_sg_amp_sq"                ,      0, 1, 0,            0,           15 }, /** amplification of SQo **/
+    { "lock_lpf_F1_tau"               ,      0, 1, 0,            0,           15 }, /** Low Pass Filter TAU of X, Y and F1 **/
     { "lock_lpf_F1_order"             ,      2, 1, 0,            0,            2 }, /** Low Pass Filter order / off **/
     { "lock_lpf_F2_tau"               ,      0, 1, 0,            0,           15 }, /** Low Pass Filter TAU of F2 **/
     { "lock_lpf_F2_order"             ,      2, 1, 0,            0,            2 }, /** Low Pass Filter order / off **/
@@ -386,14 +386,14 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_slow_out4"                ,      0, 0, 1,        -2048,         2047 }, /** signal for RP slow DAC 4 **/
     { "lock_oscA"                     ,      0, 0, 1,        -8192,         8191 }, /** signal for Oscilloscope Channel A **/
     { "lock_oscB"                     ,      0, 0, 1,        -8192,         8191 }, /** signal for Oscilloscope Channel B **/
-    { "lock_Xo"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_ref **/
-    { "lock_Yo"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_ref **/
+    { "lock_X"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_ref **/
+    { "lock_Y"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_ref **/
     { "lock_F1"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_1f **/
     { "lock_F2"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_2f **/
     { "lock_F3"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_3f **/
-    { "lock_sqx"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_ref **/
-    { "lock_sqy"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_quad **/
-    { "lock_sqf"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_phas **/
+    { "lock_sqX"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_ref **/
+    { "lock_sqY"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_quad **/
+    { "lock_sqF"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_phas **/
     { "lock_cnt_clk"                  ,      0, 0, 1,            0,   0xffffffff }, /** Clock count **/
     { "lock_cnt_clk2"                 ,      0, 0, 1,            0,   0xffffffff }, /** Clock count **/
     { "lock_read_ctrl"                ,      0, 1, 0,            0,            7 }, /** [unused,start_clk,Freeze] **/

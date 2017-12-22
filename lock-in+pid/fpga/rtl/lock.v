@@ -118,7 +118,7 @@ module lock(
     // product_signals --------------------------
     reg         [ 3-1:0] read_ctrl;
     wire        [32-1:0] cnt_clk,cnt_clk2;
-    wire signed [28-1:0] Xo_28,Yo_28,F1_28,F2_28,F3_28,sqx_28,sqy_28,sqf_28;
+    wire signed [28-1:0] X_28,Y_28,F1_28,F2_28,F3_28,sqX_28,sqY_28,sqF_28;
     
     // scope --------------------------
     reg         [ 5-1:0] oscA_sw,oscB_sw;
@@ -187,8 +187,8 @@ module lock(
     // ERASE lolo // wire                 ramp_trig ;
     
         
-    wire signed [14-1:0] Xo,Yo,F1,F2,F3 ;
-    wire signed [14-1:0] sqx,sqy,sqf ;
+    wire signed [14-1:0] Xo,Yo,F1o,F2o,F3o ;
+    wire signed [14-1:0] sqXo,sqYo,sqFo ;
         
        
     wire signed [14-1:0] slow_out1_14,slow_out2_14,slow_out3_14,slow_out4_14 ;
@@ -203,7 +203,7 @@ module lock(
     wire  jump_started,jump_trigger;
     wire signed [14-1:0] sf_jumpA_val,sf_jumpB_val;
     
-    reg  signed [28-1:0] Xo_28_reg,Yo_28_reg,F1_28_reg,F2_28_reg,F3_28_reg,sqx_28_reg,sqy_28_reg,sqf_28_reg;
+    reg  signed [28-1:0] X_28_reg,Y_28_reg,F1_28_reg,F2_28_reg,F3_28_reg,sqX_28_reg,sqY_28_reg,sqF_28_reg;
     reg  signed [14-1:0] error_reg,ctrl_A_reg,ctrl_B_reg;
     reg         [50-1:0] cnt,cnt_reg;
     wire        [50-1:0] cnt_next;
@@ -215,8 +215,8 @@ module lock(
     wire signed  [ 28-1: 0]   sin_ref_mult,  cos_ref_mult,   sin_1f_mult,   sin_2f_mult,   sin_3f_mult,   sq_ref_mult,  sq_quad_mult,  sq_phas_mult;
     wire signed  [ 28-1: 0]   sin_ref_lpf1,  cos_ref_lpf1,   sin_1f_lpf1,   sin_2f_lpf1,   sin_3f_lpf1,   sq_ref_lpf1,  sq_quad_lpf1,  sq_phas_lpf1;
     wire signed  [ 28-1: 0]   sin_ref_lpf2,  cos_ref_lpf2,   sin_1f_lpf2,   sin_2f_lpf2,   sin_3f_lpf2,   sq_ref_lpf2,  sq_quad_lpf2,  sq_phas_lpf2;
-    wire signed  [  6-1: 0]       lpf_Xo_A,      lpf_Yo_A,      lpf_F1_A,      lpf_F2_A,      lpf_F3_A,     lpf_sqx_A,     lpf_sqy_A,     lpf_sqf_A;
-    wire signed  [  6-1: 0]       lpf_Xo_B,      lpf_Yo_B,      lpf_F1_B,      lpf_F2_B,      lpf_F3_B,     lpf_sqx_B,     lpf_sqy_B,     lpf_sqf_B;
+    wire signed  [  6-1: 0]       lpf_X_A,      lpf_Y_A,      lpf_F1_A,      lpf_F2_A,      lpf_F3_A,     lpf_sqX_A,     lpf_sqY_A,     lpf_sqF_A;
+    wire signed  [  6-1: 0]       lpf_X_B,      lpf_Y_B,      lpf_F1_B,      lpf_F2_B,      lpf_F3_B,     lpf_sqX_B,     lpf_sqY_B,     lpf_sqF_B;
     
     
     //ERASE wire signed [14-1:0] LPF_A_in  , LPF_B_in  ;
@@ -265,8 +265,8 @@ module lock(
         .in17 ( sq_ref  ),   .in18 ( sq_quad  ), .in19 ( sq_phas ), 
         .in20 ( {1'b0,sq_ref_b,12'b0} ),   .in21 ( signal_i ),
         .in22 ( Xo      ),   .in23 ( Yo    ),
-        .in24 ( F1      ),   .in25 ( F2    ),  .in26 ( F3    ),
-        .in27 ( sqx     ),   .in28 ( sqy   ),  .in29 ( sqf   ), 
+        .in24 ( F1o     ),   .in25 ( F2o   ),  .in26 ( F3o   ),
+        .in27 ( sqXo    ),   .in28 ( sqYo  ),  .in29 ( sqFo  ), 
         .in30 ( 14'b0 ), // in30
         .in31 ( 14'b0 ), // in31
         // output
@@ -289,8 +289,8 @@ module lock(
         .in17 ( sq_ref  ),   .in18 ( sq_quad  ), .in19 ( sq_phas ), 
         .in20 ( {1'b0,sq_ref_b,12'b0} ),   .in21 ( signal_i ),
         .in22 ( Xo      ),   .in23 ( Yo    ),
-        .in24 ( F1      ),   .in25 ( F2    ),  .in26 ( F3    ),
-        .in27 ( sqx     ),   .in28 ( sqy   ),  .in29 ( sqf   ), 
+        .in24 ( F1o     ),   .in25 ( F2o   ),  .in26 ( F3o    ),
+        .in27 ( sqXo    ),   .in28 ( sqYo  ),  .in29 ( sqFo   ), 
         .in30 ( 14'b0 ), // in30
         .in31 ( 14'b0 ), // in31
         // output
@@ -600,9 +600,9 @@ module lock(
         .in2  ( Xo       ), // in3 
         .in3  ( F1       ), // in5 
         .in4  ( F3       ), // in7 
-        .in5  ( sqx      ), // in8 
-        .in6  ( sqy      ), // in9 
-        .in7  ( sqf      ), // in10
+        .in5  ( sqXo     ), // in8 
+        .in6  ( sqYo     ), // in9 
+        .in7  ( sqFo     ), // in10
         // output
         .out ( error_sel   )
     );
@@ -699,9 +699,9 @@ module lock(
         .in3  ( F1                ), // in3 
         .in4  ( F2                ), // in4 
         .in5  ( F3                ), // in5 
-        .in6  ( sqx               ), // in6 
-        .in7  ( sqy               ), // in7 
-        .in8  ( sqf               ), // in8 
+        .in6  ( sqXo              ), // in6 
+        .in7  ( sqYo              ), // in7 
+        .in8  ( sqFo              ), // in8 
         .in9  ( signal_i          ), // in9 
         .in10 ( ramp_A            ), // in10 
         .in11 ( aux_A             ), // in11
@@ -780,23 +780,23 @@ module lock(
     
     // Signal Processing  **********************************************
     
-    assign     lpf_Xo_A   =   { ~lpf_F1[5], ~lpf_F1[5], lpf_F1[4-1:0]} ;
-    assign     lpf_Yo_A   =   { ~lpf_F1[5], ~lpf_F1[5], lpf_F1[4-1:0]} ;
+    assign     lpf_X_A   =   { ~lpf_F1[5], ~lpf_F1[5], lpf_F1[4-1:0]} ;
+    assign     lpf_Y_A   =   { ~lpf_F1[5], ~lpf_F1[5], lpf_F1[4-1:0]} ;
     assign     lpf_F1_A   =   { ~lpf_F1[5], ~lpf_F1[5], lpf_F1[4-1:0]} ;
     assign     lpf_F2_A   =   { ~lpf_F2[5], ~lpf_F2[5], lpf_F2[4-1:0]} ;
     assign     lpf_F3_A   =   { ~lpf_F3[5], ~lpf_F3[5], lpf_F3[4-1:0]} ;
-    assign     lpf_sqx_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
-    assign     lpf_sqy_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
-    assign     lpf_sqf_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
+    assign     lpf_sqX_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
+    assign     lpf_sqY_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
+    assign     lpf_sqF_A  =   { ~lpf_sq[5], ~lpf_sq[5], lpf_sq[4-1:0]} ;
     
-    assign     lpf_Xo_B   =   { ~(^lpf_F1[5:4]), ~(^lpf_F1[5:4]), lpf_F1[4-1:0]} ;
-    assign     lpf_Yo_B   =   { ~(^lpf_F1[5:4]), ~(^lpf_F1[5:4]), lpf_F1[4-1:0]} ;
+    assign     lpf_X_B   =   { ~(^lpf_F1[5:4]), ~(^lpf_F1[5:4]), lpf_F1[4-1:0]} ;
+    assign     lpf_Y_B   =   { ~(^lpf_F1[5:4]), ~(^lpf_F1[5:4]), lpf_F1[4-1:0]} ;
     assign     lpf_F1_B   =   { ~(^lpf_F1[5:4]), ~(^lpf_F1[5:4]), lpf_F1[4-1:0]} ;
     assign     lpf_F2_B   =   { ~(^lpf_F2[5:4]), ~(^lpf_F2[5:4]), lpf_F2[4-1:0]} ;
     assign     lpf_F3_B   =   { ~(^lpf_F3[5:4]), ~(^lpf_F3[5:4]), lpf_F3[4-1:0]} ;
-    assign     lpf_sqx_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
-    assign     lpf_sqy_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
-    assign     lpf_sqf_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
+    assign     lpf_sqX_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
+    assign     lpf_sqY_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
+    assign     lpf_sqF_B  =   { ~(^lpf_sq[5:4]), ~(^lpf_sq[5:4]), lpf_sq[4-1:0]} ;
     
     /*
     assign     lpf_Xo_A   =  { lpf_F1[4] , lpf_F1[4] ,  lpf_F1[4-1:0] };
@@ -843,61 +843,74 @@ module lock(
         
     
     // multiplied signal " "_mult goes in LPF_?_A
-    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_A (.clk(clk), .rst(rst), .tau( lpf_Xo_A  ), .in( sin_ref_mult ), .out( sin_ref_lpf1 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_A (.clk(clk), .rst(rst), .tau( lpf_Yo_A  ), .in( cos_ref_mult ), .out( cos_ref_lpf1 ) );
+    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_A (.clk(clk), .rst(rst), .tau( lpf_X_A   ), .in( sin_ref_mult ), .out( sin_ref_lpf1 ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_A (.clk(clk), .rst(rst), .tau( lpf_Y_A   ), .in( cos_ref_mult ), .out( cos_ref_lpf1 ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_1f_A  (.clk(clk), .rst(rst), .tau( lpf_F1_A  ), .in( sin_1f_mult  ), .out( sin_1f_lpf1  ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_2f_A  (.clk(clk), .rst(rst), .tau( lpf_F2_A  ), .in( sin_2f_mult  ), .out( sin_2f_lpf1  ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_3f_A  (.clk(clk), .rst(rst), .tau( lpf_F3_A  ), .in( sin_3f_mult  ), .out( sin_3f_lpf1  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_A  (.clk(clk), .rst(rst), .tau( lpf_sqx_A ), .in( sq_ref_mult  ), .out( sq_ref_lpf1  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_A (.clk(clk), .rst(rst), .tau( lpf_sqy_A ), .in( sq_quad_mult ), .out( sq_quad_lpf1 ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_A (.clk(clk), .rst(rst), .tau( lpf_sqf_A ), .in( sq_phas_mult ), .out( sq_phas_lpf1 ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_A  (.clk(clk), .rst(rst), .tau( lpf_sqX_A ), .in( sq_ref_mult  ), .out( sq_ref_lpf1  ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_A (.clk(clk), .rst(rst), .tau( lpf_sqY_A ), .in( sq_quad_mult ), .out( sq_quad_lpf1 ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_A (.clk(clk), .rst(rst), .tau( lpf_sqF_A ), .in( sq_phas_mult ), .out( sq_phas_lpf1 ) );
     
     // LPF_A goes into LPF_?_B
-    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_B (.clk(clk), .rst(rst), .tau( lpf_Xo_B  ), .in( sin_ref_lpf1 ), .out( sin_ref_lpf2 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_B (.clk(clk), .rst(rst), .tau( lpf_Yo_B  ), .in( cos_ref_lpf1 ), .out( cos_ref_lpf2 ) );
+    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_B (.clk(clk), .rst(rst), .tau( lpf_X_B   ), .in( sin_ref_lpf1 ), .out( sin_ref_lpf2 ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_B (.clk(clk), .rst(rst), .tau( lpf_Y_B   ), .in( cos_ref_lpf1 ), .out( cos_ref_lpf2 ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_1f_B  (.clk(clk), .rst(rst), .tau( lpf_F1_B  ), .in( sin_1f_lpf1  ), .out( sin_1f_lpf2  ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_2f_B  (.clk(clk), .rst(rst), .tau( lpf_F2_B  ), .in( sin_2f_lpf1  ), .out( sin_2f_lpf2  ) );
     LP_filter3 #(.R(28)) i_LP_filter_sin_3f_B  (.clk(clk), .rst(rst), .tau( lpf_F3_B  ), .in( sin_3f_lpf1  ), .out( sin_3f_lpf2  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_B  (.clk(clk), .rst(rst), .tau( lpf_sqx_B ), .in( sq_ref_lpf1  ), .out( sq_ref_lpf2  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_B (.clk(clk), .rst(rst), .tau( lpf_sqy_B ), .in( sq_quad_lpf1 ), .out( sq_quad_lpf2 ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_B (.clk(clk), .rst(rst), .tau( lpf_sqf_B ), .in( sq_phas_lpf1 ), .out( sq_phas_lpf2 ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_B  (.clk(clk), .rst(rst), .tau( lpf_sqX_B ), .in( sq_ref_lpf1  ), .out( sq_ref_lpf2  ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_B (.clk(clk), .rst(rst), .tau( lpf_sqY_B ), .in( sq_quad_lpf1 ), .out( sq_quad_lpf2 ) );
+    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_B (.clk(clk), .rst(rst), .tau( lpf_sqF_B ), .in( sq_phas_lpf1 ), .out( sq_phas_lpf2 ) );
     
     
-    wire signed [37-1:0] Xo_37,Yo_37,F1_37,F2_37,F3_37,sqx_37,sqy_37,sqf_37;
-
-    assign Xo_37    = ( sin_ref_lpf2 <<< sg_amp1  );
-    assign Yo_37    = ( cos_ref_lpf2 <<< sg_amp1  );
-    assign F1_37    = (  sin_1f_lpf2 <<< sg_amp1  );
-    assign F2_37    = (  sin_2f_lpf2 <<< sg_amp2  );
-    assign F3_37    = (  sin_3f_lpf2 <<< sg_amp3  );
-    assign sqx_37   = (  sq_ref_lpf2 <<< sg_amp_sq);
-    assign sqy_37   = ( sq_quad_lpf2 <<< sg_amp_sq);
-    assign sqf_37   = ( sq_phas_lpf2 <<< sg_amp_sq);
+    wire signed [37-1:0] Xo_37,Yo_37,F1o_37,F2o_37,F3o_37,sqXo_37,sqYo_37,sqFo_37;
+    wire signed [28-1:0] Xo_28,Yo_28,F1o_28,F2o_28,F3o_28,sqXo_28,sqYo_28,sqFo_28;
+    
+    // X_28,Y_28,F1_28,F2_28,F3_28,sqX_28,sqY_28,sqF_28;
+    
+    assign X_28   = cos_ref_lpf2 ;
+    assign Y_28   = sin_ref_lpf2 ;
+    assign F1_28  = sin_1f_lpf2  ;
+    assign F2_28  = sin_2f_lpf2  ;
+    assign F3_28  = sin_3f_lpf2  ;
+    assign sqX_28 = sq_ref_lpf2  ;
+    assign sqY_28 = sq_quad_lpf2 ;
+    assign sqF_28 = sq_phas_lpf2 ;
+    
+    
+    assign Xo_37    = ( X_28   <<< sg_amp1  );
+    assign Yo_37    = ( Y_28   <<< sg_amp1  );
+    assign F1o_37   = ( F1_28  <<< sg_amp1  );
+    assign F2o_37   = ( F2_28  <<< sg_amp2  );
+    assign F3o_37   = ( F3_28  <<< sg_amp3  );
+    assign sqXo_37  = ( sqX_28 <<< sg_amp_sq);
+    assign sqYo_37  = ( sqY_28 <<< sg_amp_sq);
+    assign sqFo_37  = ( sqF_28 <<< sg_amp_sq);
     
     
     
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_Xo_37  ( .in( Xo_37 ), .out( Xo_28 ) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_Yo_37  ( .in( Yo_37 ), .out( Yo_28 ) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F1_37  ( .in( F1_37 ), .out( F1_28 ) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F2_37  ( .in( F2_37 ), .out( F2_28 ) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F3_37  ( .in( F3_37 ), .out( F3_28 ) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqx_37 ( .in( sqx_37), .out( sqx_28) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqy_37 ( .in( sqy_37), .out( sqy_28) );
-    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqf_37 ( .in( sqf_37), .out( sqf_28) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_Xo_37   ( .in( Xo_37  ), .out( Xo_28  ) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_Yo_37   ( .in( Yo_37  ), .out( Yo_28  ) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F1o_37  ( .in( F1o_37 ), .out( F1o_28 ) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F2o_37  ( .in( F2o_37 ), .out( F2o_28 ) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_F3o_37  ( .in( F3o_37 ), .out( F3o_28 ) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqXo_37 ( .in( sqXo_37), .out( sqXo_28) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqYo_37 ( .in( sqYo_37), .out( sqYo_28) );
+    satprotect #(.Ri(37),.Ro(28),.SAT(28)) i_satprotect_sqFo_37 ( .in( sqFo_37), .out( sqFo_28) );
     
     
     
     
     always @(posedge clk) begin
         if(rst) begin
-            Xo_28_reg   <=  28'b0;
-            Yo_28_reg   <=  28'b0;
+            X_28_reg   <=  28'b0;
+            Y_28_reg   <=  28'b0;
             F1_28_reg   <=  28'b0;
             F2_28_reg   <=  28'b0;
             F3_28_reg   <=  28'b0;
-            sqx_28_reg  <=  28'b0;
-            sqy_28_reg  <=  28'b0;
-            sqf_28_reg  <=  28'b0;
+            sqX_28_reg  <=  28'b0;
+            sqY_28_reg  <=  28'b0;
+            sqF_28_reg  <=  28'b0;
             error_reg   <=  14'b0;
             ctrl_A_reg  <=  14'b0;
             ctrl_B_reg  <=  14'b0;
@@ -906,28 +919,28 @@ module lock(
         end
         else begin
             if(freeze) begin
-                Xo_28_reg   <=  Xo_28_reg;
-                Yo_28_reg   <=  Yo_28_reg;
+                X_28_reg    <=  X_28_reg;
+                Y_28_reg    <=  Y_28_reg;
                 F1_28_reg   <=  F1_28_reg;
                 F2_28_reg   <=  F2_28_reg;
                 F3_28_reg   <=  F3_28_reg;
-                sqx_28_reg  <=  sqx_28_reg;
-                sqy_28_reg  <=  sqy_28_reg;
-                sqf_28_reg  <=  sqf_28_reg;
+                sqX_28_reg  <=  sqX_28_reg;
+                sqY_28_reg  <=  sqY_28_reg;
+                sqF_28_reg  <=  sqF_28_reg;
                 error_reg   <=  error_reg;
                 ctrl_A_reg  <=  ctrl_A_reg;
                 ctrl_B_reg  <=  ctrl_B_reg;
                 cnt_reg     <=  cnt_reg;
             end
             else begin
-                Xo_28_reg   <=  Xo_28;
-                Yo_28_reg   <=  Yo_28;
+                X_28_reg    <=  X_28;
+                Y_28_reg    <=  Y_28;
                 F1_28_reg   <=  F1_28;
                 F2_28_reg   <=  F2_28;
                 F3_28_reg   <=  F3_28;
-                sqx_28_reg  <=  sqx_28;
-                sqy_28_reg  <=  sqy_28;
-                sqf_28_reg  <=  sqf_28;
+                sqX_28_reg  <=  sqX_28;
+                sqY_28_reg  <=  sqY_28;
+                sqF_28_reg  <=  sqF_28;
                 error_reg   <=  error;
                 ctrl_A_reg  <=  ctrl_A;
                 ctrl_B_reg  <=  ctrl_B;
@@ -967,14 +980,14 @@ module lock(
     */
     
     // This is better, 2 factor to compensate the Amplitude / 2 lock-in measurement.
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Xo  ( .in( Xo_28[26-1:11]),  .out(Xo ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Yo  ( .in( Yo_28[26-1:11]),  .out(Yo ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F1  ( .in( F1_28[26-1:11]),  .out(F1 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F2  ( .in( F2_28[26-1:11]),  .out(F2 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F3  ( .in( F3_28[26-1:11]),  .out(F3 ) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqx ( .in(sqx_28[26-1:11]), .out(sqx) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqy ( .in(sqy_28[26-1:11]), .out(sqy) );
-    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqf ( .in(sqf_28[26-1:11]), .out(sqf) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Xo  ( .in( Xo_28[26-1:11]),   .out(Xo  ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_Yo  ( .in( Yo_28[26-1:11]),   .out(Yo  ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F1  ( .in( F1o_28[26-1:11]),  .out(F1o ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F2  ( .in( F2o_28[26-1:11]),  .out(F2o ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_F3  ( .in( F3o_28[26-1:11]),  .out(F3o ) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqX ( .in(sqXo_28[26-1:11]),  .out(sqXo) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqY ( .in(sqYo_28[26-1:11]),  .out(sqYo) );
+    satprotect #(.Ri(15),.Ro(14),.SAT(14)) i_satprotect_sqF ( .in(sqFo_28[26-1:11]),  .out(sqFo) );
     
     
     //assign  Xo = $signed(Xo_37[26-1:11]);
@@ -1055,8 +1068,8 @@ module lock(
         .sel  ( pidA_sw ), // select cable
         .in0   ( error          ),
         .in1   ( Xo             ),        .in2   ( Yo             ),
-        .in3   ( F1             ),        .in4   ( F2             ),        .in5   ( F3             ),
-        .in6   ( sqx            ),        .in7   ( sqy            ),        .in8   ( sqf            ),
+        .in3   ( F1o            ),        .in4   ( F2o            ),        .in5   ( F3o            ),
+        .in6   ( sqXo           ),        .in7   ( sqYo           ),        .in8   ( sqFo           ),
         .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
         .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
@@ -1104,8 +1117,8 @@ module lock(
         .sel  ( pidB_sw ), // select cable
         .in0   ( error          ),
         .in1   ( Xo             ),        .in2   ( Yo             ),
-        .in3   ( F1             ),        .in4   ( F2             ),        .in5   ( F3             ),
-        .in6   ( sqx            ),        .in7   ( sqy            ),        .in8   ( sqf            ),
+        .in3   ( F1o            ),        .in4   ( F2o            ),        .in5   ( F3o            ),
+        .in6   ( sqXo           ),        .in7   ( sqYo           ),        .in8   ( sqFo           ),
         .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
         .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
@@ -1184,11 +1197,11 @@ module lock(
         sf_jumpB               <=  14'd0     ; // Step function measure jump value for ctrl_B
         sf_config              <=   5'd0     ; // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] 
         signal_sw              <=   4'd0     ; // Input selector for signal_i
-        sg_amp1                <=   4'd0     ; // amplification of Xo, Yo and F1
-        sg_amp2                <=   4'd0     ; // amplification of F2
-        sg_amp3                <=   4'd0     ; // amplification of F3
-        sg_amp_sq              <=   4'd0     ; // amplification of SQ
-        lpf_F1                 <=   6'd32    ; // Low Pass Filter of Xo, Yo and F1
+        sg_amp1                <=   4'd0     ; // amplification of Xo, Yo and F1o
+        sg_amp2                <=   4'd0     ; // amplification of F2o
+        sg_amp3                <=   4'd0     ; // amplification of F3o
+        sg_amp_sq              <=   4'd0     ; // amplification of SQo
+        lpf_F1                 <=   6'd32    ; // Low Pass Filter of X, Y and F1
         lpf_F2                 <=   6'd32    ; // Low Pass Filter of F2
         lpf_F3                 <=   6'd32    ; // Low Pass Filter of F3
         lpf_sq                 <=   6'd32    ; // Low Pass Filter of SQ
@@ -1255,11 +1268,11 @@ module lock(
             if (sys_addr[19:0]==20'h00058)  sf_config             <=  sys_wdata[ 5-1: 0] ; // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] 
             if (sys_addr[19:0]==20'h0005C)  signal_sw             <=  sys_wdata[ 4-1: 0] ; // Input selector for signal_i
           //if (sys_addr[19:0]==20'h00060)  signal_i              <=  sys_wdata[14-1: 0] ; // signal for demodulation
-            if (sys_addr[19:0]==20'h00064)  sg_amp1               <=  sys_wdata[ 4-1: 0] ; // amplification of Xo, Yo and F1
-            if (sys_addr[19:0]==20'h00068)  sg_amp2               <=  sys_wdata[ 4-1: 0] ; // amplification of F2
-            if (sys_addr[19:0]==20'h0006C)  sg_amp3               <=  sys_wdata[ 4-1: 0] ; // amplification of F3
-            if (sys_addr[19:0]==20'h00070)  sg_amp_sq             <=  sys_wdata[ 4-1: 0] ; // amplification of SQ
-            if (sys_addr[19:0]==20'h00074)  lpf_F1                <=  sys_wdata[ 6-1: 0] ; // Low Pass Filter of Xo, Yo and F1
+            if (sys_addr[19:0]==20'h00064)  sg_amp1               <=  sys_wdata[ 4-1: 0] ; // amplification of Xo, Yo and F1o
+            if (sys_addr[19:0]==20'h00068)  sg_amp2               <=  sys_wdata[ 4-1: 0] ; // amplification of F2o
+            if (sys_addr[19:0]==20'h0006C)  sg_amp3               <=  sys_wdata[ 4-1: 0] ; // amplification of F3o
+            if (sys_addr[19:0]==20'h00070)  sg_amp_sq             <=  sys_wdata[ 4-1: 0] ; // amplification of SQo
+            if (sys_addr[19:0]==20'h00074)  lpf_F1                <=  sys_wdata[ 6-1: 0] ; // Low Pass Filter of X, Y and F1
             if (sys_addr[19:0]==20'h00078)  lpf_F2                <=  sys_wdata[ 6-1: 0] ; // Low Pass Filter of F2
             if (sys_addr[19:0]==20'h0007C)  lpf_F3                <=  sys_wdata[ 6-1: 0] ; // Low Pass Filter of F3
             if (sys_addr[19:0]==20'h00080)  lpf_sq                <=  sys_wdata[ 6-1: 0] ; // Low Pass Filter of SQ
@@ -1302,14 +1315,14 @@ module lock(
           //if (sys_addr[19:0]==20'h00114)  slow_out4             <=  sys_wdata[12-1: 0] ; // signal for RP slow DAC 4
           //if (sys_addr[19:0]==20'h00118)  oscA                  <=  sys_wdata[14-1: 0] ; // signal for Oscilloscope Channel A
           //if (sys_addr[19:0]==20'h0011C)  oscB                  <=  sys_wdata[14-1: 0] ; // signal for Oscilloscope Channel B
-          //if (sys_addr[19:0]==20'h00120)  Xo_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_ref
-          //if (sys_addr[19:0]==20'h00124)  Yo_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_ref
+          //if (sys_addr[19:0]==20'h00120)  X_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_ref
+          //if (sys_addr[19:0]==20'h00124)  Y_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_ref
           //if (sys_addr[19:0]==20'h00128)  F1_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_1f
           //if (sys_addr[19:0]==20'h0012C)  F2_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_2f
           //if (sys_addr[19:0]==20'h00130)  F3_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_3f
-          //if (sys_addr[19:0]==20'h00134)  sqx_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_ref
-          //if (sys_addr[19:0]==20'h00138)  sqy_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_quad
-          //if (sys_addr[19:0]==20'h0013C)  sqf_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_phas
+          //if (sys_addr[19:0]==20'h00134)  sqX_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_ref
+          //if (sys_addr[19:0]==20'h00138)  sqY_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_quad
+          //if (sys_addr[19:0]==20'h0013C)  sqF_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_phas
           //if (sys_addr[19:0]==20'h00140)  cnt_clk               <=  sys_wdata[32-1: 0] ; // Clock count
           //if (sys_addr[19:0]==20'h00144)  cnt_clk2              <=  sys_wdata[32-1: 0] ; // Clock count
             if (sys_addr[19:0]==20'h00148)  read_ctrl             <=  sys_wdata[ 3-1: 0] ; // [unused,start_clk,Freeze]
@@ -1381,11 +1394,11 @@ module lock(
             20'h00058 : begin sys_ack <= sys_en;  sys_rdata <= {  27'b0                   ,        sf_config  }; end // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] 
             20'h0005C : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,        signal_sw  }; end // Input selector for signal_i
             20'h00060 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{signal_i[13]}}      ,         signal_i  }; end // signal for demodulation
-            20'h00064 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp1  }; end // amplification of Xo, Yo and F1
-            20'h00068 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp2  }; end // amplification of F2
-            20'h0006C : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp3  }; end // amplification of F3
-            20'h00070 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,        sg_amp_sq  }; end // amplification of SQ
-            20'h00074 : begin sys_ack <= sys_en;  sys_rdata <= {  26'b0                   ,           lpf_F1  }; end // Low Pass Filter of Xo, Yo and F1
+            20'h00064 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp1  }; end // amplification of Xo, Yo and F1o
+            20'h00068 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp2  }; end // amplification of F2o
+            20'h0006C : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,          sg_amp3  }; end // amplification of F3o
+            20'h00070 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,        sg_amp_sq  }; end // amplification of SQo
+            20'h00074 : begin sys_ack <= sys_en;  sys_rdata <= {  26'b0                   ,           lpf_F1  }; end // Low Pass Filter of X, Y and F1
             20'h00078 : begin sys_ack <= sys_en;  sys_rdata <= {  26'b0                   ,           lpf_F2  }; end // Low Pass Filter of F2
             20'h0007C : begin sys_ack <= sys_en;  sys_rdata <= {  26'b0                   ,           lpf_F3  }; end // Low Pass Filter of F3
             20'h00080 : begin sys_ack <= sys_en;  sys_rdata <= {  26'b0                   ,           lpf_sq  }; end // Low Pass Filter of SQ
@@ -1428,14 +1441,14 @@ module lock(
             20'h00114 : begin sys_ack <= sys_en;  sys_rdata <= {  20'b0                   ,        slow_out4  }; end // signal for RP slow DAC 4
             20'h00118 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{oscA[13]}}          ,             oscA  }; end // signal for Oscilloscope Channel A
             20'h0011C : begin sys_ack <= sys_en;  sys_rdata <= {  {18{oscB[13]}}          ,             oscB  }; end // signal for Oscilloscope Channel B
-            20'h00120 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{Xo_28_reg[27]}}     ,        Xo_28_reg  }; end // Demodulated signal from sin_ref
-            20'h00124 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{Yo_28_reg[27]}}     ,        Yo_28_reg  }; end // Demodulated signal from cos_ref
+            20'h00120 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{X_28_reg[27]}}      ,         X_28_reg  }; end // Demodulated signal from sin_ref
+            20'h00124 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{Y_28_reg[27]}}      ,         Y_28_reg  }; end // Demodulated signal from cos_ref
             20'h00128 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F1_28_reg[27]}}     ,        F1_28_reg  }; end // Demodulated signal from sin_1f
             20'h0012C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F2_28_reg[27]}}     ,        F2_28_reg  }; end // Demodulated signal from sin_2f
             20'h00130 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F3_28_reg[27]}}     ,        F3_28_reg  }; end // Demodulated signal from sin_3f
-            20'h00134 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqx_28_reg[27]}}    ,       sqx_28_reg  }; end // Demodulated signal from sq_ref
-            20'h00138 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqy_28_reg[27]}}    ,       sqy_28_reg  }; end // Demodulated signal from sq_quad
-            20'h0013C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqf_28_reg[27]}}    ,       sqf_28_reg  }; end // Demodulated signal from sq_phas
+            20'h00134 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqX_28_reg[27]}}    ,       sqX_28_reg  }; end // Demodulated signal from sq_ref
+            20'h00138 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqY_28_reg[27]}}    ,       sqY_28_reg  }; end // Demodulated signal from sq_quad
+            20'h0013C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqF_28_reg[27]}}    ,       sqF_28_reg  }; end // Demodulated signal from sq_phas
             20'h00140 : begin sys_ack <= sys_en;  sys_rdata <=                                       cnt_clk   ; end // Clock count
             20'h00144 : begin sys_ack <= sys_en;  sys_rdata <=                                      cnt_clk2   ; end // Clock count
             20'h00148 : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,        read_ctrl  }; end // [unused,start_clk,Freeze]
