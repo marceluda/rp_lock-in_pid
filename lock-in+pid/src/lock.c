@@ -151,9 +151,9 @@ int lock_update(rp_app_params_t *params)
     g_lock_reg->ramp_B_factor             = (int)params[LOCK_RAMP_B_FACTOR            ].value;
   //g_lock_reg->sin_ref                   = (int)params[LOCK_SIN_REF                  ].value;
   //g_lock_reg->cos_ref                   = (int)params[LOCK_COS_REF                  ].value;
-  //g_lock_reg->sin_1f                    = (int)params[LOCK_SIN_1F                   ].value;
-  //g_lock_reg->sin_2f                    = (int)params[LOCK_SIN_2F                   ].value;
-  //g_lock_reg->sin_3f                    = (int)params[LOCK_SIN_3F                   ].value;
+  //g_lock_reg->cos_1f                    = (int)params[LOCK_COS_1F                   ].value;
+  //g_lock_reg->cos_2f                    = (int)params[LOCK_COS_2F                   ].value;
+  //g_lock_reg->cos_3f                    = (int)params[LOCK_COS_3F                   ].value;
   //g_lock_reg->sq_ref_b                  = (int)params[LOCK_SQ_REF_B                 ].value;
   //g_lock_reg->sq_quad_b                 = (int)params[LOCK_SQ_QUAD_B                ].value;
   //g_lock_reg->sq_phas_b                 = (int)params[LOCK_SQ_PHAS_B                ].value;
@@ -296,9 +296,9 @@ int lock_update_main(rp_app_params_t *params)
     params[144].value = (float)g_lock_reg->ramp_B_factor         ; // lock_ramp_B_factor
     params[145].value = (float)g_lock_reg->sin_ref               ; // lock_sin_ref
     params[146].value = (float)g_lock_reg->cos_ref               ; // lock_cos_ref
-    params[147].value = (float)g_lock_reg->sin_1f                ; // lock_sin_1f
-    params[148].value = (float)g_lock_reg->sin_2f                ; // lock_sin_2f
-    params[149].value = (float)g_lock_reg->sin_3f                ; // lock_sin_3f
+    params[147].value = (float)g_lock_reg->cos_1f                ; // lock_cos_1f
+    params[148].value = (float)g_lock_reg->cos_2f                ; // lock_cos_2f
+    params[149].value = (float)g_lock_reg->cos_3f                ; // lock_cos_3f
     params[150].value = (float)g_lock_reg->sq_ref_b              ; // lock_sq_ref_b
     params[151].value = (float)g_lock_reg->sq_quad_b             ; // lock_sq_quad_b
     params[152].value = (float)g_lock_reg->sq_phas_b             ; // lock_sq_phas_b

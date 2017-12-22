@@ -94,7 +94,7 @@ module lock(
     
     // modulation --------------------------
     wire                 sq_ref_b,sq_quad_b,sq_phas_b;
-    wire signed [14-1:0] sin_ref,cos_ref,sin_1f,sin_2f,sin_3f,sq_ref,sq_quad,sq_phas;
+    wire signed [14-1:0] sin_ref,cos_ref,cos_1f,cos_2f,cos_3f,sq_ref,sq_quad,sq_phas;
     
     // outputs --------------------------
     reg         [ 4-1:0] out1_sw,out2_sw,slow_out1_sw,slow_out2_sw,slow_out3_sw,slow_out4_sw;
@@ -212,9 +212,9 @@ module lock(
     wire signed [14-1:0] sq_ref_mult14, sq_quad_mult14, sq_phas_mult14;
     
     // wires for signal processing
-    wire signed  [ 28-1: 0]   sin_ref_mult,  cos_ref_mult,   sin_1f_mult,   sin_2f_mult,   sin_3f_mult,   sq_ref_mult,  sq_quad_mult,  sq_phas_mult;
-    wire signed  [ 28-1: 0]   sin_ref_lpf1,  cos_ref_lpf1,   sin_1f_lpf1,   sin_2f_lpf1,   sin_3f_lpf1,   sq_ref_lpf1,  sq_quad_lpf1,  sq_phas_lpf1;
-    wire signed  [ 28-1: 0]   sin_ref_lpf2,  cos_ref_lpf2,   sin_1f_lpf2,   sin_2f_lpf2,   sin_3f_lpf2,   sq_ref_lpf2,  sq_quad_lpf2,  sq_phas_lpf2;
+    wire signed  [ 28-1: 0]   sin_ref_mult,  cos_ref_mult,   cos_1f_mult,   cos_2f_mult,   cos_3f_mult,   sq_ref_mult,  sq_quad_mult,  sq_phas_mult;
+    wire signed  [ 28-1: 0]   sin_ref_lpf1,  cos_ref_lpf1,   cos_1f_lpf1,   cos_2f_lpf1,   cos_3f_lpf1,   sq_ref_lpf1,  sq_quad_lpf1,  sq_phas_lpf1;
+    wire signed  [ 28-1: 0]   sin_ref_lpf2,  cos_ref_lpf2,   cos_1f_lpf2,   cos_2f_lpf2,   cos_3f_lpf2,   sq_ref_lpf2,  sq_quad_lpf2,  sq_phas_lpf2;
     wire signed  [  6-1: 0]       lpf_X_A,      lpf_Y_A,      lpf_F1_A,      lpf_F2_A,      lpf_F3_A,     lpf_sqX_A,     lpf_sqY_A,     lpf_sqF_A;
     wire signed  [  6-1: 0]       lpf_X_B,      lpf_Y_B,      lpf_F1_B,      lpf_F2_B,      lpf_F3_B,     lpf_sqX_B,     lpf_sqY_B,     lpf_sqF_B;
     
@@ -261,7 +261,7 @@ module lock(
         .in8  ( pidA_in ),   .in9  ( pidB_in ),
         .in10 ( pidA_out_cache ),    .in11 ( pidB_out_cache  ),
         .in12 ( sin_ref ),   .in13 ( cos_ref ),
-        .in14 ( sin_1f ),    .in15 ( sin_2f ),   .in16 ( sin_3f  ), 
+        .in14 ( cos_1f ),    .in15 ( cos_2f ),   .in16 ( cos_3f  ), 
         .in17 ( sq_ref  ),   .in18 ( sq_quad  ), .in19 ( sq_phas ), 
         .in20 ( {1'b0,sq_ref_b,12'b0} ),   .in21 ( signal_i ),
         .in22 ( Xo      ),   .in23 ( Yo    ),
@@ -285,7 +285,7 @@ module lock(
         .in8  ( pidA_in ),   .in9  ( pidB_in ),
         .in10 ( pidA_out_cache ),    .in11 ( pidB_out_cache  ),
         .in12 ( sin_ref ),   .in13 ( cos_ref ),
-        .in14 ( sin_1f ),    .in15 ( sin_2f ),   .in16 ( sin_3f  ), 
+        .in14 ( cos_1f ),    .in15 ( cos_2f ),   .in16 ( cos_3f  ), 
         .in17 ( sq_ref  ),   .in18 ( sq_quad  ), .in19 ( sq_phas ), 
         .in20 ( {1'b0,sq_ref_b,12'b0} ),   .in21 ( signal_i ),
         .in22 ( Xo      ),   .in23 ( Yo    ),
@@ -341,9 +341,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( sin_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_ref            ), // in8 
         .in9  ( sq_quad           ), // in9 
         .in10 ( sq_phas           ), // in10 
@@ -366,9 +366,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( cos_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_ref           ), // in8 
         .in9  ( sq_quad           ), // in9 
         .in10 ( sq_phas            ), // in10 
@@ -390,9 +390,9 @@ module lock(
         .in0  ( 14'b0 ),
         .in1  ( sin_ref_mult[27-1:13]  ),    .in2  ( sin_ref_lpf2[27-1:13]  ), .in3  ( Xo  ), 
         .in4  ( cos_ref_mult[27-1:13]  ),    .in5  ( cos_ref_lpf2[27-1:13]  ), .in6  ( Yo  ),
-        .in7  ( sin_1f_mult[27-1:13]   ),    .in8  ( sin_1f_lpf2[27-1:13]   ), .in9  ( F1  ),
-        .in10 ( sin_2f_mult[27-1:13]   ),    .in11 ( sin_2f_lpf2[27-1:13]   ), .in12 ( F2  ),
-        .in13 ( sin_3f_mult[27-1:13]   ),    .in14 ( sin_3f_lpf2[27-1:13]   ), .in15 ( F3  ),
+        .in7  ( cos_1f_mult[27-1:13]   ),    .in8  ( cos_1f_lpf2[27-1:13]   ), .in9  ( F1  ),
+        .in10 ( cos_2f_mult[27-1:13]   ),    .in11 ( cos_2f_lpf2[27-1:13]   ), .in12 ( F2  ),
+        .in13 ( cos_3f_mult[27-1:13]   ),    .in14 ( cos_3f_lpf2[27-1:13]   ), .in15 ( F3  ),
         .in16 ( sq_ref_mult[27-1:13]   ),    .in17 ( sq_ref_lpf2[27-1:13]   ), .in18 ( sqx ),
         .in19 ( sq_quad_mult[27-1:13]  ),    .in20 ( sq_quad_lpf2[27-1:13]  ), .in21 ( sqy ),
         .in22 ( aux_A ), // in22
@@ -449,9 +449,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( sin_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_ref            ), // in8 
         .in9  ( sq_phas           ), // in9 
         .in10 ( ramp_A            ), // in10 
@@ -472,9 +472,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( cos_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_quad           ), // in8 
         .in9  ( sq_phas           ), // in9 
         .in10 ( ramp_B            ), // in10 
@@ -500,9 +500,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( sin_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_ref            ), // in8 
         .in9  ( sq_phas           ), // in9 
         .in10 ( ramp_A            ), // in10 
@@ -525,9 +525,9 @@ module lock(
         .in2  ( in2               ), // in1-in2 
         .in3  ( in1_m_in2[14-1:0] ), // in3 
         .in4  ( cos_ref           ), // in4 
-        .in5  ( sin_1f            ), // in5 
-        .in6  ( sin_2f            ), // in6 
-        .in7  ( sin_3f            ), // in7 
+        .in5  ( cos_1f            ), // in5 
+        .in6  ( cos_2f            ), // in6 
+        .in7  ( cos_3f            ), // in7 
         .in8  ( sq_quad           ), // in8 
         .in9  ( sq_phas           ), // in9 
         .in10 ( ramp_B            ), // in10 
@@ -552,7 +552,7 @@ module lock(
         .in1  ( in2 ), // in1 
         .in2  ( in1_m_in2[14-1:0] ), // in1-in2 
         .in3  ( sin_ref ), // in3 
-        .in4  ( sin_1f ), // in4 
+        .in4  ( cos_1f ), // in4 
         .in5  ( sq_ref ), // in5 
         .in6  ( sq_phas ), // in6 
         .in7  ( ramp_A ), // in7 
@@ -639,9 +639,9 @@ module lock(
       // output
       .cntu_w    (               ),  // LOLO ERASE
       .sin_ref   (  sin_ref      ),  // sinus
-      .sin_1f    (  sin_1f       ),  // sinus with phase
-      .sin_2f    (  sin_2f       ),  // sinus with phase and 2f
-      .sin_3f    (  sin_3f       ),  // sinus with phase and 3f
+      .cos_1f    (  cos_1f       ),  // sinus with phase
+      .cos_2f    (  cos_2f       ),  // sinus with phase and 2f
+      .cos_3f    (  cos_3f       ),  // sinus with phase and 3f
       .cos_ref   (  cos_ref      ),  // cosinus
       .sq_ref    (  sq_ref_b     ),  // square
       .sq_quad   (  sq_quad_b    ),  // square
@@ -822,9 +822,9 @@ module lock(
     // signal_i multiplied by reference signal
     mult_dsp_14  i_mult_dps_sin_ref (.CLK(clk), .A($signed(sin_ref)) , .B(signal_i), .P(sin_ref_mult));
     mult_dsp_14  i_mult_dps_cos_ref (.CLK(clk), .A($signed(cos_ref)) , .B(signal_i), .P(cos_ref_mult));
-    mult_dsp_14  i_mult_dps_sin_1f  (.CLK(clk), .A($signed(sin_1f )) , .B(signal_i), .P(sin_1f_mult ));
-    mult_dsp_14  i_mult_dps_sin_2f  (.CLK(clk), .A($signed(sin_2f )) , .B(signal_i), .P(sin_2f_mult ));
-    mult_dsp_14  i_mult_dps_sin_3f  (.CLK(clk), .A($signed(sin_3f )) , .B(signal_i), .P(sin_3f_mult ));
+    mult_dsp_14  i_mult_dps_cos_1f  (.CLK(clk), .A($signed(cos_1f )) , .B(signal_i), .P(cos_1f_mult ));
+    mult_dsp_14  i_mult_dps_cos_2f  (.CLK(clk), .A($signed(cos_2f )) , .B(signal_i), .P(cos_2f_mult ));
+    mult_dsp_14  i_mult_dps_cos_3f  (.CLK(clk), .A($signed(cos_3f )) , .B(signal_i), .P(cos_3f_mult ));
     
     
     //mult_dsp_14  i_mult_dps_sq_ref  (.CLK(clk), .A($signed(sq_ref )) , .B(signal_i), .P(sq_ref_mult ));
@@ -845,9 +845,9 @@ module lock(
     // multiplied signal " "_mult goes in LPF_?_A
     LP_filter3 #(.R(28)) i_LP_filter_sin_ref_A (.clk(clk), .rst(rst), .tau( lpf_X_A   ), .in( sin_ref_mult ), .out( sin_ref_lpf1 ) );
     LP_filter3 #(.R(28)) i_LP_filter_cos_ref_A (.clk(clk), .rst(rst), .tau( lpf_Y_A   ), .in( cos_ref_mult ), .out( cos_ref_lpf1 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_1f_A  (.clk(clk), .rst(rst), .tau( lpf_F1_A  ), .in( sin_1f_mult  ), .out( sin_1f_lpf1  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_2f_A  (.clk(clk), .rst(rst), .tau( lpf_F2_A  ), .in( sin_2f_mult  ), .out( sin_2f_lpf1  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_3f_A  (.clk(clk), .rst(rst), .tau( lpf_F3_A  ), .in( sin_3f_mult  ), .out( sin_3f_lpf1  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_1f_A  (.clk(clk), .rst(rst), .tau( lpf_F1_A  ), .in( cos_1f_mult  ), .out( cos_1f_lpf1  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_2f_A  (.clk(clk), .rst(rst), .tau( lpf_F2_A  ), .in( cos_2f_mult  ), .out( cos_2f_lpf1  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_3f_A  (.clk(clk), .rst(rst), .tau( lpf_F3_A  ), .in( cos_3f_mult  ), .out( cos_3f_lpf1  ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_ref_A  (.clk(clk), .rst(rst), .tau( lpf_sqX_A ), .in( sq_ref_mult  ), .out( sq_ref_lpf1  ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_quad_A (.clk(clk), .rst(rst), .tau( lpf_sqY_A ), .in( sq_quad_mult ), .out( sq_quad_lpf1 ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_phas_A (.clk(clk), .rst(rst), .tau( lpf_sqF_A ), .in( sq_phas_mult ), .out( sq_phas_lpf1 ) );
@@ -855,9 +855,9 @@ module lock(
     // LPF_A goes into LPF_?_B
     LP_filter3 #(.R(28)) i_LP_filter_sin_ref_B (.clk(clk), .rst(rst), .tau( lpf_X_B   ), .in( sin_ref_lpf1 ), .out( sin_ref_lpf2 ) );
     LP_filter3 #(.R(28)) i_LP_filter_cos_ref_B (.clk(clk), .rst(rst), .tau( lpf_Y_B   ), .in( cos_ref_lpf1 ), .out( cos_ref_lpf2 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_1f_B  (.clk(clk), .rst(rst), .tau( lpf_F1_B  ), .in( sin_1f_lpf1  ), .out( sin_1f_lpf2  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_2f_B  (.clk(clk), .rst(rst), .tau( lpf_F2_B  ), .in( sin_2f_lpf1  ), .out( sin_2f_lpf2  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_sin_3f_B  (.clk(clk), .rst(rst), .tau( lpf_F3_B  ), .in( sin_3f_lpf1  ), .out( sin_3f_lpf2  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_1f_B  (.clk(clk), .rst(rst), .tau( lpf_F1_B  ), .in( cos_1f_lpf1  ), .out( cos_1f_lpf2  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_2f_B  (.clk(clk), .rst(rst), .tau( lpf_F2_B  ), .in( cos_2f_lpf1  ), .out( cos_2f_lpf2  ) );
+    LP_filter3 #(.R(28)) i_LP_filter_cos_3f_B  (.clk(clk), .rst(rst), .tau( lpf_F3_B  ), .in( cos_3f_lpf1  ), .out( cos_3f_lpf2  ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_ref_B  (.clk(clk), .rst(rst), .tau( lpf_sqX_B ), .in( sq_ref_lpf1  ), .out( sq_ref_lpf2  ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_quad_B (.clk(clk), .rst(rst), .tau( lpf_sqY_B ), .in( sq_quad_lpf1 ), .out( sq_quad_lpf2 ) );
     LP_filter2 #(.R(28)) i_LP_filter_sq_phas_B (.clk(clk), .rst(rst), .tau( lpf_sqF_B ), .in( sq_phas_lpf1 ), .out( sq_phas_lpf2 ) );
@@ -870,9 +870,9 @@ module lock(
     
     assign X_28   = cos_ref_lpf2 ;
     assign Y_28   = sin_ref_lpf2 ;
-    assign F1_28  = sin_1f_lpf2  ;
-    assign F2_28  = sin_2f_lpf2  ;
-    assign F3_28  = sin_3f_lpf2  ;
+    assign F1_28  = cos_1f_lpf2  ;
+    assign F2_28  = cos_2f_lpf2  ;
+    assign F3_28  = cos_3f_lpf2  ;
     assign sqX_28 = sq_ref_lpf2  ;
     assign sqY_28 = sq_quad_lpf2 ;
     assign sqF_28 = sq_phas_lpf2 ;
@@ -1007,7 +1007,7 @@ module lock(
         .in1  ( in2 ), // in1 
         .in2  ( in1_m_in2[14-1:0] ), // in1-in2 
         .in3  ( sin_ref ), // in3 
-        .in4  ( sin_2f ), // in3 
+        .in4  ( cos_2f ), // in3 
         .in5  ( sq_ref ), // in4 
         .in6  ( ramp_A ), // in5 
         .in7  ( {1'b0, sq_ref_b  , 12'b0  } ), // in6 
@@ -1031,8 +1031,8 @@ module lock(
         .in0  ( in1 ), // in0 
         .in1  ( in2 ), // in1 
         .in2  ( in1_m_in2[14-1:0] ), // in1-in2 
-        .in3  ( sin_1f ), // in3 
-        .in4  ( sin_3f ), // in3 
+        .in3  ( cos_1f ), // in3 
+        .in4  ( cos_3f ), // in3 
         .in5  ( sq_phas ), // in4 
         .in6  ( ramp_A ), // in5 
         .in7  ( {1'b0, sq_quad_b  , 12'b0  } ), // in6 
@@ -1072,7 +1072,7 @@ module lock(
         .in6   ( sqXo           ),        .in7   ( sqYo           ),        .in8   ( sqFo           ),
         .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
-        .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
+        .in13  ( cos_1f         ),        .in14  ( cos_2f         ),        .in15  ( cos_3f         ),
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
         .in19  ( aux_A          ),        .in20  ( aux_B          ),        .in21  ( test14         ),
         .in22  ( in1            ),        .in23  ( in2            ),        .in24  ( in1_m_in2[14-1:0] ),
@@ -1121,7 +1121,7 @@ module lock(
         .in6   ( sqXo           ),        .in7   ( sqYo           ),        .in8   ( sqFo           ),
         .in9   ( signal_i       ),        .in10  ( ramp_A         ),
         .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
-        .in13  ( sin_1f         ),        .in14  ( sin_2f         ),        .in15  ( sin_3f         ),
+        .in13  ( cos_1f         ),        .in14  ( cos_2f         ),        .in15  ( cos_3f         ),
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
         .in19  ( aux_A          ),        .in20  ( aux_B          ),        .in21  ( test14         ),
         .in22  ( in1            ),        .in23  ( in2            ),        .in24  ( in1_m_in2[14-1:0] ),
@@ -1207,7 +1207,7 @@ module lock(
         lpf_sq                 <=   6'd32    ; // Low Pass Filter of SQ
         error_sw               <=   3'd0     ; // select error signal
         error_offset           <=  14'd0     ; // offset for the error signal
-        gen_mod_phase          <=  12'd0     ; // phase relation of sin_?f signals
+        gen_mod_phase          <=  12'd0     ; // phase relation of cos_?f signals
         gen_mod_phase_sq       <=  32'd0     ; // phase relation of sqf signal
         gen_mod_hp             <=  14'd0     ; // harmonic period set
         gen_mod_sqp            <=  32'd0     ; // square signal period
@@ -1281,7 +1281,7 @@ module lock(
           //if (sys_addr[19:0]==20'h0008C)  error                 <=  sys_wdata[14-1: 0] ; // error signal value
           //if (sys_addr[19:0]==20'h00090)  error_mean            <=  sys_wdata[32-1: 0] ; // 1 sec error mean val
           //if (sys_addr[19:0]==20'h00094)  error_std             <=  sys_wdata[32-1: 0] ; // 1 sec error square sum val
-            if (sys_addr[19:0]==20'h00098)  gen_mod_phase         <=  sys_wdata[12-1: 0] ; // phase relation of sin_?f signals
+            if (sys_addr[19:0]==20'h00098)  gen_mod_phase         <=  sys_wdata[12-1: 0] ; // phase relation of cos_?f signals
             if (sys_addr[19:0]==20'h0009C)  gen_mod_phase_sq      <=  sys_wdata[32-1: 0] ; // phase relation of sqf signal
             if (sys_addr[19:0]==20'h000A0)  gen_mod_hp            <=  sys_wdata[14-1: 0] ; // harmonic period set
             if (sys_addr[19:0]==20'h000A4)  gen_mod_sqp           <=  sys_wdata[32-1: 0] ; // square signal period
@@ -1296,9 +1296,9 @@ module lock(
             if (sys_addr[19:0]==20'h000C8)  ramp_B_factor         <=  sys_wdata[14-1: 0] ; // proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096
           //if (sys_addr[19:0]==20'h000CC)  sin_ref               <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic reference
           //if (sys_addr[19:0]==20'h000D0)  cos_ref               <=  sys_wdata[14-1: 0] ; // lock-in modulation cosinus harmonic reference
-          //if (sys_addr[19:0]==20'h000D4)  sin_1f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference
-          //if (sys_addr[19:0]==20'h000D8)  sin_2f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference and double frequency
-          //if (sys_addr[19:0]==20'h000DC)  sin_3f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency
+          //if (sys_addr[19:0]==20'h000D4)  cos_1f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference
+          //if (sys_addr[19:0]==20'h000D8)  cos_2f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference and double frequency
+          //if (sys_addr[19:0]==20'h000DC)  cos_3f                <=  sys_wdata[14-1: 0] ; // lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency
           //if (sys_addr[19:0]==20'h000E0)  sq_ref_b              <=  sys_wdata[ 1-1: 0] ; // lock-in modulation binary reference
           //if (sys_addr[19:0]==20'h000E4)  sq_quad_b             <=  sys_wdata[ 1-1: 0] ; // lock-in modulation binary quadrature
           //if (sys_addr[19:0]==20'h000E8)  sq_phas_b             <=  sys_wdata[ 1-1: 0] ; // lock-in modulation binary with phase respect to reference
@@ -1317,9 +1317,9 @@ module lock(
           //if (sys_addr[19:0]==20'h0011C)  oscB                  <=  sys_wdata[14-1: 0] ; // signal for Oscilloscope Channel B
           //if (sys_addr[19:0]==20'h00120)  X_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_ref
           //if (sys_addr[19:0]==20'h00124)  Y_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_ref
-          //if (sys_addr[19:0]==20'h00128)  F1_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_1f
-          //if (sys_addr[19:0]==20'h0012C)  F2_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_2f
-          //if (sys_addr[19:0]==20'h00130)  F3_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_3f
+          //if (sys_addr[19:0]==20'h00128)  F1_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_1f
+          //if (sys_addr[19:0]==20'h0012C)  F2_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_2f
+          //if (sys_addr[19:0]==20'h00130)  F3_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_3f
           //if (sys_addr[19:0]==20'h00134)  sqX_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_ref
           //if (sys_addr[19:0]==20'h00138)  sqY_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_quad
           //if (sys_addr[19:0]==20'h0013C)  sqF_28                <=  sys_wdata[28-1: 0] ; // Demodulated signal from sq_phas
@@ -1407,7 +1407,7 @@ module lock(
             20'h0008C : begin sys_ack <= sys_en;  sys_rdata <= {  {18{error_reg[13]}}     ,        error_reg  }; end // error signal value
             20'h00090 : begin sys_ack <= sys_en;  sys_rdata <=                                    error_mean   ; end // 1 sec error mean val
             20'h00094 : begin sys_ack <= sys_en;  sys_rdata <=                                     error_std   ; end // 1 sec error square sum val
-            20'h00098 : begin sys_ack <= sys_en;  sys_rdata <= {  20'b0                   ,    gen_mod_phase  }; end // phase relation of sin_?f signals
+            20'h00098 : begin sys_ack <= sys_en;  sys_rdata <= {  20'b0                   ,    gen_mod_phase  }; end // phase relation of cos_?f signals
             20'h0009C : begin sys_ack <= sys_en;  sys_rdata <=                              gen_mod_phase_sq   ; end // phase relation of sqf signal
             20'h000A0 : begin sys_ack <= sys_en;  sys_rdata <= {  18'b0                   ,       gen_mod_hp  }; end // harmonic period set
             20'h000A4 : begin sys_ack <= sys_en;  sys_rdata <=                                   gen_mod_sqp   ; end // square signal period
@@ -1422,9 +1422,9 @@ module lock(
             20'h000C8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ramp_B_factor[13]}} ,    ramp_B_factor  }; end // proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096
             20'h000CC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_ref[13]}}       ,          sin_ref  }; end // lock-in modulation sinus harmonic reference
             20'h000D0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{cos_ref[13]}}       ,          cos_ref  }; end // lock-in modulation cosinus harmonic reference
-            20'h000D4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_1f[13]}}        ,           sin_1f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference
-            20'h000D8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_2f[13]}}        ,           sin_2f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference and double frequency
-            20'h000DC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sin_3f[13]}}        ,           sin_3f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency
+            20'h000D4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{cos_1f[13]}}        ,           cos_1f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference
+            20'h000D8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{cos_2f[13]}}        ,           cos_2f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference and double frequency
+            20'h000DC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{cos_3f[13]}}        ,           cos_3f  }; end // lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency
             20'h000E0 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,         sq_ref_b  }; end // lock-in modulation binary reference
             20'h000E4 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,        sq_quad_b  }; end // lock-in modulation binary quadrature
             20'h000E8 : begin sys_ack <= sys_en;  sys_rdata <= {  31'b0                   ,        sq_phas_b  }; end // lock-in modulation binary with phase respect to reference
@@ -1443,9 +1443,9 @@ module lock(
             20'h0011C : begin sys_ack <= sys_en;  sys_rdata <= {  {18{oscB[13]}}          ,             oscB  }; end // signal for Oscilloscope Channel B
             20'h00120 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{X_28_reg[27]}}      ,         X_28_reg  }; end // Demodulated signal from sin_ref
             20'h00124 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{Y_28_reg[27]}}      ,         Y_28_reg  }; end // Demodulated signal from cos_ref
-            20'h00128 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F1_28_reg[27]}}     ,        F1_28_reg  }; end // Demodulated signal from sin_1f
-            20'h0012C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F2_28_reg[27]}}     ,        F2_28_reg  }; end // Demodulated signal from sin_2f
-            20'h00130 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F3_28_reg[27]}}     ,        F3_28_reg  }; end // Demodulated signal from sin_3f
+            20'h00128 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F1_28_reg[27]}}     ,        F1_28_reg  }; end // Demodulated signal from cos_1f
+            20'h0012C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F2_28_reg[27]}}     ,        F2_28_reg  }; end // Demodulated signal from cos_2f
+            20'h00130 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{F3_28_reg[27]}}     ,        F3_28_reg  }; end // Demodulated signal from cos_3f
             20'h00134 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqX_28_reg[27]}}    ,       sqX_28_reg  }; end // Demodulated signal from sq_ref
             20'h00138 : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqY_28_reg[27]}}    ,       sqY_28_reg  }; end // Demodulated signal from sq_quad
             20'h0013C : begin sys_ack <= sys_en;  sys_rdata <= {  { 4{sqF_28_reg[27]}}    ,       sqF_28_reg  }; end // Demodulated signal from sq_phas

@@ -335,7 +335,7 @@ typedef struct lock_reg_t {
     int32_t  error_std;
     
     /** @brief Offset 20'h00098 - gen_mod_phase
-      *  phase relation of sin_?f signals
+      *  phase relation of cos_?f signals
       *
       *  bits [31:12] - Reserved
       *  bits [11: 0] - Data
@@ -452,29 +452,29 @@ typedef struct lock_reg_t {
       */
     int32_t  cos_ref;
     
-    /** @brief Offset 20'h000D4 - sin_1f
+    /** @brief Offset 20'h000D4 - cos_1f
       *  lock-in modulation sinus harmonic signal with phase relation to reference
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  sin_1f;
+    int32_t  cos_1f;
     
-    /** @brief Offset 20'h000D8 - sin_2f
+    /** @brief Offset 20'h000D8 - cos_2f
       *  lock-in modulation sinus harmonic signal with phase relation to reference and double frequency
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  sin_2f;
+    int32_t  cos_2f;
     
-    /** @brief Offset 20'h000DC - sin_3f
+    /** @brief Offset 20'h000DC - cos_3f
       *  lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data
       */
-    int32_t  sin_3f;
+    int32_t  cos_3f;
     
     /** @brief Offset 20'h000E0 - sq_ref_b
       *  lock-in modulation binary reference
@@ -621,7 +621,7 @@ typedef struct lock_reg_t {
     int32_t  Y_28;
     
     /** @brief Offset 20'h00128 - F1_28
-      *  Demodulated signal from sin_1f
+      *  Demodulated signal from cos_1f
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
@@ -629,7 +629,7 @@ typedef struct lock_reg_t {
     int32_t  F1_28;
     
     /** @brief Offset 20'h0012C - F2_28
-      *  Demodulated signal from sin_2f
+      *  Demodulated signal from cos_2f
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data
@@ -637,7 +637,7 @@ typedef struct lock_reg_t {
     int32_t  F2_28;
     
     /** @brief Offset 20'h00130 - F3_28
-      *  Demodulated signal from sin_3f
+      *  Demodulated signal from cos_3f
       *
       *  bits [31:28] - Reserved
       *  bits [27: 0] - Data

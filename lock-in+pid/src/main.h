@@ -202,9 +202,9 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_RAMP_B_FACTOR              144
 #define LOCK_SIN_REF                    145
 #define LOCK_COS_REF                    146
-#define LOCK_SIN_1F                     147
-#define LOCK_SIN_2F                     148
-#define LOCK_SIN_3F                     149
+#define LOCK_COS_1F                     147
+#define LOCK_COS_2F                     148
+#define LOCK_COS_3F                     149
 #define LOCK_SQ_REF_B                   150
 #define LOCK_SQ_QUAD_B                  151
 #define LOCK_SQ_PHAS_B                  152

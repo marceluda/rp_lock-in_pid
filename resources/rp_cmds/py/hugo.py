@@ -296,9 +296,9 @@ li.add( fpga_reg(name='ramp_direction'     , index= 49, rw=True , nbits= 1,signe
 li.add( fpga_reg(name='ramp_B_factor'      , index= 50, rw=True , nbits=14,signed=True ) )
 li.add( fpga_reg(name='sin_ref'            , index= 51, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='cos_ref'            , index= 52, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='sin_1f'             , index= 53, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='sin_2f'             , index= 54, rw=False, nbits=14,signed=True ) )
-li.add( fpga_reg(name='sin_3f'             , index= 55, rw=False, nbits=14,signed=True ) )
+li.add( fpga_reg(name='cos_1f'             , index= 53, rw=False, nbits=14,signed=True ) )
+li.add( fpga_reg(name='cos_2f'             , index= 54, rw=False, nbits=14,signed=True ) )
+li.add( fpga_reg(name='cos_3f'             , index= 55, rw=False, nbits=14,signed=True ) )
 li.add( fpga_reg(name='sq_ref_b'           , index= 56, rw=False, nbits= 1,signed=False) )
 li.add( fpga_reg(name='sq_quad_b'          , index= 57, rw=False, nbits= 1,signed=False) )
 li.add( fpga_reg(name='sq_phas_b'          , index= 58, rw=False, nbits= 1,signed=False) )
@@ -355,6 +355,7 @@ li.add( fpga_reg(name='ctrl_B'             , index=108, rw=False, nbits=14,signe
 li.add( fpga_reg(name='aux_A'              , index=109, rw=True , nbits=14,signed=True ) )
 li.add( fpga_reg(name='aux_B'              , index=110, rw=True , nbits=14,signed=True ) )
 # [REGSET DOCK END]
+
 
 
 

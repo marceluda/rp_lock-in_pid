@@ -17,8 +17,8 @@ module gen_mod2
     input           [32-1:0] phase_sq, // Phase control
     input           [14-1:0] hp,   // Harmonic period control
     input           [32-1:0] sqp,  // Square period control
-    output signed   [14-1:0] sin_ref, sin_1f, sin_2f, sin_3f,
-    output signed   [14-1:0] cos_ref,
+    output signed   [14-1:0] sin_ref, //sin_1f, sin_2f, sin_3f,
+    output signed   [14-1:0] cos_ref, cos_1f, cos_2f, cos_3f,
     output          [12-1:0] cntu_w,
     output                   sq_ref, sq_quad, sq_phas,
     output                   harmonic_trig, square_trig
@@ -75,7 +75,8 @@ module gen_mod2
     begin
         $readmemb("data_cos_ss.dat", memory_cos_r); // read memory binary code from data_cos.dat
     end
-
+    
+    /*
     reg signed [14-1:0] memory_sinf_r [630-1:0]; // vector for amplitude value
     initial
     begin
@@ -92,6 +93,25 @@ module gen_mod2
     initial
     begin
         $readmemb("data_sin3_ss.dat", memory_sin3_r); // read memory binary code from data_sin.dat
+    end
+    */
+    
+    reg signed [14-1:0] memory_cos1_r [630-1:0]; // vector for amplitude value
+    initial
+    begin
+        $readmemb("data_sin_ss.dat", memory_cos1_r); // read memory binary code from data_sin.dat
+    end
+
+    reg signed [14-1:0] memory_cos2_r [315-1:0]; // vector for amplitude value
+    initial
+    begin
+        $readmemb("data_sin2_ss.dat", memory_cos2_r); // read memory binary code from data_sin.dat
+    end
+
+    reg signed [14-1:0] memory_cos3_r [210-1:0]; // vector for amplitude value
+    initial
+    begin
+        $readmemb("data_sin3_ss.dat", memory_cos3_r); // read memory binary code from data_sin.dat
     end
 
     /* Frequency divider  --------------------------------------------*/
@@ -292,10 +312,16 @@ module gen_mod2
 
     assign cos_ref  =  quad_bit[1]^quad_bit[0] ?  $signed(-memory_cos_r[cnt]) : memory_cos_r[cnt] ;
     assign sin_ref  =  quad_bit[1]             ?  $signed(-memory_sin_r[cnt]) : memory_sin_r[cnt] ;
-
+    
+    /*
     assign sin_1f   =  quad_bit1[1]   ?  $signed(-memory_sin_r[cnt1] ) : memory_sin_r[cnt1]  ;
     assign sin_2f   =  quad_bit2[1]   ?  $signed(-memory_sin2_r[cnt2]) : memory_sin2_r[cnt2] ;
     assign sin_3f   =  quad_bit3[1]   ?  $signed(-memory_sin3_r[cnt3]) : memory_sin3_r[cnt3] ;
+    */
+    
+    assign cos_1f   =  quad_bit1[1]^quad_bit1[0]   ?  $signed(-memory_cos1_r[cnt1] ) : memory_cos1_r[cnt1] ;
+    assign cos_2f   =  quad_bit2[1]^quad_bit2[0]   ?  $signed(-memory_cos2_r[cnt2])  : memory_cos2_r[cnt2] ;
+    assign cos_3f   =  quad_bit3[1]^quad_bit3[0]   ?  $signed(-memory_cos3_r[cnt3])  : memory_cos3_r[cnt3] ;
 
     // Square signal ---------------------------------------------------
 
@@ -339,9 +365,9 @@ module gen_mod2
     assign sq_phas_next    = clksq_equal_phas          ? sq_ref_next^(~phas_less_than_sqp) : sq_phas_r ;
 
     // outputs
-    assign sq_ref  = sqp_off ? (~sin_ref[13])  : sq_ref_r ;
-    assign sq_quad = sqp_off ? (~cos_ref[13])  : sq_quad_r ;
-    assign sq_phas = sqp_off ? (~sin_1f[13] )  : sq_phas_r ;
+    assign sq_ref  = sqp_off ? (~cos_ref[13])  : sq_ref_r ;
+    assign sq_quad = sqp_off ? (~sin_ref[13])  : sq_quad_r ;
+    assign sq_phas = sqp_off ? (~cos_1f[13] )  : sq_phas_r ;
 
     assign square_trig = clksq_equal_sqp & sq_ref ;
 

@@ -130,9 +130,9 @@ void reset_locks(void)
         g_lock_reg->ramp_B_factor        =   4096;
         g_lock_reg->sin_ref              =      0;
         g_lock_reg->cos_ref              =      0;
-        g_lock_reg->sin_1f               =      0;
-        g_lock_reg->sin_2f               =      0;
-        g_lock_reg->sin_3f               =      0;
+        g_lock_reg->cos_1f               =      0;
+        g_lock_reg->cos_2f               =      0;
+        g_lock_reg->cos_3f               =      0;
         g_lock_reg->sq_ref_b             =      0;
         g_lock_reg->sq_quad_b            =      0;
         g_lock_reg->sq_phas_b            =      0;

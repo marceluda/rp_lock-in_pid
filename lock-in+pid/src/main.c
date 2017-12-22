@@ -352,7 +352,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_error"                    ,      0, 0, 1,        -8192,         8191 }, /** error signal value **/
     { "lock_error_mean"               ,      0, 0, 1,  -0x80000000,   0x7fffffff }, /** 1 sec error mean val **/
     { "lock_error_std"                ,      0, 0, 1,  -0x80000000,   0x7fffffff }, /** 1 sec error square sum val **/
-    { "lock_gen_mod_phase"            ,      0, 1, 0,            0,         2519 }, /** phase relation of sin_?f signals **/
+    { "lock_gen_mod_phase"            ,      0, 1, 0,            0,         2519 }, /** phase relation of cos_?f signals **/
     { "lock_gen_mod_phase_sq"         ,      0, 1, 0,            0,   0xffffffff }, /** phase relation of sq_phas signal **/
     { "lock_gen_mod_hp"               ,      0, 1, 0,            0,        16383 }, /** harmonic period set **/
     { "lock_gen_mod_sqp"              ,      0, 1, 0,            0,   0xffffffff }, /** square signal period **/
@@ -367,9 +367,9 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_ramp_B_factor"            ,   4096, 1, 0,        -4096,         4096 }, /** proportional factor ramp_A/ramp_B. // ramp_B=ramp_A*ramp_B_factor/4096 **/
     { "lock_sin_ref"                  ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic reference **/
     { "lock_cos_ref"                  ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation cosinus harmonic reference **/
-    { "lock_sin_1f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference **/
-    { "lock_sin_2f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference and double frequency **/
-    { "lock_sin_3f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency **/
+    { "lock_cos_1f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference **/
+    { "lock_cos_2f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference and double frequency **/
+    { "lock_cos_3f"                   ,      0, 0, 1,        -8192,         8191 }, /** lock-in modulation sinus harmonic signal with phase relation to reference and triple frequency **/
     { "lock_sq_ref_b"                 ,      0, 0, 1,            0,            1 }, /** lock-in modulation binary reference **/
     { "lock_sq_quad_b"                ,      0, 0, 1,            0,            1 }, /** lock-in modulation binary quadrature **/
     { "lock_sq_phas_b"                ,      0, 0, 1,            0,            1 }, /** lock-in modulation binary with phase respect to reference **/
@@ -388,9 +388,9 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_oscB"                     ,      0, 0, 1,        -8192,         8191 }, /** signal for Oscilloscope Channel B **/
     { "lock_X"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_ref **/
     { "lock_Y"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_ref **/
-    { "lock_F1"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_1f **/
-    { "lock_F2"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_2f **/
-    { "lock_F3"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_3f **/
+    { "lock_F1"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_1f **/
+    { "lock_F2"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_2f **/
+    { "lock_F3"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_3f **/
     { "lock_sqX"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_ref **/
     { "lock_sqY"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_quad **/
     { "lock_sqF"                      ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sq_phas **/
