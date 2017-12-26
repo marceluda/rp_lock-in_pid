@@ -99,19 +99,19 @@ module gen_mod2
     reg signed [14-1:0] memory_cos1_r [630-1:0]; // vector for amplitude value
     initial
     begin
-        $readmemb("data_sin_ss.dat", memory_cos1_r); // read memory binary code from data_sin.dat
+        $readmemb("data_cos_ss.dat", memory_cos1_r); // read memory binary code from data_sin.dat
     end
 
     reg signed [14-1:0] memory_cos2_r [315-1:0]; // vector for amplitude value
     initial
     begin
-        $readmemb("data_sin2_ss.dat", memory_cos2_r); // read memory binary code from data_sin.dat
+        $readmemb("data_cos2_ss.dat", memory_cos2_r); // read memory binary code from data_sin.dat
     end
 
     reg signed [14-1:0] memory_cos3_r [210-1:0]; // vector for amplitude value
     initial
     begin
-        $readmemb("data_sin3_ss.dat", memory_cos3_r); // read memory binary code from data_sin.dat
+        $readmemb("data_cos3_ss.dat", memory_cos3_r); // read memory binary code from data_sin.dat
     end
 
     /* Frequency divider  --------------------------------------------*/
@@ -144,7 +144,7 @@ module gen_mod2
     reg  [ 2-1:0]  quad_bit ;
     wire [ 3-1:0]  quad_bit_next ;
     wire           quad_add;
-    wire [10-1:0]  r_addr;
+    //wire [10-1:0]  r_addr;
 
     always @(posedge clk)
         if (rst)
@@ -192,7 +192,7 @@ module gen_mod2
     reg  [ 2-1:0]  quad_bit1 ;
     wire [ 3-1:0]  quad_bit1_next ;
     wire           quad_add1;
-    wire [10-1:0]  r_addr1;
+    //wire [10-1:0]  r_addr1;
 
     always @(posedge clk)
         if (rst)
@@ -230,7 +230,7 @@ module gen_mod2
     reg  [ 2-1:0]  quad_bit2 ;
     wire [ 3-1:0]  quad_bit2_next ;
     wire           quad_add2;
-    wire [ 9-1:0]  r_addr2;
+    //wire [ 9-1:0]  r_addr2;
 
     always @(posedge clk)
         if (rst)
@@ -268,7 +268,7 @@ module gen_mod2
     reg  [ 2-1:0]  quad_bit3 ;
     wire [ 3-1:0]  quad_bit3_next ;
     wire           quad_add3;
-    wire [ 8-1:0]  r_addr3;
+    //wire [ 8-1:0]  r_addr3;
 
     always @(posedge clk)
         if (rst)
@@ -296,10 +296,10 @@ module gen_mod2
 
     // ************************* *****************************************************************
 
-    assign r_addr   = cnt  ;
-    assign r_addr1  = cnt1 ;
-    assign r_addr2  = cnt2 ;
-    assign r_addr3  = cnt3 ;
+    //assign r_addr   = cnt  ;
+    //assign r_addr1  = cnt1 ;
+    //assign r_addr2  = cnt2 ;
+    //assign r_addr3  = cnt3 ;
 
     /*
     assign cos_ref  = quad_bit[1]^quad_bit[0] ?  $signed(-memory_cos_r[r_addr]) : memory_cos_r[r_addr] ;

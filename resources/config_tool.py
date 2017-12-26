@@ -14,10 +14,10 @@ import enum
 
 
 
-do_verilog = True
-do_main    = True
-do_html    = True
-do_py      = True
+do_verilog = False
+do_main    = False
+do_html    = False
+do_py      = False
 
 folder=''
 
