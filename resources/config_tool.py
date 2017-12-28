@@ -766,7 +766,7 @@ m.add( name="lock_error"         , fpga_reg="error"         , val=0    , rw=Fals
 m.add( name="lock_error_mean"         , fpga_reg="error_mean"         , val=0    , rw=False, nbits=32, min_val=-2147483648, max_val=2147483647, fpga_update=False, signed=True , group="lock-in"        , desc="1 sec error mean val")
 r=m["lock_error_mean"  ]; r.c_update='((float) ( g_lock_reg->{:s} >= 0 ? g_lock_reg->{:s} : g_lock_reg->{:s}-32 ))/262144 '.format(r.fpga_reg,r.fpga_reg,r.fpga_reg)
 m.add( name="lock_error_std"          , fpga_reg="error_std"          , val=0    , rw=False, nbits=32, min_val=-2147483648, max_val=2147483647, fpga_update=False, signed=True , group="lock-in"        , desc="1 sec error square sum val")
-r=m["lock_error_std"  ]; r.c_update='sqrt(((float) (g_lock_reg->{:s}))/32 - pow(params[{:s}].value,2) ) '.format(r.fpga_reg , m["lock_error_mean"].cdef)
+r=m["lock_error_std"  ]; r.c_update='lock_error_var<0 ? -1 : sqrt( lock_error_var ) '.format(r.fpga_reg , m["lock_error_mean"].cdef)
 
 
 # group: gen_mod
@@ -947,7 +947,13 @@ f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  ) '
 def main_update_params(indent=1):
     txt=txt_buff(n=indent)
     for r in [ y for y in filter(lambda x: ( x.fpga_reg!=None) , m) ]:
+        if r.name =='lock_X':
+            txt.add('lock_freeze_regs();')
+        if r.name=='lock_error_std':
+            txt.add('lock_error_var    = ((float) (g_lock_reg->error_std))/32 - pow(params[LOCK_ERROR_MEAN].value,2) ;')
         txt.add('params[{:3d}].value = {:40s} ; // {:s}'.format(r.index, r.c_update , r.name ))
+        if r.name =='lock_cnt_clk2':
+            txt.add('lock_restore_regs();')
     return txt.out()
 
 # print(main_update_params())
@@ -2127,10 +2133,11 @@ if True:  # LOADPARAMS  *************************************************
 
     txt.append('// Buttons')
     for i in [ y.name for y in filter( lambda x: x.type=='button' , h) ]:
-        txt.append( ("if (params.original."+i+")").ljust(55)+" // "+i )
-        txt.append( "  $('#"+i+"').removeClass('btn-default').addClass('btn-primary');" )
-        txt.append( "else" )
-        txt.append( "  $('#"+i+"').removeClass('btn-primary').addClass('btn-default');" )
+        txt.append( ("if (params.original."+i+"){").ljust(55)+" // "+i )
+        txt.append( "  $('#"+i+"').removeClass('btn-default').addClass('btn-primary').data('checked',true);" )
+        txt.append( "}else{" )
+        txt.append( "  $('#"+i+"').removeClass('btn-primary').addClass('btn-default').data('checked',false);" )
+        txt.append( "}" )
     txt.append('')
 
     txt.append('// [LOLO DOCK LOADPARAMS END]')

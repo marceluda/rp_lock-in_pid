@@ -4,7 +4,7 @@
  * @brief Red Pitaya Oscilloscope main module.
  *
  * @Author Jure Menart <juremenart@gmail.com>
- *         
+ *
  * (c) Red Pitaya  http://www.redpitaya.com
  *
  * This part of code is written in C programming language.
@@ -35,7 +35,7 @@ typedef struct rp_app_params_s {
 } rp_app_params_t;
 
 /* Signal measurement results structure - filled in worker and updated when
- * also measurement signal is stored from worker 
+ * also measurement signal is stored from worker
  */
 typedef struct rp_osc_meas_res_s {
     float min;
@@ -46,7 +46,7 @@ typedef struct rp_osc_meas_res_s {
     float period;
 } rp_osc_meas_res_t;
 
-/* Parameters indexes - these defines should be in the same order as 
+/* Parameters indexes - these defines should be in the same order as
  * rp_app_params_t structure defined in main.c */
 //define PARAMS_NUM        81
 #define PARAMS_NUM        221
@@ -318,7 +318,7 @@ int rp_copy_params(rp_app_params_t *src, rp_app_params_t **dst);
 int rp_clean_params(rp_app_params_t *params);
 
 /* Updates all parameters (structure must be aligned with main parameter
- * structure - this includes also ready-only parameters. After the 
+ * structure - this includes also ready-only parameters. After the
 * parameters are updated it also changed the worker state machine.
  */
 int rp_update_main_params(rp_app_params_t *params);
@@ -328,7 +328,7 @@ void transform_from_iface_units(rp_app_params_t *p);
 
 /* sets the measurement data to output parameters structure - these parameters
  * are read-only for the client and there is no need to update them internally
- * in the application 
+ * in the application
  */
 int rp_update_meas_data(rp_osc_meas_res_t ch1_meas, rp_osc_meas_res_t ch2_meas);
 

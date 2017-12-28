@@ -598,8 +598,8 @@ module lock(
         .in0  ( 14'b0    ), // in11
         .in1  ( in1      ), // in0 
         .in2  ( Xo       ), // in3 
-        .in3  ( F1       ), // in5 
-        .in4  ( F3       ), // in7 
+        .in3  ( F1o      ), // in5 
+        .in4  ( F3o      ), // in7 
         .in5  ( sqXo     ), // in8 
         .in6  ( sqYo     ), // in9 
         .in7  ( sqFo     ), // in10
@@ -613,9 +613,12 @@ module lock(
     
     assign error = $signed(error_minus_offset[14-1:0]) ;
     
-    
+    /* DISABLED LOLO
     sum_2N  #(.R(14),.N(27)) i_sum_2N_error_mean (.clk(clk), .rst(rst), .in( error     ), .out( error_mean_41 ) );
     sum_2N  #(.R(27),.N(27)) i_sum_2N_error_std  (.clk(clk), .rst(rst), .in( error_pow ), .out( error_std_54  ) );
+    */
+    
+    sum_2N2  #(.R1(27),.R2(14),.N(27)) i_sum_2N_error_std  (.clk(clk), .rst(rst), .in1( error_pow ), .out1( error_std_54  ) , .in2( error     ), .out2( error_mean_41 ));
     
     assign error_mean = $signed( error_mean_41[41-1:9] );
     assign error_std  = $signed( error_std_54[54-1:22] ) ;
@@ -696,9 +699,9 @@ module lock(
         .in0  ( error             ), // in0 
         .in1  ( Xo                ), // in1 
         .in2  ( Yo                ), // in1-in2 
-        .in3  ( F1                ), // in3 
-        .in4  ( F2                ), // in4 
-        .in5  ( F3                ), // in5 
+        .in3  ( F1o               ), // in3 
+        .in4  ( F2o               ), // in4 
+        .in5  ( F3o               ), // in5 
         .in6  ( sqXo              ), // in6 
         .in7  ( sqYo              ), // in7 
         .in8  ( sqFo              ), // in8 
