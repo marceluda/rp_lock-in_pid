@@ -85,6 +85,7 @@ add_files                      $path_rtl/lock/satprotect.v
 add_files                      $path_rtl/lock/trigger_input.v
 add_files                      $path_rtl/lock/jump_control.v
 #add_files                      $path_rtl/lock/sum_2N.v
+add_files                      $path_rtl/lock/div_2N.v
 add_files                      $path_rtl/lock/sum_2N2.v
 add_files                      $path_rtl/lock/pipe_mult.v
 add_files                      $path_rtl/lock/debounce.v

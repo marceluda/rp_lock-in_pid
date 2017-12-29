@@ -1721,6 +1721,7 @@ if False:
     print(get_muxer(filename,"lpf_F1"))
     print(get_muxer(filename,"sg_amp1"))
     print(get_muxer(filename,"oscB_sw"))
+    print(get_muxer(filename,"signal_sw"))
 
 
 

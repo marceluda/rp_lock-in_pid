@@ -103,15 +103,15 @@ int lock_update(rp_app_params_t *params)
     g_lock_reg->slow_out3_sw              = (int)params[LOCK_SLOW_OUT3_SW             ].value;
     g_lock_reg->slow_out4_sw              = (int)params[LOCK_SLOW_OUT4_SW             ].value;
     g_lock_reg->lock_control              = (int) (
-                                           ((int)params[LOCK_CTRL_AUX_LOCK_NOW        ].value)   *     1  +
-                                           ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value)   *     2  +
-                                           ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value)   *     4  +
-                                           ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value)   *     8  +
-                                           ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value)   *    16  +
-                                           ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value)   *    32  +
-                                           ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value)   *    64  +
-                                           ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value)   *   128  +
-                                           ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value)   *   256  +
+                                           ((int)params[LOCK_CTRL_AUX_LOCK_NOW        ].value)   *     1  + 
+                                           ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value)   *     2  + 
+                                           ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value)   *     4  + 
+                                           ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value)   *     8  + 
+                                           ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value)   *    16  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value)   *    32  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value)   *    64  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value)   *   128  + 
+                                           ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value)   *   256  + 
                                            ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value)   *  1024  ) ;
   //g_lock_reg->lock_feedback             = (int)params[LOCK_LOCK_FEEDBACK            ].value;
     g_lock_reg->lock_trig_val             = (int)params[LOCK_LOCK_TRIG_VAL            ].value;
@@ -300,7 +300,7 @@ int lock_update_main(rp_app_params_t *params)
     params[129].value = (float)g_lock_reg->error                 ; // lock_error
     params[130].value = ((float) ( g_lock_reg->error_mean >= 0 ? g_lock_reg->error_mean : g_lock_reg->error_mean-32 ))/262144  ; // lock_error_mean
     lock_error_var    = ((float) (g_lock_reg->error_std))/32 - pow(params[LOCK_ERROR_MEAN].value,2) ;
-    params[131].value = lock_error_std<0 ? -1 : sqrt( lock_error_std )  ; // lock_error_std
+    params[131].value = lock_error_var<0 ? -1 : sqrt( lock_error_var )  ; // lock_error_std
     params[132].value = (float)g_lock_reg->gen_mod_phase         ; // lock_gen_mod_phase
     params[133].value = (float)g_lock_reg->gen_mod_phase_sq      ; // lock_gen_mod_phase_sq
     params[134].value = (float)g_lock_reg->gen_mod_hp            ; // lock_gen_mod_hp
