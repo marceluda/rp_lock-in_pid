@@ -105,7 +105,6 @@ read_verilog                      $path_rtl/lock/debounce.v
 read_verilog                      $path_rtl/lock/trigger_input.v
 read_verilog                      $path_rtl/lock/jump_control.v
 #read_verilog                      $path_rtl/lock/sum_2N.v
-read_verilog                      $path_rtl/lock/div_2N.v
 read_verilog                      $path_rtl/lock/sum_2N2.v
 read_verilog                      $path_rtl/lock/pipe_mult.v
 
