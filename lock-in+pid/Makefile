@@ -49,12 +49,12 @@ target/$(APP): red_pitaya.bit $(CONTROLLERHF) index.html
 zip: $(CONTROLLERHF) target/$(APP)
 	#-$(RM) target -rf
 	cd target; zip -r $(INSTALL_DIR)/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).zip *
-	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).zip ../.
+	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).zip ../archive/.
 	#$(RM) target -rf
 
 tar: $(CONTROLLERHF) target/$(APP)
 	cd target; tar -czf $(INSTALL_DIR)/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).tar.gz *
-	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).tar.gz ../.
+	mv target/$(APP)-$(VER)-$(BUILD_NUMBER)-$(REVISION).tar.gz ../archive/.
 
 clean_target:
 	-$(RM) target -rf
@@ -75,7 +75,7 @@ clean: clean_app clean_fpga clean_target
 
 
 
-upload_bit: 
+upload_bit:
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm /opt/redpitaya/www/apps/$(APP)/red_pitaya.bit"
 	scp $(RPSCP) red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 

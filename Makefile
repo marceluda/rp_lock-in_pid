@@ -34,7 +34,9 @@ export CFLAGS
 .PHONY: clean
 
 all:
-	$(MAKE) -C $(APP)
+	$(MAKE) -C $(APP) all
+	$(MAKE) -C $(APP) zip
+	$(MAKE) -C $(APP) tar
 
 clean:
 	$(MAKE) -C $(APP) clean
