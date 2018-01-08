@@ -23,16 +23,24 @@ description: Lock-in amplifier and PIDs filters for RedPitaya
 
 # List of links in the navigation bar
 navbar-links:
+  Help:
+    - What is Lock-in and PIDs: "help/about"
+    - Download and install: "help/install"
+    - The App: "help/app_intro"
+    - Instruments:
+      - Oscilloscope and in/out: "help/scope_inout"
+      - Lock-in: "help/lock-in"
+      - Internal oscillator: "help/modulation"
+      - Ramp generator: "help/ramp_gen"
+      - PIDs: "pids"
+      - Atomatic-lock: "autolock"
+    - Examples: "examples"
   Applications:
     - Lock-in measurements: "app/lock-in"
     - Feedback loop for atabilization: "app/stabilization"
     - Laser stabilization:  "app/stabilization-laser"
     - Electronic stabilization:  "app/stabilization-electronic"
     - Pound-Drever-Hall laser stabilisation: "app/pdh"
-  Help:
-    - Download and install: "install"
-    - Usage: "usage"
-    - Examples: "examples"
   Documentation:
     - RP App: "doc/app"
     - RP Bash: "doc/bash"
