@@ -27,14 +27,7 @@ navbar-links:
     - What is Lock-in and PIDs: "help/about"
     - Download and install: "help/install"
     - The App: "help/app_intro"
-    - Instruments:
-      - Oscilloscope and in/out: "help/scope_inout"
-      - Lock-in: "help/lock-in"
-      - Internal oscillator: "help/modulation"
-      - Ramp generator: "help/ramp_gen"
-      - PIDs: "pids"
-      - Atomatic-lock: "autolock"
-    - Examples: "examples"
+    - Instruments: "help/instruments_01_intro"
   Applications:
     - Lock-in measurements: "app/lock-in"
     - Feedback loop for atabilization: "app/stabilization"
@@ -51,6 +44,28 @@ navbar-links:
     - Web backend: "dev/web_baskend"
     - Web Frontend: "dev/web_frontend"
     - Python Library: "dev/python_lib"
+
+
+
+# --- Navigation bar options  for instruments--- #
+
+help-inst-links:
+  - title: Introduction
+    url: instruments_01_intro
+  - title: Oscilloscope
+    url: instruments_02_scope
+  - title: "Inputs and outputs"
+    url: instruments_03_inout
+  - title: Lock-in
+    url: instruments_04_lock-in
+  - title: Oscillators
+    url: instruments_05_modulation
+  - title: Ramp
+    url: instruments_06_ramp_gen
+  - title: PIDs
+    url: instruments_07_pids
+  - title: Auto-lock
+    url: instruments_08_autolock
 
 
 # Image to show in the navigation bar - image must be a square (width = height)

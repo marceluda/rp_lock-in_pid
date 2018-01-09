@@ -1,0 +1,48 @@
+
+{% assign name_size = page.name | size | minus: 3 %}
+{% assign page_name = page.name | slice: 0, name_size %}
+
+{% assign prev_i = -1 %}
+{% assign next_i = -1 %}
+
+{% for item in site.help-inst-links %}
+  {% if item.url==page_name  %}
+    {% unless forloop.first  %}
+      {% assign prev_i = forloop.index0 | minus: 1 %}
+    {% endunless %}
+    {% unless forloop.last  %}
+      {% assign next_i = forloop.index0 | plus: 1 %}
+    {% endunless %}
+  {% endif %}
+{% endfor %}
+
+{% if include.up==1  %}
+  {% assign dropup = " dropup" %}
+{% else %}
+  {% assign dropup = "" %}
+{% endif %}
+
+<div class="text-center{{ dropup }}">
+  <ul class="breadcrumb justify-content-center">
+    {% if prev_i<0  %}
+      <li><span style="color:gray;">Previous</span></li>
+    {% else %}
+      <li><a href="{{ site.baseurl }}/help/{{ site.help-inst-links[prev_i].url }}">Previous</a></li>
+    {% endif %}
+
+    <li class="dropdown">
+    <a class="dropdown-toggle" data-toggle="dropdown" href="#">Index
+      <span class="caret"></span></a>
+     <ul class="dropdown-menu">
+       {% for item in site.help-inst-links %}
+       <li{% if item.url==page_name %} class="active"{% endif %}><a href="{{ site.baseurl }}/help/{{ item.url }}">{{ item.title }}</a></li>
+       {% endfor %}
+     </ul>
+    </li>
+    {% if next_i<0  %}
+      <li><span style="color:gray;">Next</span></li>
+    {% else %}
+      <li><a href="{{ site.baseurl }}/help/{{ site.help-inst-links[next_i].url }}">Next</a></li>
+    {% endif %}
+  </ul>
+</div>
