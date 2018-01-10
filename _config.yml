@@ -54,7 +54,7 @@ help-inst-links:
     url: instruments_01_intro
   - title: Oscilloscope
     url: instruments_02_scope
-  - title: "Inputs and outputs"
+  - title: Outputs
     url: instruments_03_inout
   - title: Lock-in
     url: instruments_04_lock-in
