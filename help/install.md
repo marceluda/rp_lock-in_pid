@@ -8,9 +8,9 @@ layout: page
 
 Download last release (beta):
 
-[lock-in+pid-0.1.0-15-devbuild.tar.gz](releases/lock-in+pid-0.1.0-15-devbuild.tar.gz)
+[lock-in+pid-0.1.0-15-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.tar.gz)
 
-[lock-in+pid-0.1.0-15-devbuild.zip](releases/lock-in+pid-0.1.0-15-devbuild.zip)
+[lock-in+pid-0.1.0-15-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip)
 
 # Install App in RedPitaya
 
