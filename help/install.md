@@ -52,7 +52,7 @@ After that, you can access several RedPitaya services using this address, for ex
  ```bash
  ping rp-XXXXXX.local
  ```
-For mor information or other options, refer to
+For more information or other options, refer to
 [RedPitaya connect help](http://redpitaya.readthedocs.io/en/latest/quickStart/connect/connect.html)
 
 </div>
@@ -75,11 +75,13 @@ content to `/root/py` in the RedPitaya device.
 
 ### Automatic login for PuTTY
 
-**TO BE COMPLETED**
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED
+</div>
 
 For the while, you can follow this site instructions (using your RP address `rp-XXXXXX.local` instead of the ip address of that example, 192.168.0.100)
 
-https://www.howtoforge.com/ssh_key_based_logins_putty
+[ssh_key_based_logins_putty](https://www.howtoforge.com/ssh_key_based_logins_putty)
 
 The key generated in that example can also be used in [WinSCP](https://winscp.net/eng/docs/ui_login_authentication)
 
