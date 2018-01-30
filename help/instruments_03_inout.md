@@ -21,10 +21,10 @@ several signals to feed the DACs (Digital to Analog Converter) of RedPitaya hard
 All the selectable signals are 14 bits signed int at 125 MSa/sec (internal clock frequency). The options are:
 in1, in2, in1-in2, sin_ref, cos_1f, cos_2f, cos_3f, sq_ref, sq_quad, sq_phas, PID A out,  PID B out, ctrl_A, ctrl_B, error, aux_A, aux_B
 
-The out1 and out2 port of RedPitaya use 14 bits signed int DAC at 125 MSa/s, that maps [ -8192 : 8191 ] int to [ -1 : 1 ] Volts. In these cases the signals are
+The out1 and out2 port of RedPitaya use 14 bits signed int DAC at 125 MSa/s, that maps [&nbsp;-8192&nbsp;:&nbsp;8191&nbsp;] int to [&nbsp;-1&nbsp;:&nbsp;1&nbsp;] Volts. In these cases the signals are
 feed directly to the DACs.
 
-The slow outputs are filtered PWM outputs at 1 MSa/s, that maps [ 0 : 2496 ] int to [ 0 : 1.8 ] Volts.
+The slow outputs are filtered PWM outputs at 1 MSa/s, that maps [&nbsp;0&nbsp;:&nbsp;2496&nbsp;] int to [&nbsp;0&nbsp;:&nbsp;1.8&nbsp;] Volts.
 The choosed 14 bits signal is converted before feeding the slow output, following this equation:
 
 ```C
