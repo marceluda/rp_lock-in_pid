@@ -7,21 +7,26 @@ mathjax: true
 
 {% include instrument_navbar.html %}
 
+$$
+\definecolor{var}{RGB}{199,37,78}
+$$
+
+
 Both Lock-in amplifiers have their own internal oscillators for reference signals.
 They can also be used as function generator for any other purpose.
 
 ## Harmonic functions
 
-The harmonic functions are build into an array of 2520 points of 14 bits signed int stored in Read
+The harmonic functions are built into an array of 2520 points of 14 bits signed int stored in Read
 Only Memory (ROM) modules in the FPGA layer.
 
 ![Harmonic Functions]({{ site.baseurl }}/img/harmonic_mods.png "Harmonic Functions")
 
-All of them are discretized versions of $$cos(\omega t)$$, $$sin(\omega t)$$, $$cos(2 \omega t)$$ and
-$$cos(3 \omega t)$$. The discretization was carefully made in a way that all the Fourier orthogonality
-relations between them are kept.
+All of them are discretized versions of $$cos(\omega t)$$, $$sin(\omega t)$$, $$cos(\omega t + \phi)$$, $$cos(2 \omega t + \phi)$$ and
+$$cos(3 \omega t + \phi)$$. The discretization was carefully made in a way that all the Fourier orthogonality
+relations between them are kept when $$\phi = 0$$.
 
-The `phase` parameter controls the steps of delay between `cos_ref` and `cos_?f` signals.
+The `phase` parameter controls the steps of delay between `cos_ref` and `cos_?f` signals and is used to set $$\phi$$ value.
 
 The `period` parameter (`hp` inside FPGA) is the number of internal FPGA clock periods that last each point
 of the array. The min value of `hp=0` means each points corresponds to a clock period (8 ns), making the
@@ -54,16 +59,39 @@ phase shifted respect to `cos_ref` and `sin_ref`. The phase parameter of the Web
 
 ## Square functions
 
-The square functions are build on the run. They works as frequency dividers applied to the internal FPGA clock (125 MHz).
-
-
+The square functions are build on the run. They work as frequency dividers applied to the internal FPGA clock ( frequency: 125 MHz , period: 8 ns).
 
 ![Square Functions]({{ site.baseurl }}/img/square_mods.png "Square Functions")
+
+There are three binary signals (`sq_ref_b`, `sq_quad_b` and `sq_phas_b`) controlled by two parameters
+(unsigned int `sqp` and `phase_sq`). If `sqp==0`, each binary signal is taken from
+the sign of an harmonic signal. In that case, square and harmonic oscillators are synchronized.
+When `sqp>0`, the period of square signals is: $$ ({\color{var}\text{sqp}}+1) \cdot 2 \cdot 8 ns $$.
+So, `sqp+1` is the number of clock ticks of half period.
+
+The `sq_quad_b` signal is in quadrature respect to `sq_ref_b` and is delayed by a quarter period:
+`(sqp+1)/2` clock ticks. The division has not decimal digits, so the real quadrature is achieved only on
+odd values of `sqp`. The diference is only relevant on high accuracy applications or in high frequency
+uses.
+
+The `sq_phas_b` signal delayed by `phase_sq` clock ticks respect to `sq_ref_b` and is useful for
+arbitrary phase setup.
+
+Three 14 bits signed signasl are built from binary signals: `sq_ref`, `sq_quad` and `sq_phas` respectively. Theese are actually used for demodulation and for output. Each `0` is maped to
+`-4096` and each  `1` to `4096`, wich means an output of ±0.5 V.
 
 ### Schematics of FPGA layer
 
 
 ![Square Functions FPGA]({{ site.baseurl }}/img/gen_mod2_square.png "Square Functions FPGA")
+
+
+<a data-toggle="collapse" href="#Schematics_of_FPGA_layer_square" aria-expanded="false" aria-controls="Schematics_of_FPGA_layer_square">detailed description<span class="caret"></span></a>
+
+<div id="Schematics_of_FPGA_layer_square" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
+aaa
+</div>
+
 
 ## Web Frontend
 
