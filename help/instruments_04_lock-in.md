@@ -46,6 +46,8 @@ This is an scheme of the lock-in implementation in this application:
 
 The parts inside dotted boxes are repeated 8 times, one per reference signal. The non repeated names are written between braces and the order keeps the correspondence to reference signals. For example, the input signal `signal_i` demodulated using the `cos_ref` signal is labeled `X` and, after amplification, is labeled `Xo`.
 
+![lock-in panel]({{ site.baseurl }}/img/lock-in_panels_demodulation.png "Lock-in panel"){:style="float: right;margin-right: 7px;margin-top: 7px;"}
+
 The implementation is not exactly the same for square and harmonic reference, but the
 way of use is the same, so the demodulation paths are represented all together for simplicity.
 
@@ -54,10 +56,9 @@ In all the cases, the input signal is multiplied by the reference and this produ
 is a 27 bits signal suitable for high resolution measurement of
 quantities. You can access the values of this signals with the Lock-in display (see below). When you need to use de demodulated signals to feed outputs or PIDs filters (all of them with 14 bits resolution) the demodulated signals are amplified and cut. The amplification factor is configurable.
 
-The parameters configuration for any of the demodulation path of both lock-in amplifiers can be set through the lock-in panel of the Web Application:
+The parameters configuration for any of the demodulation path of both lock-in amplifiers can be set through the lock-in panel of the Web Application.
 
-
-![lock-in panel]({{ site.baseurl }}/img/lock-in_panels_demodulation.png "Lock-in panel")
+<div class="clearfix"> </div>
 
 
 ## Harmonic Lock-in

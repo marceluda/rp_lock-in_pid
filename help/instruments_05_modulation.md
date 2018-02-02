@@ -64,38 +64,68 @@ The square functions are build on the run. They work as frequency dividers appli
 ![Square Functions]({{ site.baseurl }}/img/square_mods.png "Square Functions")
 
 There are three binary signals (`sq_ref_b`, `sq_quad_b` and `sq_phas_b`) controlled by two parameters
-(unsigned int `sqp` and `phase_sq`). If `sqp==0`, each binary signal is taken from
-the sign of an harmonic signal. In that case, square and harmonic oscillators are synchronized.
+(unsigned int `sqp` and `phase_sq`). If `sqp==0`, the binary signal is taken from
+the sign bit of an harmonic signal (`sq_ref_b` from `cos_ref`, `sq_quad_b` from `sin_ref`). In that case, square and harmonic oscillators are synchronized.
 When `sqp>0`, the period of square signals is: $$ ({\color{var}\text{sqp}}+1) \cdot 2 \cdot 8 ns $$.
 So, `sqp+1` is the number of clock ticks of half period.
 
 The `sq_quad_b` signal is in quadrature respect to `sq_ref_b` and is delayed by a quarter period:
 `(sqp+1)/2` clock ticks. The division has not decimal digits, so the real quadrature is achieved only on
-odd values of `sqp`. The diference is only relevant on high accuracy applications or in high frequency
-uses.
+odd values of `sqp`. The difference is only relevant on high accuracy lock-in measurements or in high frequency uses (when the relative difference in period is higher).
 
 The `sq_phas_b` signal delayed by `phase_sq` clock ticks respect to `sq_ref_b` and is useful for
 arbitrary phase setup.
 
-Three 14 bits signed signasl are built from binary signals: `sq_ref`, `sq_quad` and `sq_phas` respectively. Theese are actually used for demodulation and for output. Each `0` is maped to
-`-4096` and each  `1` to `4096`, wich means an output of ±0.5 V.
+Three 14 bits signed signals are built from binary signals: `sq_ref`, `sq_quad` and `sq_phas` respectively. These are actually used for demodulation and for output. Each `0` is mapped to
+`-4096` and each  `1` to `4096`, which means an output value of ±0.5 V.
 
 ### Schematics of FPGA layer
 
+The following graphic represents the FPGA logic circuit for the square functions generation.
+Again, it's not rigorous, for simplicity.
 
 ![Square Functions FPGA]({{ site.baseurl }}/img/gen_mod2_square.png "Square Functions FPGA")
 
+The three signals are built from clock signals using some frequency dividers and delay modules.
 
 <a data-toggle="collapse" href="#Schematics_of_FPGA_layer_square" aria-expanded="false" aria-controls="Schematics_of_FPGA_layer_square">detailed description<span class="caret"></span></a>
 
 <div id="Schematics_of_FPGA_layer_square" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
-aaa
+
+The clock signal (square signal of 125 MHz frequency / 8 ns period) is lowered down by two
+frequency dividers: divided by 2 and by $$ ({\color{var}\text{sqp}}+1) $$.
+The higher frequency is achieved at `sqp=1`:
+$$ 31.25 \; \text{MHz} \;=\; \frac{125 \; \text{MHz}}{ 4 } $$ .
+
+`sq_ref_b` refers to *reference* signal. The signal `sq_quad_b` is delayed
+to be in quadrature respect to `sq_ref_b`. The delay is
+$$ (\frac{\color{var}\text{sqp}}{2}+1) $$ clock ticks length (the division is done by the
+shift operator`sqp>>1`,  whose result has not decimal digits and rounds all to
+the lower integer value).
+
+The `sq_phas_b` signal is delayed by `phase_sq` clock ticks length.
+
 </div>
 
 
 ## Web Frontend
 
-![Harmonic Functions web]({{ site.baseurl }}/img/lock-in_panels_modulation.png "Harmonic Functions web")
+<div markdown="1" >
+
+![Harmonic Functions web]({{ site.baseurl }}/img/lock-in_panels_modulation.png "Harmonic Functions web"){:style="float: right;margin-right: 7px;margin-top: 7px;"}
+
+In the Lock-in panel, both oscillators can be configured.
+
+Under the *Slow harmonic lock-in* section you can set the fpga `hp` parameter using the
+**Period** control, and the fpga `phase` parameter using the **Phase** control.
+
+Under the *Fast square lock-in* section you can set the fpga `sqp` parameter using the
+**Period** control, and the fpga `phase_sq` parameter using the **Phase** control.
+
+All the controls are configured using unsigned int values and a human-readable value is shown
+below to make it easier to understand.
+
+</div>
 
 
 {% include instrument_navbar.html up=1 %}
