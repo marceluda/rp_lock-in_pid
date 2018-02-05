@@ -13,7 +13,7 @@ the different hardware outputs.
 #  Output signals
 
 
-![outputs panel]({{ site.baseurl }}/img/outputs_panel.png "Outputs panel"){:style="float: left;margin-right: 7px;margin-top: 7px;"}
+![outputs panel]({{ site.baseurl }}/img/outputs_panel.png "Outputs panel"){:style="float: left;margin-left: 7px;margin-top: 7px;"}
 
 The output panel frontend controls a set of demultiplexers that lets you choose between
 several signals to feed the DACs (Digital to Analog Converter) of RedPitaya hardware.
