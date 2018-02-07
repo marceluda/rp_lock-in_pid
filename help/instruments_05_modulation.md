@@ -66,7 +66,7 @@ The square functions are build on the run. They work as frequency dividers appli
 There are three binary signals (`sq_ref_b`, `sq_quad_b` and `sq_phas_b`) controlled by two parameters
 (unsigned int `sqp` and `phase_sq`). If `sqp==0`, the binary signal is taken from
 the sign bit of an harmonic signal (`sq_ref_b` from `cos_ref`, `sq_quad_b` from `sin_ref`). In that case, square and harmonic oscillators are synchronized.
-When `sqp>0`, the period of square signals is: $$ ({\color{var}\text{sqp}}+1) \cdot 2 \cdot 8 ns $$.
+When `sqp>0`, the period of square signals is: $$ ({\color{var}\texttt{sqp}}+1) \cdot 2 \cdot 8 ns $$.
 So, `sqp+1` is the number of clock ticks of half period.
 
 The `sq_quad_b` signal is in quadrature respect to `sq_ref_b` and is delayed by a quarter period:
@@ -93,13 +93,13 @@ The three signals are built from clock signals using some frequency dividers and
 <div id="Schematics_of_FPGA_layer_square" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
 The clock signal (square signal of 125 MHz frequency / 8 ns period) is lowered down by two
-frequency dividers: divided by 2 and by $$ ({\color{var}\text{sqp}}+1) $$.
+frequency dividers: divided by 2 and by $$ ({\color{var}\texttt{sqp}}+1) $$.
 The higher frequency is achieved at `sqp=1`:
 $$ 31.25 \; \text{MHz} \;=\; \frac{125 \; \text{MHz}}{ 4 } $$ .
 
 `sq_ref_b` refers to *reference* signal. The signal `sq_quad_b` is delayed
 to be in quadrature respect to `sq_ref_b`. The delay is
-$$ (\frac{\color{var}\text{sqp}}{2}+1) $$ clock ticks length (the division is done by the
+$$ (\frac{\color{var}\texttt{sqp}}{2}+1) $$ clock ticks length (the division is done by the
 shift operator`sqp>>1`,  whose result has not decimal digits and rounds all to
 the lower integer value).
 
