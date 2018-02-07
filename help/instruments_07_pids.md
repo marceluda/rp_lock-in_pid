@@ -79,15 +79,41 @@ amplification.
 
 $$ k_p = \frac{\color{var}\texttt{pidX_kp}}{ scale } $$
 
-`pidX_PSR` lets you chosee the value of $$scale$$ from this options: 1, 8, 64, 1024, 4096. The default value is
-1024. This option is hidden by default and appears turning on the "Mor options" button.
+`pidX_PSR` lets you choose the value of $$scale$$ from this options: 1, 8, 64, 1024, 4096. The default value is
+1024. This option is hidden by default and appears turning on the "More options" button.
 
 With the default scale, if you set `pidA_kp=512` the proportional part of PID A will output a signal with the half
 of the amplitude of the input.
 
 
-
 ### Integral
+
+The integral part of the PID is set by two parameters: `pidX_ki` and `pidX_ISR`.
+The first one is the proportionality factor. The second one a scale to change order of magnitude of the
+characteristic time of the integrator $$ \tau_i $$.
+
+$$ k_i = \frac{\color{var}\texttt{pidX_ki}}{ \tau_i }  $$
+
+`pidX_ISR` lets you choose the value of $$\tau_i$$ from this options:
+8 ns,
+64 ns,
+512 ns,
+8 us,
+6 us,
+524 us,
+8 ms,
+67 ms,
+537 ms,
+9 s. The default value is
+537 ms. This option is hidden by default and appears turning on the "More options" button.
+
+With the default scale, if you set `pidA_ki=3` the integral part of PID will have a characteristic time of:
+
+$$ \tau = \frac{\tau_i}{\color{var}\texttt{pidX_ki}} = \frac{537 ms }{3} = 179 ms $$
+
+This means that if the input is a signal of 1 V constant and the integrator starts at 0 V, the output
+will start raising at  $$ \frac{1}{179} $$ V/ms and will reach 1 V at 179 ms later.
+
 
 ### Derivative
 
