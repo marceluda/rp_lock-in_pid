@@ -77,7 +77,7 @@ The proportional part of the PID is set by two parameters: `pidX_kp` and `pidX_P
 The first one is the proportionality factor. The second one a scale to change order of magnitude of the
 amplification.
 
-$$ k_p = \frac{\color{var}\texttt{pidX_kp}}{ scale }
+$$ k_p = \frac{\color{var}\texttt{pidX_kp}}{ scale } $$
 
 `pidX_PSR` lets you chosee the value of $$scale$$ from this options: 1, 8, 64, 1024, 4096. The default value is
 1024. This option is hidden by default and appears turning on the "Mor options" button.
