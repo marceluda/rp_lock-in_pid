@@ -34,7 +34,10 @@ several parameters of an experimental system under analysis. The system response
 will have, as well, a modulated part at the same frequency as the used oscillator.
 The system response plus environment noise will be the input signal $$s(t)$$ of the lock-in amplifier.
 
-TO BE COMPLETED WITH EQUATIONS
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED with equations
+</div>
+
 
 The filtering is made by multiplying the input signal by a reference signal
 
@@ -82,7 +85,12 @@ In this lock-in frequencies are restricted to a more limited range than the squa
 The parameters for `X`, `Y` and `F1` low pass filter frequency cut, order and amplification are the same.
 For `F2` and `F3`, the configuration is separated, because they run on different frequencies.
 
-**SOMETHING ABOUT HARMONIC DISTORTION**
+
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED : SOMETHING ABOUT HARMONIC DISTORTION
+</div>
+
+
 
 ## Square Lock-in
 
@@ -98,8 +106,9 @@ The square lock-in has 3 demodulation paths, for 3 reference signals:
 In this lock-in frequencies can go from 30 mHz to 31 MHz. The last value correspond to the hardware limit of
 lock-in realization, using reference signals defined with 4 point (32 ns period = 4 * 8 ns of RedPitaya FPGA clock).
 
-**SOMETHING ABOUT HARMONIC DISTORTION**
-
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED : SOMETHING ABOUT HARMONIC DISTORTION
+</div>
 
 
 

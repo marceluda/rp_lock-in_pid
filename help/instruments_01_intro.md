@@ -63,7 +63,9 @@ values of the FPGA registers.
 ## The layer structure
 
 
-**TO BE CONTINUED**
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED
+</div>
 
 
 ## The web Frontend

@@ -61,6 +61,17 @@ $$ k_p = \frac{\color{var}\texttt{pidX_kp}}{ scale }  $$,
 $$ k_i = \frac{\color{var}\texttt{pidX_ki}}{ \tau_i }  $$ and
 $$ k_d = \frac{\color{var}\texttt{pidX_kd}}{ \tau_d }  $$.
 
+There are another 3 boolean parameters for state control of each PID. They are:
+`pidX_irst` (reset integral), `pidX_freeze` (freeze out) and `pidX_ifreeze` (freeze integral).
+The first one sets the integral memory to zero while is on, but proportional an derivative terms are kept
+actives.
+The second one freezes the output value of the whole PID and keeps this value while the parameter is True.
+The third parameter freeze only the integral term, keeping proportional and derivative active. It's
+useful to stop the integral behavior to test a system without making an instantaneous jump to zero in
+the PID output.
+
+
+
 
 ### Error signal
 
@@ -117,9 +128,15 @@ will start raising at  $$ \frac{1}{179} $$ V/ms and will reach 1 V at 179 ms lat
 
 ### Derivative
 
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED
+</div>
+
 ## Web Frontend
 
-![PID Panel]({{ site.baseurl }}/img/PIDs_panel.png "PID Panel"){:style="float: left;margin-left: 7px;margin-top: 7px;"}
+![PID Panel]({{ site.baseurl }}/img/PIDs_panel.png "PID Panel"){:style="float: left;margin: 7px;"}
 
+The figure shows the controls used to set the FPGA parameters. The basic interfase for PID A and the
+"More Options" interfase for PID B.
 
 {% include instrument_navbar.html up=1 %}
