@@ -90,6 +90,62 @@ and `ctrl_B`.
    in the Lock Control panel will automatically stop the Ramp (freezing the output value)
    and enable both PIDs. Also, you can configure a Auto-Lock start using the tools of this panel.
 
+## The Lock Control panel
+
+![Lock Control Panel]({{ site.baseurl }}/img/auto-lock_panel.png "Lock Control Panel"){:style="float: right;margin: 7px;"}
+
+
+The Lock Control panel has three components:
+
+  * **The main control**, that is always visible, and lets you enable or disable PIDs and Ramp instruments.
+    This section is used to control when to start the stabilization (pass from open-loop to closed-loop feedback).
+  * **Re-lock system**, that is hidden by default, and is used to detect if the system is out of lock and start a
+    re-locking procedure.
+  * **Step response measurement**: Not working right now.
+
+<div class="clearfix"> </div>
+
+### Main control
+
+The main control has three switch-buttons that enable/disable and show the state of the Ramp and PIDs.
+Black color means "enabled" (switched on) and white color means "disabled" (switched off).
+
+| Button           | Parameter                        | Description                                                                                                                                                                                                                                                                                                                                                |
+|------------------|----------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| **Ramp enable**  | `lock_ctrl_aux_ramp_enable_ctrl` | When is on, the Ramp instrument works as expected. When is off, the Ramp instruments stops and the last output value is freezed                                                                                                                                                                                                                            |
+| **PID A enable** | `lock_ctrl_aux_pidA_enable_ctrl` | When is on, the `pidA_out` signal is added to the `ramp_A` signal to make the `ctrl_A` signal. When is off, `ctrl_A = ramp_A` and the integrator memory of PID A is reset to zero. While the button is off you can still see the `pidA_out` signal in the oscilloscope (for example, to test the PID behaviour) but without the effect of the integrator.  |
+| **PID B enable** | `lock_ctrl_aux_pidB_enable_ctrl` | When is on, the `pidB_out` signal is added to the `ramp_B` signal to make the `ctrl_B` signal. When is off, `ctrl_B = ramp_B` and the integrator memory of PID B is reset to zero. While the button is off you can still see the `pidB_out` signal in the oscilloscope (for example, to test the PID behaviour) but without the effect of the integrator.  |
+
+In the measurement / testing operation, Ramp scan is enabled and the PIDs are disabled (open-loop, without feedback).
+The stabilization can be started by changing this values to Ramp scan disables and PIDs enabled (closed-loop feedback).
+We can make this change simultaneously on the three parameters by using the **Lock Now  button**,
+changing the three values in the same FPGA clock tick (8 ns accuracy).
+When you clic the **Lock Now  button** the parameters are configured using the values of the checkboxes in the "config"
+section, whose default values are: Ramp disable, PID A enable, PID B enable. This values can be chaged, for example,
+if you want only one PID on in the final state or if you don't want to stop the Ramp.
+
+Another way to start the stabilization is by configuring a triggered auto-start. You can configure the trigger type
+and then clic the **Lock on trigger** button. When the system reaches the configured condition the state of the
+enable-controls are switched to the desired one. These are the trigger options:
+
+  * **Time trigger**: The change is made after some time has passed from the Ramp floor trigger. The time interval is
+    taken from the "Time Trigger" control, under the config section, and is expressed in clock tick units ( 8 ns each unit).
+
+    This option is useful when you want to start the stabilization on a desired position of a ramp scan. Theres a control
+    to ease the configuration process that lets you choose from the oscilloscope screen the starting position:
+
+    * Use external trigger on Oscilloscope, with Normal Mode.
+    * Use Ramp Floor as oscilloscope-trigger signal.
+    * Choose the channels that lets you identify the desired position (i.e.: `error` signal and `ramp_A`)
+    * Select the "Time trigger" option in the Trigger type combo box of Lock Control panel.
+    * Click on **Choose from graph** button.
+    * Click on the oscilloscope screen position you want to start the lock (note: must be a positive time position less than a period).
+    * The time position of the point you clicked is configured in the Time Trigger control.
+
+    Then you just need to click on **Lock on trigger** button and the stabilization will start at the chosen time.
+
+  * **Level Tirgger**: PENDDING
+  * **Level+Time Tirgger**: PENDDING
 
 
 
