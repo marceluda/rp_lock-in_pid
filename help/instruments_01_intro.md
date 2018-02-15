@@ -35,7 +35,7 @@ of the application as you would think of in a lab scheme. The combination of
 several instruments lets you control an experiment setup and measure the desired
 variables.
 
-<a data-toggle="collapse" href="#Where_are_the_instruments" aria-expanded="false" aria-controls="Where_are_the_instruments">read more</a>
+<a data-toggle="collapse" href="#Where_are_the_instruments" aria-expanded="false" aria-controls="Where_are_the_instruments">read more <span class="caret"></span></a>
 
 <div id="Where_are_the_instruments" class="collapse" markdown="1">
 

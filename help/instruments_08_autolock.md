@@ -11,7 +11,7 @@ $$
 \definecolor{var}{RGB}{199,37,78}
 $$
 
-This instrument is a compilation of tools useful to set up a loop-back
+This instrument is a compilation of tools useful to set up a feedback
 stabilization scheme. The tools were through to ease the procedure of
 looking for a desired stabilization condition, starting automatically the
 the stabilization system and detecting when the stabilization procedure fails
@@ -20,22 +20,32 @@ to take actions.
 ## System variable stabilization
 
 For the sake of clarity, we describe in the next items the idea behind the
-stabilization application.
+stabilization application. For detailed analisys refer to [Control Theory](https://en.wikipedia.org/wiki/Control_theory) text books.
 
-* You have a system property or variable you want control or stabilize to a fixed value.
+![feedback 1]({{ site.baseurl }}/img/feedback_1.png "feedback 1")
+
+<a data-toggle="collapse" href="#feedback_2_actuators" aria-expanded="false" aria-controls="feedback_2_actuators">Example with two actuators <span class="caret"></span></a>
+
+<div id="feedback_2_actuators" class="collapse" markdown="1">
+![feedback 2]({{ site.baseurl }}/img/feedback_2.png "feedback 2")
+</div>
+
+* You have a system property or variable you want to control or stabilize to a fixed value.
 * You can measure this variable or some value associated to this variable that
-we will call the **system response**.
+we will call the **system output**.
 * You can control the system in some degree using a **control signal** (in this application
-  you can use up to two control signals) that changes the state of the system in a way that
-  generates a **system response**.
+  you can use up to two control signals, see "Example with two actuators" ) that changes the state of the system in a way that generates a **system response**.
 * You cannot control all the system variables. The uncontrolled variables (i.e.: environment,
   random variables, noise, etc) makes undesired changes on the value of the variable you
   want to control and this changes can be measured on the **system response**.
-* So, to control or fix the desired variable you build the following stabilization scheme:
-  1. You measure the **system response**
-  2. You compare the **system response** with a desired value, called **set-point** and
-     build an **error** signal: $$ \texttt{error} = \texttt{response} \; - \; \texttt{set-point} $$
-  3. You process the **error** signal with a filter. If the **error** signal is 0, the system
+* So, to control or fix the desired variable (or the system output) you build the following stabilization scheme:
+  1. You measure the **system output** with a sensor an process it to make a measurement **signal**
+     (the sensor should be considered in a generalized form: it's not only the conversion of the
+     physical magnitude to a digital signal, but also the process and conditioning needed; for example,
+     it includes the lock-in demodulation, if you are using it).
+  2. You compare the measured **signal** with a desired value, called **set-point** and
+     build an **error** signal: $$ \texttt{error} = \texttt{signal} \; - \; \texttt{set-point} $$
+  3. You process the **error** signal with a filter (PID). If the **error** signal is 0, the system
      variable is in the desired state. If not, you have to modify the system. The filter that
      process the **error** signals outputs a **correction** signal.
   4. The **correction** signal is added to the actual value of the **control** signal used
@@ -46,14 +56,14 @@ we will call the **system response**.
 
 
 When you apply the **correction** signal to control the system and compensate the undesired
-changes you are working in a **closed-loopback** scheme.
+changes you are working in a **closed-loop** feedback scheme.
 
-When you are studying the system you want to control, you are operating in a **open-loopback**
+When you are studying the system you want to control, you are operating in a **open-loop** feedback
 scheme. For example, if you are measuring the system response and the error signal while
 you scan the control signal with a predefined function like a ramp.
 
 The aim of this instrument is to provide tools to identify the conditions suitable
-to pass from the **open-loopback** scheme to the **closed-loopback** scheme in order to
+to pass from the **open-loop** feedback scheme to the **closed-loop** feedback scheme in order to
 make a good stabilization of a desired variable.
 
 ## The Lock Control procedure
@@ -61,7 +71,7 @@ make a good stabilization of a desired variable.
 1. Setup the hardware inputs of the Red Pitaya to measure the system response.
 2. Setup the hardware outputs of the Red Pitaya to use control signal `ctrl_A`
 and `ctrl_B`.
-3. Choose an `error` signal from the PIDs panel.
+3. Choose an `error` signal from the PIDs panel. It can be any input or a demodulated signal from lock-in.
 4. Switch off the "PID A Enable" and  "PID B Enable" buttons from the Lock Control Panel.
 5. Configure and start a Ramp scan using the Ramp Panel.
   * Here you can see the system response using one oscilloscope channel, and you can use
