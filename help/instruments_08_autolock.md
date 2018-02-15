@@ -34,7 +34,7 @@ stabilization application. For detailed analisys refer to [Control Theory](https
 * You can measure this variable or some value associated to this variable that
 we will call the **system output**.
 * You can control the system in some degree using a **control signal** (in this application
-  you can use up to two control signals, see "Example with two actuators" ) that changes the state of the system in a way that generates a **system response**.
+  you can use up to two control signals, see "Example with two actuators") that changes the state of the system in a way that generates a **system response**.
 * You cannot control all the system variables. The uncontrolled variables (i.e.: environment,
   random variables, noise, etc) makes undesired changes on the value of the variable you
   want to control and this changes can be measured on the **system response**.
