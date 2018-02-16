@@ -148,6 +148,11 @@ enable-controls are switched to the desired one. These are the trigger options:
   * **Level+Time Tirgger**: PENDDING
 
 
+### Re-lock control
+
+<div class="alert alert-warning" role="alert">
+  <strong>Under construction</strong> TO BE COMPLETED
+</div>
 
 
 
