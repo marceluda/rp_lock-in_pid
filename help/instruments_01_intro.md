@@ -37,7 +37,7 @@ variables.
 
 <a data-toggle="collapse" href="#Where_are_the_instruments" aria-expanded="false" aria-controls="Where_are_the_instruments">read more <span class="caret"></span></a>
 
-<div id="Where_are_the_instruments" class="collapse" markdown="1">
+<div id="Where_are_the_instruments" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
 The *core* of the instruments is in the
 [FPGA layer](https://en.wikipedia.org/wiki/Field-programmable_gate_array).
@@ -73,7 +73,7 @@ Ther server is the Red Pitaya device, that processes the user commands and make 
 
 <a data-toggle="collapse" href="#More_about_client_Server_structure" aria-expanded="false" aria-controls="More_about_client_Server_structure">More about client-Server structure <span class="caret"></span></a>
 
-<div id="More_about_client_Server_structure" class="collapse" markdown="1">
+<div id="More_about_client_Server_structure" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
 ### Client: a web page for user interface
 The client gets a web page from a web server running in the Red Pitaya operating system.

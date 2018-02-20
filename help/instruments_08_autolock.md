@@ -26,7 +26,7 @@ stabilization application. For detailed analisys refer to [Control Theory](https
 
 <a data-toggle="collapse" href="#feedback_2_actuators" aria-expanded="false" aria-controls="feedback_2_actuators">Example with two actuators <span class="caret"></span></a>
 
-<div id="feedback_2_actuators" class="collapse" markdown="1">
+<div id="feedback_2_actuators" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 ![feedback 2]({{ site.baseurl }}/img/feedback_2.png "feedback 2")
 </div>
 
