@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <meta charset="utf-8">
+  <title>Redirecting&hellip;</title>
+  <link rel="canonical" href="{{ page.redirect.to }}">
+  <meta http-equiv="refresh" content="0; url={{ site.baseurl }}/{{ page.redirect }}">
+  <meta name="robots" content="noindex">
+  <h1>Redirecting&hellip;</h1>
+  <h2>{{ site.baseurl }}/{{ page.redirect }} </h2>
+  <a href="{{ site.baseurl }}/{{ page.redirect }}">Click here if you are not redirected.</a>
+  <script>location="{{ site.baseurl }}/{{ page.redirect }}"</script>
+</html>

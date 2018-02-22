@@ -22,12 +22,12 @@ description: Lock-in amplifier and PIDs filters for RedPitaya
 # --- Navigation bar options --- #
 
 # List of links in the navigation bar
-navbar-links:
-  Help:
+#navbar-links:
+#  Help:
 #    - What is Lock-in and PIDs: "help/about"
-    - Download and install: "help/install"
+#    - Download and install: "help/install"
 #    - The App: "help/app_intro"
-    - The App Instruments: "help/instruments_01_intro"
+#    - The App Instruments: "help/instruments_01_intro"
   # Applications:
   #   - Lock-in measurements: "app/lock-in"
   #   - Feedback loop for atabilization: "app/stabilization"
@@ -45,27 +45,51 @@ navbar-links:
   #   - Web Frontend: "dev/web_frontend"
   #   - Python Library: "dev/python_lib"
 
+navbar-links:
+  The App:
+    - Donwload and install: TheApp/install
+    - The instruments: TheApp/instruments/instruments_01_intro
+#    - App Schema: app/lala
+    - The Red Pitaya Board: TheApp/RedPitaya_board
+    - Remote control: TheApp/remote_control
+  Tutorials:
+    - Locking PDH: app/lala
+    - Using the Lock-in: app/lala
+    - Using the Ramp scan: app/lala
+  Dev:
+    - Source and tools: app/lala
+    - Dev Documentation: app/lala
+    - HTML+JS doc: app/lala
+    - C++ web server doc: app/lala
+    - FPGA doc: app/lala
+  Help:
+    - FAQ: app/lala
+    - Contact: app/lala
+    - Troubleshoot: app/lala
 
 
 # --- Navigation bar options  for instruments--- #
 
-help-inst-links:
-  - title: Introduction
-    url: instruments_01_intro
-  - title: Oscilloscope
-    url: instruments_02_scope
-  - title: Outputs
-    url: instruments_03_inout
-  - title: Lock-in
-    url: instruments_04_lock-in
-  - title: Oscillators
-    url: instruments_05_modulation
-  - title: Ramp
-    url: instruments_06_ramp_gen
-  - title: PIDs
-    url: instruments_07_pids
-  - title: Auto-lock
-    url: instruments_08_autolock
+pagenav:
+  inst-links:
+    - title: Introduction
+      url: TheApp/instruments/instruments_01_intro
+    - title: Oscilloscope
+      url: TheApp/instruments/instruments_02_scope
+    - title: Outputs
+      url: TheApp/instruments/instruments_03_inout
+    - title: Lock-in
+      url: TheApp/instruments/instruments_04_lock-in
+    - title: Oscillators
+      url: TheApp/instruments/instruments_05_modulation
+    - title: Ramp
+      url: TheApp/instruments/instruments_06_ramp_gen
+    - title: PIDs
+      url: TheApp/instruments/instruments_07_pids
+    - title: Auto-lock
+      url: TheApp/instruments/instruments_08_autolock
+
+
 
 
 # Image to show in the navigation bar - image must be a square (width = height)
@@ -266,6 +290,7 @@ prose:
 
 plugins:
   - jekyll-paginate
+  - jekyll-redirect-from
 
 # Beautiful Jekyll / Dean Attali
 # 2fc73a3a967e97599c9763d05e564189

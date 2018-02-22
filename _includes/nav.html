@@ -20,7 +20,7 @@
         {% if link[1].first %}
           <li class="navlinks-container">
             <a class="navlinks-parent" href="javascript:void(0)">{{ link[0] }}</a>
-            <div class="navlinks-children">
+            <div class="navlinks-children" style="min-width: 150px;" >
               {% for childlink in link[1] %}
                 {% for linkparts in childlink %}
                   {% include navbarlink.html link=linkparts %}
