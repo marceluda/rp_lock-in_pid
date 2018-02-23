@@ -8,9 +8,29 @@ layout: page
 
 Download last release (beta):
 
+[lock-in+pid-0.1.0-25-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.tar.gz)
+
+[lock-in+pid-0.1.0-25-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.zip)
+
+**Debug version**
+
+[lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild_DEBUG.tar.gz)
+
+[lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild_DEBUG.zip)
+
+<a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">detailed description <span class="caret"></span></a>
+
+<div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
+
 [lock-in+pid-0.1.0-15-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.tar.gz)
 
 [lock-in+pid-0.1.0-15-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip)
+
+</div>
+
+
+
+
 
 # Install App in RedPitaya
 
