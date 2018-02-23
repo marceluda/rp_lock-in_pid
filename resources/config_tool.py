@@ -20,6 +20,7 @@ do_html    = False
 do_py      = False
 
 folder=''
+folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid'
 
 
 #%%
@@ -1720,10 +1721,14 @@ if False:
     print(get_muxer(filename,"slow_out1_sw"))
     print(get_muxer(filename,"lpf_F1"))
     print(get_muxer(filename,"sg_amp1"))
+    print(get_muxer(filename,"oscA_sw"))
     print(get_muxer(filename,"oscB_sw"))
     print(get_muxer(filename,"pidA_sw"))
     print(get_muxer(filename,"signal_sw"))
-
+    print(get_muxer(filename,"out1_sw"))
+    
+    for i in get_muxer(filename,"pidB_sw"):
+        print('`'+i+'`,')
 
 
 

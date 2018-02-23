@@ -31,7 +31,7 @@ CFLAGS += -DVERSION=$(VER)-$(BUILD_NUMBER) -DREVISION=$(REVISION)
 export CFLAGS
 
 
-.PHONY: clean
+.PHONY: clean upload
 
 all:
 	$(MAKE) -C $(APP) all
@@ -40,3 +40,6 @@ all:
 
 clean:
 	$(MAKE) -C $(APP) clean
+
+upload:
+	$(MAKE) -C $(APP) upload
