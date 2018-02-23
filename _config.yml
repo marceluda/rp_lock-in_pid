@@ -54,6 +54,7 @@ navbar-links:
     - Remote control: TheApp/remote_control
   Tutorials:
     - Locking PDH: app/lala
+    - PID params tuning: app/lala
     - Using the Lock-in: app/lala
     - Using the Ramp scan: app/lala
   Dev:
