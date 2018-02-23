@@ -14,11 +14,11 @@ Download last release (beta):
 
 **Debug version**
 
-[lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild_DEBUG.tar.gz)
+[lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz)
 
-[lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild_DEBUG.zip)
+[lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.zip)
 
-<a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">detailed description <span class="caret"></span></a>
+<a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">Older releases<span class="caret"></span></a>
 
 <div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
