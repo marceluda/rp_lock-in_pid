@@ -19,7 +19,7 @@ philosophy for the hardware design. Red Pitaya sells you the board an offers you
 but you can use your own soft, starting from your own or from the
 [Red Pitaya Open Source code on git-hub](https://github.com/RedPitaya).
 
-![stemlab]({{ site.baseurl }}/img/stemlab1.png "stemlab")
+![stemlab]({{ site.baseurl }}/img/stemlab1.png "stemlab"){:style="display: block; margin-left: auto; margin-right: auto;"}
 
 
 # The STEMlab product
