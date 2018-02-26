@@ -87,7 +87,7 @@ get shell access to the RedPitaya Operative System (Linux) and run the command `
 root@rp-XXXXXX:~$ rw
 ```
 
-Then use [WinSCP](https://winscp.net/) to upload the `rp_lock-in_pid` folder to
+Then use [WinSCP](https://winscp.net/) to upload the `lock-in+pid` folder to
  `/opt/redpitaya/www/apps/`
 
 If you want to use the remote control tools you need to copy the `/resources/rp_cmds/py/*.py`
