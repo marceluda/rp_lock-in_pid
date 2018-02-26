@@ -8,7 +8,8 @@ fi
 
 # rp-xxxxxx.local
 
-RPOPTS="-l root"
+RPOPTS="-l root -p 22 "
+RPSCP="-P 22 "
 CONTROLLERHF="controllerhf.so"
 
 
@@ -28,8 +29,8 @@ echo "
 "
 
 
-scp -r resources/rp_cmds/py/*.py  root@$RPIP:/root/py/
-scp -r resources/rp_cmds/nginx.sh  root@$RPIP:/root/
+scp $RPSCP -r resources/rp_cmds/py/*.py  root@$RPIP:/root/py/
+scp $RPSCP -r resources/rp_cmds/nginx.sh  root@$RPIP:/root/
 # ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; ln -s /root/nginx.sh /etc/cron.daily/nginx.sh ; chmod +x /root/nginx.sh"
 
 
