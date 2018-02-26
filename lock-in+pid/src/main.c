@@ -300,7 +300,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     /*********************************************/
 
     // [MAINDEF DOCK]
-    
+
     { "lock_oscA_sw"                  ,      1, 1, 0,            0,           31 }, /** switch for muxer oscA **/
     { "lock_oscB_sw"                  ,      2, 1, 0,            0,           31 }, /** switch for muxer oscB **/
     { "lock_osc1_filt_off"            ,      1, 1, 0,            0,            1 }, /** oscilloscope control osc1_filt_off **/
@@ -441,7 +441,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_ctrl_aux_lock_trig_rise"  ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_sq_on"                ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_harmonic_on"          ,      1, 0, 0,            0,            1 }, /** todo **/
-    
+
     // [MAINDEF DOCK END]
 
     { /* Must be last! */
@@ -476,23 +476,33 @@ int rp_app_init(void)
         fprintf(stderr, "rp_read_calib_params() failed, using default"
                 " parameters\n");
     }
+
+    TRACE("LOLO(rp_app_init): Now: rp_osc_worker_init\n");
+
     if(rp_osc_worker_init(&rp_main_params[0], PARAMS_NUM,
                           &rp_main_calib_params) < 0) {
         return -1;
     }
+
+    TRACE("LOLO(rp_app_init): Now: generate_init\n");
     if(generate_init(&rp_main_calib_params) < 0) {
         return -1;
     }
+
+    TRACE("LOLO(rp_app_init): Now: pid_init\n");
     if(pid_init() < 0) {
         return -1;
     }
+
+    TRACE("LOLO(rp_app_init): Now: lock_init\n");
     if(lock_init() < 0) {
         return -1;
     }
 
-
+    TRACE("LOLO(rp_app_init): PARAMS_NUM: %d \n", PARAMS_NUM);
     rp_set_params(&rp_main_params[0], PARAMS_NUM);
 
+    TRACE("LOLO(rp_app_init): END\n");
 
     return 0;
 }
@@ -501,10 +511,19 @@ int rp_app_exit(void)
 {
     fprintf(stderr, "Unloading scope (with gen+pid extensions) version %s-%s.\n", VERSION_STR, REVISION_STR);
 
+    TRACE("LOLO(rp_app_exit): Now: rp_osc_worker_exit\n");
     rp_osc_worker_exit();
+
+    TRACE("LOLO(rp_app_exit): Now: generate_exit\n");
     generate_exit();
+
+    TRACE("LOLO(rp_app_exit): Now: pid_exit\n");
     pid_exit();
+
+    TRACE("LOLO(rp_app_exit): Now: lock_exit\n");
     lock_exit();
+
+    TRACE("LOLO(rp_app_exit): END\n");
 
     return 0;
 }
@@ -775,6 +794,8 @@ int rp_set_params(rp_app_params_t *p, int len)
 
 
     TRACE("%s()\n", __FUNCTION__);
+
+    TRACE("LOLO(rp_set_params): START\n");
 
     if(len > PARAMS_NUM) {
         fprintf(stderr, "Too many parameters, max=%d\n", PARAMS_NUM);
@@ -1053,6 +1074,8 @@ int rp_get_params(rp_app_params_t **p)
     rp_app_params_t *p_copy = NULL;
     int i;
 
+    TRACE("LOLO(rp_get_params): START\n");
+
     p_copy = (rp_app_params_t *)malloc((PARAMS_NUM+1) * sizeof(rp_app_params_t));
     if(p_copy == NULL)
         return -1;
@@ -1086,6 +1109,9 @@ int rp_get_params(rp_app_params_t **p)
 
 int rp_get_signals(float ***s, int *sig_num, int *sig_len)
 {
+
+    TRACE("LOLO(rp_get_signals): START\n");
+
     int ret_val;
     int sig_idx;
 
@@ -1123,6 +1149,8 @@ int rp_create_signals(float ***a_signals)
 {
     int i;
     float **s;
+
+    TRACE("LOLO(rp_create_signals): START\n");
 
     s = (float **)malloc(SIGNALS_NUM * sizeof(float *));
     if(s == NULL) {
@@ -1186,6 +1214,8 @@ int rp_copy_params(rp_app_params_t *src, rp_app_params_t **dst)
 {
     rp_app_params_t *p_new = *dst;
     int i, num_params;
+
+    TRACE("LOLO(rp_copy_params): START\n");
 
     /* check arguments */
     if (src == NULL) {
@@ -1254,6 +1284,8 @@ int rp_copy_params(rp_app_params_t *src, rp_app_params_t **dst)
 int rp_clean_params(rp_app_params_t *params)
 {
     int i = 0;
+    TRACE("LOLO(rp_clean_params): START\n");
+
     /* cleanup params structure */
     if(params) {
         while(params[i].name != NULL) {
@@ -1270,6 +1302,7 @@ int rp_clean_params(rp_app_params_t *params)
 
 int rp_update_main_params(rp_app_params_t *params)
 {
+    TRACE("LOLO(rp_update_main_params): START\n");
     int i = 0;
     if(params == NULL)
         return -1;
