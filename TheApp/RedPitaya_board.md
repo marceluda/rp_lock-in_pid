@@ -10,8 +10,11 @@ layout: page
 hardware developing for labs and engineering applications.
 The main product of this company is the [STEMlab-board](https://www.redpitaya.com/f130/STEMlab-board)
 (originally called Red Pitaya itself). This board is an embebed device that combines
-a computer with ARM processor, an FPGA and a electronic board with ADCs and DACs designed to replace
-labs instruments.
+a computer with ARM processor, an FPGA and a electronic board with
+[ADCs](https://en.wikipedia.org/wiki/Analog-to-digital_converter)
+and
+[DACs](https://en.wikipedia.org/wiki/Digital-to-analog_converter)
+designed to replace labs instruments.
 
 The project started with an [Open Source](https://en.wikipedia.org/wiki/Open-source_software)
 philosophy for software and a [Closed Source](https://en.wikipedia.org/w/index.php?title=Closed_Source)
@@ -51,7 +54,53 @@ Each application has 3 parts:
     graphical interface and provides a set of HTML controls that lets the user commands the hardware.
 
 
-## Hardware
+## Hardware of STEMlab 125-14 (originally Red Pitaya v1.1)
 
+STEMlab comes in two versions: STEMlab 125-14 and STEMlab 125-10. The main difference is the
+resolution of the fast input/outputs (14 bits vs 10 bits). The Lock-in+PID App was designed to
+be used in STEMlab 125-14. Here, some hardware specifications.
 
 ![hardware]({{ site.baseurl }}/img/redpitaya_hardware.png "hardware")
+
+Some of the main characteristics of the hardware:
+
+  - 2 Fast Analog to Digital Converters (`in1`,`in2`).
+    125 MSamples/sec, 14 bits resolution, ±1 V (or ±20 V selectable by jumper settings)
+  - 2 Fast Digital to Analog Converters (`out1`,`out2`).
+    125 MSamples/sec, 14 bits resolution, ±1 V
+  - Extension connector E1 for digital signals
+    - 16 input/output 3.3 V digital signals that can be controlled by software or FPGA.
+    - One of this signas is used in the oscilloscope instrument for output digital trigger.
+    - GND Ground pins
+    - 3.3 V pins for shield power supply
+  - Extension connector E2 for Slow Analog signals and other applications
+    - 2 pins for external clock supply
+    - 4 Slow Digital to Analog Converters (`slow_out1`,`slow_out2`,`slow_out3`,`slow_out4`).
+      Based in PWM conversion, 100 kSamples/sec, almost 12 bit resolution (0 to 2512 int), 0-1.8 V.
+    - 4 Slow Analog to Digital Converters.
+       100 kSamples/sec, 12 bit resolution, 0-3.5 V.
+    - UART interface
+    - I2C interface
+    - SPI interface
+    - 5 V and -3.3 V power supply for shield
+  - ARM based computer
+    - Dual Core ARM cortex A9 processor
+    - DDR3 512 Mb RAM memory
+    - MicroSD HD (up to 32 GB)
+  - FPGA Xilinx Zynq 7010 SOC Xilinx Zynq 7010 SOC
+  - 1 Gbit Ethernet port for wired network
+  - USB interfase
+  - micro USB interfase for Operative System serial console
+  - micro USB interfase for power supply input (5 V, 2 A)
+
+
+### Extension connectors pinout
+
+![extension]({{ site.baseurl }}/img/redpitaya-extension-connectors.jpg "extension")
+
+
+### Web resources
+
+  - [Official Red Pitaya STEMlab 125-14 Hardware docs](http://redpitaya.readthedocs.io/en/latest/developerGuide/125-14/top.html)
+  - [Development Hardware Schematics](https://dl.dropboxusercontent.com/s/jkdy0p05a2vfcba/Red_Pitaya_Schematics_v1.0.1.pdf)
+  - [Hardware Specifications](https://www.galagomarket.com/datasheet/redpitaya_hardware%20specifications.pdf)

@@ -6,8 +6,11 @@ layout: page
 
 # Download application
 
-Download last release (beta):
+The application comes in 3 flavors (**Default**, **Debug** and **Reload**) and packed in two formats
+(**.zip** for windows users and **.tar.gz** for linux users). If you don't know what to download, just use
+the Default App in the zip package.
 
+Download last release (beta):
 
 
 |             | tar.gz                                                                                                                 | zip                                                                                                              |
@@ -15,10 +18,6 @@ Download last release (beta):
 | **Default** | [lock-in+pid-0.1.0-48-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.tar.gz)               | [lock-in+pid-0.1.0-48-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.zip)               |
 | **DEBUG**   | [lock-in+pid-0.1.0-48-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.tar.gz)   | [lock-in+pid-0.1.0-48-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.zip)   |
 | **RELOAD**  | [lock-in+pid-0.1.0-48-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.tar.gz) | [lock-in+pid-0.1.0-48-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.zip) |
-
-
-
-
 
 
 <a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">Older releases<span class="caret"></span></a>
@@ -36,8 +35,16 @@ Download last release (beta):
 
 </div>
 
+## The difference between flavors
 
-
+The application itself is the **Default** flavor.
+The **Debug** flavor is just the same application but with a more debugging
+info printed all the time in the internal Red Pitaya log files (`/var/log/redpitaya_nginx/*.log`) and is provided
+for testing and development purposes.
+The **Reload flavor** has only one difference with the Default: it doesn't loads the FPGA circuit on App loading
+nor reset any memory reg value. This flavor is useful if you already made an FPGA configuration
+through the Default App, closed the browser and then you want to get control again of that FPGA without resetting
+all the register values.
 
 
 # Install App in RedPitaya
