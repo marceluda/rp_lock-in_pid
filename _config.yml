@@ -64,7 +64,7 @@ navbar-links:
     - C++ web server doc: app/lala
     - FPGA doc: app/lala
   Help:
-    - FAQ: app/lala
+    - FAQ: help/FAQ
     - Contact: app/lala
     - Troubleshoot: app/lala
 

@@ -1,0 +1,19 @@
+{% if page.h3tolinkdiv %}
+
+<script  type="text/javascript">
+
+$(function() {
+  $( "h3" ).each(function( index ) {
+    div_id = 'D_'+$( this ).attr('id');
+    new_h3 = '+&nbsp;'
+    new_h3+= '<a data-toggle="collapse" href="#'+div_id+'" aria-expanded="false" aria-controls="'+div_id+'">' ;
+    new_h3+= $( this ).html();
+    new_h3+= '&nbsp;<span class="caret"></span></a>';
+    $( this ).html( new_h3 );
+    $( this ).next().attr('id', div_id  );
+  });
+});
+
+</script>
+
+{% endif %}

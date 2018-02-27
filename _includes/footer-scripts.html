@@ -25,6 +25,7 @@
       	  document.write('<script src="{{ js | prepend: site.baseurl | replace: "//", "/" }}"></scr' + 'ipt>');
       	}
       </script>
+      {% include h3tolinkdiv.html %}
     {% else %}
 	<script src="{{ js | prepend: site.baseurl | replace: '//', '/' }}"></script>
     {% endif %}
