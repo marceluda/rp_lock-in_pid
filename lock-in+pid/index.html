@@ -1115,6 +1115,32 @@
 
     $('#btn_set_trig').on('click', function() {
       $('#btn_set_trig').prop('disabled', true);
+      if( $('#btn_set_trig_auto_zoom').is(':checked') ){
+        user_editing = true;
+        var max_time_val = 2*(params.local.lock_ramp_hig_lim-params.local.lock_ramp_low_lim)*(params.local.lock_ramp_step+1) ;
+        max_time_val = params.local.time_units == 0 ? max_time_val * 8 / 1000       :
+                       params.local.time_units == 1 ? max_time_val * 8 / 1000000    :
+                                                      max_time_val * 8 / 1000000000 ;
+
+
+        params.local.trig_source=2 ;
+        params.local.trig_mode=1 ;
+        params.local.lock_trig_sw=2
+
+        opt=plot.getOptions();
+        opt.xaxes[0].min=0-max_time_val*0.1;
+        opt.xaxes[0].max=max_time_val*1.1;
+
+        params.local.trig_delay=0-max_time_val*0.1;
+        params.local.xmin=0-max_time_val*0.1;
+        params.local.xmax=max_time_val*1.1;
+        params.local.gui_xmin=0-max_time_val*0.1;
+        params.local.gui_xmax=max_time_val*1.1;
+
+        setTimeout(function(){  autoscaleY(); }, update_interval*5 );
+
+        sendParams();
+      }
       set_trigger_val=true;
     });
 
@@ -1407,8 +1433,13 @@
             var time_raw =pos.x;
             var level_raw=pos.y;
 
-            var time_val = Math.round(  time_raw  *( 10**( (params.local.time_units-2)*3 ) )/8e-9) ;
-            var level_val=Math.round(level_raw*8192);
+            var time_val  = Math.round(  time_raw  *( 10**( (params.local.time_units-2)*3 ) )/8e-9) ;
+            var level_val = params.local.lock_osc_raw_mode==0 ? Math.round(level_raw*8192) : level_raw ;
+
+            var max_time_val = 2*(params.local.lock_ramp_hig_lim-params.local.lock_ramp_low_lim)*(params.local.lock_ramp_step+1) ;
+            time_val         = time_val % max_time_val;
+
+            if(time_val<0) time_val = time_val + max_time_val;
 
             user_editing=false;
             trigger_just_set=true;
@@ -1458,9 +1489,9 @@
     $('#btn_disp_sq').data('checked', false);
 
     $('label[for="lock_ramp_step"]').on('click', function() {
-      showModalHelp("<p>Scan period param sets the number of clock ticks the scan control waits before jumping the next scan value.</p>"+
-                    "<p>The scan signals goes one <tt>int</tt> up/down after <tt>ramp_step</tt> clock ticks. The name of this control"+
-                    "is just to remember that it sets up the total period of the scan function. The total period will depend on "+
+      showModalHelp("<p>Ramp period param sets the number of clock ticks the ramp control waits before jumping the next ramp value.</p>"+
+                    "<p>The ramp signals goes one <tt>int</tt> up/down after <tt>ramp_step</tt> clock ticks. The name of this control"+
+                    "is just to remember that it sets up the total period of the ramp function. The total period will depend on "+
                     "<tt>ramp_low_lim</tt> and <tt>ramp_hig_lim</tt> either.</p>");
       });
 
@@ -4211,8 +4242,8 @@
                           <select id="lock_trig_sw" class="form-control">
                             <option  value="0" selected="selected">None</option>
                             <option  value="1">Pin</option>
-                            <option  value="2">Scan floor</option>
-                            <option  value="4">Scan ceil</option>
+                            <option  value="2">Ramp floor</option>
+                            <option  value="4">Ramp ceil</option>
                             <option  value="8">harmonic mod.</option>
                             <option  value="16">Square mod.</option>
                             <option  value="32">Out of lock</option>
@@ -4251,7 +4282,7 @@
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
-                              <input type="checkbox" id="lock_osc1_filt_off"checked>Ch1
+                              <input type="checkbox" id="lock_osc1_filt_off" checked>Ch1
                             </label>
                           </div>
                         </form>
@@ -4260,7 +4291,7 @@
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
-                              <input type="checkbox" id="lock_osc2_filt_off"checked>Ch2
+                              <input type="checkbox" id="lock_osc2_filt_off" checked>Ch2
                             </label>
                           </div>
                         </form>
@@ -4927,7 +4958,7 @@
           </div> <!-- Lock-in collapse end -->
         </div>
 
-        <!-- Scan ----------------------------------------------------->
+        <!-- Ramp ----------------------------------------------------->
 
         <div class="panel panel-default">
           <div class="panel-heading">
@@ -4946,7 +4977,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="form-group">
                         <label for="lock_ramp_step" class="col-xs-4 control-label"
-                          data-toggle="tooltip" data-placement="right" title="Sets Scan Period in a way I should tell you"> Scan period: </label>
+                          data-toggle="tooltip" data-placement="right" title="Sets Ramp Period in a way I should tell you"> Ramp period: </label>
                         <div class="col-xs-4 col-sm-8">
                           <input type="number" autocomplete="off" class="form-control" value="0" id="lock_ramp_step" step="1" min="0" max="4294967295">
                           <span style="display: none;" class="input-group-btn" id="lock_ramp_step_apply">
@@ -4963,7 +4994,7 @@
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="form-group">
-                        <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Scan hig&nbsp;lim:</label>
+                        <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Ramp hig&nbsp;lim:</label>
                         <div class="col-xs-4 col-sm-8">
                           <input type="number" autocomplete="off" class="form-control" value="5000" id="lock_ramp_hig_lim" step="1" min="-8192" max="8191">
                           <span style="display: none;" class="input-group-btn" id="lock_ramp_hig_lim_apply">
@@ -4980,7 +5011,7 @@
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="form-group">
-                        <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Scan low&nbsp;lim:</label>
+                        <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Ramp low&nbsp;lim:</label>
                         <div class="col-xs-4 col-sm-8">
                           <input type="number" autocomplete="off" class="form-control" value="-5000" id="lock_ramp_low_lim" step="1" min="-8192" max="8191">
                           <span style="display: none;" class="input-group-btn" id="lock_ramp_low_lim_apply">
@@ -4997,7 +5028,7 @@
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="form-group">
-                        <label for="lock_ramp_B_factor" class="col-xs-4 control-label">Scan B&nbsp;factor:</label>
+                        <label for="lock_ramp_B_factor" class="col-xs-4 control-label">Ramp B&nbsp;factor:</label>
                         <div class="col-xs-4 col-sm-8">
                           <input type="number" autocomplete="off" class="form-control" value="4096" id="lock_ramp_B_factor" step="1" min="-4096" max="4096">
                           <span style="display: none;" class="input-group-btn" id="lock_ramp_B_factor_apply">
@@ -5025,7 +5056,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_reset">Scan reset
+                          <input type="checkbox" id="lock_ramp_reset">Ramp reset
                         </label>
                       </div>
                     </form>
@@ -5034,7 +5065,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_enable">Scan enable
+                          <input type="checkbox" id="lock_ramp_enable">Ramp enable
                         </label>
                       </div>
                     </form>
@@ -5043,7 +5074,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_direction">Scan direction
+                          <input type="checkbox" id="lock_ramp_direction">Ramp direction
                         </label>
                       </div>
                     </form>
@@ -5893,7 +5924,7 @@
                       <div class="panel-group col-xs-12">
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
+                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Ramp enable</button>
                           </div>
                         </form>
                       </div>
@@ -5954,7 +5985,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
+                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Ramp enable
                           </label>
                         </div>
                       </form>
@@ -6072,6 +6103,8 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="form-group text-center">
                           <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
+                          <br>
+                          <input type="checkbox" id="btn_set_trig_auto_zoom" checked>Auto-zoom
                         </div>
                       </form>
                     </div>

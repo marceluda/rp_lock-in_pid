@@ -501,7 +501,7 @@ int rp_app_init(void)
 
     TRACE("LOLO(rp_app_init): PARAMS_NUM: %d \n", PARAMS_NUM);
 
-    rp_set_params(&rp_main_params[0], /*RELOAD_DOCK_START*/ PARAMS_NUM /*RELOAD_DOCK_END*/ ); // PARAMS_LOCK_PARAMS
+    rp_set_params(&rp_main_params[0], /*RELOAD_DOCK_START*/ PARAMS_LOCK_PARAMS - 1 /*RELOAD_DOCK_END*/ ); // PARAMS_LOCK_PARAMS
 
     TRACE("LOLO(rp_app_init): END\n");
 

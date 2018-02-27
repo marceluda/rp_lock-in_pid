@@ -1474,7 +1474,7 @@ class input_checkbox():
             self.text    = idd.name
     def out(self,indent=1):
         txt=txt_buff(n=indent,tab=2)
-        checked='' if self.val==0 else 'checked'
+        checked='' if self.val==0 else ' checked'
         txt.add('<input type="checkbox" id="'+self.id+'"'+checked+'>',end=False)
         txt.add(self.text)
         return txt.out()
