@@ -10,6 +10,8 @@ The application comes in 3 flavors (**Default**, **Debug** and **Reload**) and p
 (**.zip** for windows users and **.tar.gz** for linux users). If you don't know what to download, just use
 the Default App in the zip package.
 
+![three_flavors]({{ site.baseurl }}/img/three_flavors.png "three_flavors")
+
 Download last release (beta):
 
 
