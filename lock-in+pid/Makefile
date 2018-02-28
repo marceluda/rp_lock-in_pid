@@ -63,6 +63,7 @@ target/$(APP): red_pitaya.bit $(CONTROLLERHF) index.html
 	rm target/$(APP)/info/icon_*.png
 	cp -r upload_app.sh target/
 	cp -r ../resources target/
+	cp ../CHANGELOG.md ../README.md target/
 	mkdir -p target/$(APP)/py
 	cp ../resources/rp_cmds/py/*.py target/$(APP)/py/
 	sed -i target/$(APP)/info/info.json -e 's/REVISION/$(REVISION)/'
@@ -77,6 +78,7 @@ target_dbg/$(APP)_DEBUG: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	mv  target_dbg/$(APP)_DEBUG/$(CONTROLLER_DBG) target_dbg/$(APP)_DEBUG/$(CONTROLLERHF)
 	cp -r upload_app.sh target_dbg/
 	cp -r ../resources target_dbg/
+	cp ../CHANGELOG.md ../README.md target_dbg/
 	mkdir -p target_dbg/$(APP)_DEBUG/py
 	cp ../resources/rp_cmds/py/*.py target_dbg/$(APP)_DEBUG/py/
 	sed -i target_dbg/$(APP)_DEBUG/info/info.json -e 's/REVISION/$(REVISION)_DEBUG/'
@@ -94,6 +96,7 @@ target_rld/$(APP)_RELOAD: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	mv    target_rld/$(APP)_RELOAD/$(CONTROLLER_RLD) target_rld/$(APP)_RELOAD/$(CONTROLLERHF)
 	cp -r upload_app.sh target_rld/
 	cp -r ../resources target_rld/
+	cp ../CHANGELOG.md ../README.md target_rld/
 	mkdir -p target_rld/$(APP)_RELOAD/py
 	cp ../resources/rp_cmds/py/*.py target_rld/$(APP)_RELOAD/py/
 	sed -i target_rld/$(APP)_RELOAD/info/info.json -e 's/REVISION/$(REVISION)_RELOAD/'
