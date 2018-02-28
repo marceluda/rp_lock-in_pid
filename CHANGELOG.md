@@ -1,6 +1,10 @@
 
 # Devbuild  changes
 
+## 0.1.1-2-devbuild
+  - BUGFIX: Corrected Month value for now() and pretty_now() JS functions
+            in index.html
+
 ## 0.1.1-1-devbuild
   - BUGFIX: Patch for the Lock control time trigger "Choose from graph" option,
             to set a time between 0 and max Ramp period.
