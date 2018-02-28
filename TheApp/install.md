@@ -14,26 +14,40 @@ the Default App in the zip package.
 
 Download last release (beta):
 
+<ul class="nav nav-tabs">
+  <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
+  <li>               <a data-toggle="tab" href="#targz"> .tar.gz </a></li>
+</ul>
 
-|             | tar.gz                                                                                                                 | zip                                                                                                              |
-|-------------|------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------|
-| **Default** | [lock-in+pid-0.1.0-48-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.tar.gz)               | [lock-in+pid-0.1.0-48-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.zip)               |
-| **DEBUG**   | [lock-in+pid-0.1.0-48-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.tar.gz)   | [lock-in+pid-0.1.0-48-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.zip)   |
-| **RELOAD**  | [lock-in+pid-0.1.0-48-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.tar.gz) | [lock-in+pid-0.1.0-48-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.zip) |
+<div class="tab-content">
+<div id="zip" class="tab-pane fade in active" markdown="1">
+
+- **Default**: [lock-in+pid-0.1.1-1-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.zip)
+- **DEBUG**: [lock-in+pid-0.1.1-1-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.zip)
+- **RELOAD**: [lock-in+pid-0.1.1-1-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.zip)
+
+</div>
+<div id="targz" class="tab-pane fade" markdown="1">
+
+- **Default**: [lock-in+pid-0.1.1-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.tar.gz)
+- **DEBUG**: [lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz)
+- **RELOAD**: [lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz)
+
+</div>
+</div>
+
 
 
 <a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">Older releases<span class="caret"></span></a>
 
 <div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
-  - **lock-in+pid-0.1.0-25**
-    - [lock-in+pid-0.1.0-25-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.tar.gz)
-    - [lock-in+pid-0.1.0-25-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.zip)
-    - [lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz)
-    - [lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.zip)
-  - **lock-in+pid-0.1.0-15**
-    - [lock-in+pid-0.1.0-15-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.tar.gz)
-    - [lock-in+pid-0.1.0-15-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip)
+| **Default**  | [lock-in+pid-0.1.0-15-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip)               |
+| **Default**  | [lock-in+pid-0.1.0-25-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.zip)               |
+| **DEBUG**    | [lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.zip)   |
+| **Default**  | [lock-in+pid-0.1.0-48-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.zip)               |
+| **Default**  | [lock-in+pid-0.1.0-48-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.zip)   |
+| **RELOAD**   | [lock-in+pid-0.1.0-48-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.zip) |
 
 </div>
 
