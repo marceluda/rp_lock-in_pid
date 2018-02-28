@@ -14,6 +14,7 @@ the Default App in the zip package.
 
 Download last release (beta):
 
+
 <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
   <li>               <a data-toggle="tab" href="#targz"> .tar.gz </a></li>
@@ -22,16 +23,16 @@ Download last release (beta):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-- **Default**: [lock-in+pid-0.1.1-1-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.zip)
-- **DEBUG**: [lock-in+pid-0.1.1-1-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.zip)
-- **RELOAD**: [lock-in+pid-0.1.1-1-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.zip)
+|  **Default**  |  [lock-in+pid-0.1.1-1-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.zip)                |
+|  **Debug**    |  [lock-in+pid-0.1.1-1-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.zip)    |
+|  **Reload**   |  [lock-in+pid-0.1.1-1-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.zip)  |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-- **Default**: [lock-in+pid-0.1.1-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.tar.gz)
-- **DEBUG**: [lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz)
-- **RELOAD**: [lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz)
+|  **Default**  |  [lock-in+pid-0.1.1-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.tar.gz)                |
+|  **Debug**    |  [lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz)    |
+|  **Reload**   |  [lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz)  |
 
 </div>
 </div>
@@ -42,12 +43,19 @@ Download last release (beta):
 
 <div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
 
-| **Default**  | [lock-in+pid-0.1.0-15-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip)               |
-| **Default**  | [lock-in+pid-0.1.0-25-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.zip)               |
-| **DEBUG**    | [lock-in+pid-0.1.0-25-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.zip)   |
-| **Default**  | [lock-in+pid-0.1.0-48-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.zip)               |
-| **Default**  | [lock-in+pid-0.1.0-48-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.zip)   |
-| **RELOAD**   | [lock-in+pid-0.1.0-48-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.zip) |
+- **lock-in+pid-0.1.1-1**:
+  - lock-in+pid-0.1.1-1-devbuild [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild.tar.gz)]
+  - lock-in+pid-0.1.1-1-devbuild_DEBUG [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_DEBUG.tar.gz)]
+  - lock-in+pid-0.1.1-1-devbuild_RELOAD [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-1-devbuild_RELOAD.tar.gz)]
+- **lock-in+pid-0.1.0-48**:
+  - lock-in+pid-0.1.0-48-devbuild [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild.tar.gz)]
+  - lock-in+pid-0.1.0-48-devbuild_DEBUG [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_DEBUG.tar.gz)]
+  - lock-in+pid-0.1.0-48-devbuild_RELOAD [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-48-devbuild_RELOAD.tar.gz)]
+- **lock-in+pid-0.1.0-25**:
+  - lock-in+pid-0.1.0-25-devbuild [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild.tar.gz)]
+  - lock-in+pid-0.1.0-25-devbuild_DEBUG [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-25-devbuild_DEBUG.tar.gz)]
+- **lock-in+pid-0.1.0-15**:
+  - lock-in+pid-0.1.0-15-devbuild [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.0-15-devbuild.tar.gz)]
 
 </div>
 
