@@ -103,6 +103,8 @@
     local: null
   };
 
+  load_config_block_start=1;
+
   set_trigger_val=false;
   trigger_just_set=false;
   last_disp_units=false;
@@ -1306,6 +1308,12 @@
             $("div[data-tag='HarmonicParams']").toggleClass('in collapse') ;
         });
 
+    /* LOLO load_config_block_start */
+    // load_config_block_start checkbox
+    $('#load_config_block_start').on('change', function() {
+      load_config_block_start = ($(this).is(':checked') ? 1 : 0);
+    });
+    // */
 
     $('#btn_disp_units')
       .on('click', function() {
@@ -2959,6 +2967,7 @@
 
     // [LOLO DOCK LOADPARAMS END]
 
+
     lock_ramp_step_update();
     lock_modulation_update();
     lock_ctrl_update();
@@ -3905,6 +3914,14 @@
       params.storage[num].data[ meas_keys[i] ] = params.local[ meas_keys[i] ]
     }
 
+    /* LOLO load_config_block_start */
+    // If config_load_storage option is on, turn off Ramp and PIDs
+    if(load_config_block_start==1){
+      params.storage[num].data['lock_ctrl_aux_ramp_enable_ctrl']   = 0 ;
+      params.storage[num].data['lock_ctrl_aux_pidA_enable_ctrl']   = 0 ;
+      params.storage[num].data['lock_ctrl_aux_pidB_enable_ctrl']   = 0 ;
+    }
+    // */
     user_editing = true;
     //sending = true;
 
@@ -6718,7 +6735,20 @@
                 <input id="btn_config_load_file" type="file"  name="files[]" class="btn btn-primary btn-lg" >
               </div>
             </div> <!-- row end -->
-
+            <div class="row">
+              <div class="panel-group col-xs-12"></div>
+              <div class="panel-group col-xs-1"></div>
+              <div class="panel-group col-xs-11">
+                <form class="form-horizontal" role="form" onsubmit="return false;">
+                  <div class="checkbox" style="padding-bottom: 12px;">
+                    <label class="group-label">
+                      <input type="checkbox" id="load_config_block_start" checked>
+                      Don't turn on PIDs and Ramp on config loading
+                    </label>
+                  </div>
+                </form>
+              </div>
+            </div> <!-- row end -->
             <hr>
 
             <div class="row">
