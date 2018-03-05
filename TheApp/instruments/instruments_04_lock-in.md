@@ -9,7 +9,8 @@ mathjax: true
 {% include page_navbar.html %}
 
 
-The lock-in module is composed of two lock-in for different scopes:
+The lock-in module is composed of two [lock-in amplifiers](https://en.wikipedia.org/wiki/Lock-in_amplifier)
+for different scopes:
 
  - A "standard" harmonic lock-in that uses harmonic signals to demodulate
  the input signal. This one is less affected by higher harmonics distortion but
@@ -17,11 +18,11 @@ The lock-in module is composed of two lock-in for different scopes:
 
  - An square lock-in that uses square signals to demodulate
  the input signal. Square demodulation has some distortion from odd higher harmonics
- but is les limited in the working frequency range.
+ but is less limited in the working frequency range.
 
 Both uses a local oscillator as reference signal. We will call these the *"modulation signals"*
 Here we cover the lock-in demodulation options. The generation of modulation signals is covered in
-next page.
+next instrument page.
 
 ## Lock-in demodulation scheme
 
@@ -32,7 +33,7 @@ components that are not part of the phenomena you want to study.
 The most common operation way of a lock-in amplifier is to use a modulation signal
 (in this case, the local oscillator) to produce a controlled oscillation on one or
 several parameters of an experimental system under analysis. The system response
-will have, as well, a modulated part at the same frequency as the used oscillator.
+will have, as well, a modulated component at the same frequency as the used oscillator.
 The system response plus environment noise will be the input signal $$s(t)$$ of the lock-in amplifier.
 
 <div class="alert alert-warning" role="alert">
@@ -48,19 +49,27 @@ This is an scheme of the lock-in implementation in this application:
 
 ![lock-in scheme]({{ site.baseurl }}/img/lock_in_scheme.png "Lock-in demodulation")
 
-The parts inside dotted boxes are repeated 8 times, one per reference signal. The non repeated names are written between braces and the order keeps the correspondence to reference signals. For example, the input signal `signal_i` demodulated using the `cos_ref` signal is labeled `X` and, after amplification, is labeled `Xo`.
+The parts inside dotted boxes are repeated 8 times, one per reference signal. The non repeated names
+are written between braces and the order keeps the correspondence to reference signals. For example,
+the input signal `signal_i` demodulated using the `cos_ref` signal is labeled `X` and, after
+amplification, is labeled `Xo`.
 
 ![lock-in panel]({{ site.baseurl }}/img/lock-in_panels_demodulation.png "Lock-in panel"){:style="float: right;margin-right: 7px;margin-top: 7px;"}
 
 The implementation is not exactly the same for square and harmonic reference, but the
 way of use is the same, so the demodulation paths are represented all together for simplicity.
 
-There's a demodulation path for each reference signal, all working in parallel all the time, with a common input signal of 14 bits of resolution.
-In all the cases, the input signal is multiplied by the reference and this product is filtered by a low-pass filter with configurable frequency cut and order. The result of this
+There's a demodulation path for each reference signal, all working in parallel all the time,
+with a common input signal of 14 bits of resolution.
+In all the cases, the input signal is multiplied by the reference and this product is filtered
+by a low-pass filter with configurable frequency cut and order. The result of this
 is a 27 bits signal suitable for high resolution measurement of
-quantities. You can access the values of this signals with the Lock-in display (see below). When you need to use de demodulated signals to feed outputs or PIDs filters (all of them with 14 bits resolution) the demodulated signals are amplified and cut. The amplification factor is configurable.
+quantities. You can access the values of this signals with the Lock-in display (see below).
+When you need to use de demodulated signals to feed outputs or PIDs filters (all of them with 14 bits resolution)
+the demodulated signals are amplified and cut. The amplification factor is configurable.
 
-The parameters configuration for any of the demodulation path of both lock-in amplifiers can be set through the lock-in panel of the Web Application.
+The parameters configuration for any of the demodulation path of both lock-in amplifiers can be set through
+the lock-in panel of the Web Application.
 
 <div class="clearfix"> </div>
 
@@ -112,6 +121,15 @@ lock-in realization, using reference signals defined with 4 point (32 ns period 
 </div>
 
 
+
+# Lock-in amplifier / Phase sensitive detection theory
+
+Some external links introducing to *Phase sensitive detection* and *Lock-in amplifier instruments*.
+
+  - [Phase sensitive detection as a means to recover signals buried in noise](http://iopscience.iop.org/article/10.1088/0022-3735/8/8/001)
+  - [Principles of lock-in detection and the state of the art - Zurich Instruments White Paper](https://www.zhinst.com/sites/default/files/li_primer/zi_whitepaper_principles_of_lock-in_detection.pdf)
+  - [About Lock-In Amplifiers - Application Note \#3 of Stanford Research Systems](http://www.thinksrs.com/downloads/PDFs/ApplicationNotes/AboutLIAs.pdf)
+  - [Lock-in Amplifier Tutorial - Bentham](http://support.bentham.co.uk/helpdesk/attachments/13027560213)
 
 
 

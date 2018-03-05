@@ -145,8 +145,8 @@ enable-controls are switched to the desired one. These are the trigger options:
 
     Then you just need to click on **Lock on trigger** button and the stabilization will start at the chosen time.
 
-  * **Level Tirgger**: PENDDING
-  * **Level+Time Tirgger**: PENDDING
+  * **Level Trigger**: PENDING
+  * **Level+Time Trigger**: PENDING
 
 
 ### Re-lock control

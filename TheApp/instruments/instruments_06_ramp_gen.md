@@ -59,7 +59,7 @@ rather than keeping the frequency / period.
 
 ![Ramp Panel]({{ site.baseurl }}/img/ramp_panel.png "Ramp Panel"){:style="float: left;margin-left: 7px;margin-top: 7px;"}
 
-Each FPGA parameter is controlled directly from the Web Interfase. All the input controls use `int` units and show below the equivalence in Volts following the scale: $$ 1 V = 8192 int $$.
+Each FPGA parameter is controlled directly from the Web Interfase. All the input controls use `int` units and show below the equivalence in Volts following the scale: $$ 1 \;\text{V}\; = \; 8192 \;\text{int} $$.
 
 After the number inputs there is a display that shows the peak-to-peak voltage of the resulting triangle function and the mean value. This can be useful when you want to now the
 complete ramp amplitude and the center of the ramp.

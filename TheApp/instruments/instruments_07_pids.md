@@ -12,7 +12,8 @@ $$
 \definecolor{var}{RGB}{199,37,78}
 $$
 
-The application has two PID (Proportional-Integral-Derivative) filters designed
+The application has two [PID (Proportional-Integral-Derivative)](https://en.wikipedia.org/wiki/PID_controller)
+filters designed
 to set their parameters in ranges of different orders of magnitude.
 Also, the PIDs are combined with auxiliar adders and a multiplexer that makes
 the system suitable for scanning and loop-back schemes of control.
@@ -36,7 +37,7 @@ by `pidX_sw` parameter.
 `sqYo`,
 `sqFo`,
 `signal_i`,
-`Ramp A`,
+`ramp_A`,
 `sin_ref`,
 `cos_ref`,
 `cos_1f`,

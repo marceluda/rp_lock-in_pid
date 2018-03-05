@@ -110,7 +110,7 @@ Channel1  =  sqrt( OscA**2 + OscB**2 ) ;
 Channel2  =  atan2(OscB,OscA) ;
 ```
 
-In this way, if you choose OscA=Xo , OscB=Yo , the displayed Channel1 and Channel2 in
+In this way, if you choose `OscA=Xo` , `OscB=Yo` , the displayed Channel1 and Channel2 in
 the plot area are the R and Φ respectively:
 
 $$ R = \sqrt{ X^2 + Y^2 } $$

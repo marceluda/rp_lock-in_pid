@@ -35,6 +35,9 @@ full Cosinus period of $$ \frac{1}{2520 \cdot 8 ns}  = 49.6 kHz$$. With `hp=1`, 
 
 $$ Period = (hp+1) \cdot 8 ns$$
 
+In the graphic, the thick part of the plots are the portion of the data points actually saved in ROM, for space economy.
+The values are repeated with order and sign change to build the signals on the run. 
+
 ### Schematics of FPGA layer
 The following graphic represents the FPGA logic circuit for the harmonic functions generation.
 It's not rigorous, for simplicity. Lets you understand the way the parameters affects the generated
