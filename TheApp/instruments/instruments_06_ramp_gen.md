@@ -40,7 +40,7 @@ Another 3 parameters are used to control de behavior:
 | `ramp_direction` | `[0:1]`          | Ramp direction  | This defines the starting direction (True : upward )                                                                                |
 
 To modulo logic is the next one. When `ramp_enable` is turned on to True it waits `(ramp_step+1)` clock ticks and then adds 1 to the value of `ramp_A`, and repeats. When `ramp_A` reach
-`ramp_hig_lim` instead of adding 1 it start to subtracting 1. When `ramp_A` reach `ramp_low_lim` switchs again and start to add 1, and so on. When the `ramp_direction` changes its value
+`ramp_hig_lim` instead of adding 1 it start to subtracting 1. When `ramp_A` reach `ramp_low_lim` switches again and start to add 1, and so on. When the `ramp_direction` changes its value
 the direction of `ramp_A` is changed immediately. If you turn on `ramp_reset` then `ramp_A` is set to 0. If `ramp_enable` is turned off (set to False) `ramp_A` is frozen in its last value.
 All the time,  `ramp_B` is calculated from `ramp_A` using : `ramp_B = (ramp_A * ramp_B_factor) >> 12 `, which means:
 

@@ -21,7 +21,7 @@ to take actions.
 ## System variable stabilization
 
 For the sake of clarity, we describe in the next items the idea behind the
-stabilization application. For detailed analisys refer to [Control Theory](https://en.wikipedia.org/wiki/Control_theory) text books.
+stabilization application. For detailed analysis refer to [Control Theory](https://en.wikipedia.org/wiki/Control_theory) text books.
 
 ![feedback 1]({{ site.baseurl }}/img/feedback_1.png "feedback 1")
 
@@ -122,7 +122,7 @@ The stabilization can be started by changing this values to Ramp scan disables a
 We can make this change simultaneously on the three parameters by using the **Lock Now  button**,
 changing the three values in the same FPGA clock tick (8 ns accuracy).
 When you clic the **Lock Now  button** the parameters are configured using the values of the checkboxes in the "config"
-section, whose default values are: Ramp disable, PID A enable, PID B enable. This values can be chaged, for example,
+section, whose default values are: Ramp disable, PID A enable, PID B enable. This values can be changed, for example,
 if you want only one PID on in the final state or if you don't want to stop the Ramp.
 
 Another way to start the stabilization is by configuring a triggered auto-start. You can configure the trigger type

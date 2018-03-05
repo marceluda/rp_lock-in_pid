@@ -34,7 +34,7 @@ left panel.
 
 ## Selection of signals
 
-The main new feature of the oscilloscope application is the posibility to choose which signal you
+The main new feature of the oscilloscope application is the possibility to choose which signal you
 want to view. You can do this from the left panel called "Oscilloscope".
 
 ![left scope panel]({{ site.baseurl }}/img/scope_panel.png "Oscilloscope control")
@@ -84,8 +84,8 @@ are specified in this table:
 |----------------------|-----------|--------------------------------------------------------------------------|
 | None                 | -         | Never triggers                                                           |
 | Pin                  | Hardware  | The trigger is taken from pin DIO0_P of RedPitaya hardware digital input |
-| Ramp floor           | Ramp      | Triggers when Ramp A signal reachs the minimum value                     |
-| Ramp Ceil            | Ramp      | Triggers when Ramp A signal reachs the maximun value                     |
+| Ramp floor           | Ramp      | Triggers when Ramp A signal reaches the minimum value                    |
+| Ramp Ceil            | Ramp      | Triggers when Ramp A signal reaches the maximum value                    |
 | Harmonic Mod.        | Lock-in   | Triggers with cos_ref start point                                        |
 | Square Mod.          | Lock-in   | Triggers with sq_ref start point                                         |
 | Out of Lock          | Auto-lock | Triggers when auto-lock system doesn't achieve the locked condition      |
@@ -137,7 +137,7 @@ you only save this 1024 arrays. For higher precision you would need to acquire t
 
 - The Wep App is constantly asking the web server for curves and parameters update, waiting 50 ms between each query.
 
-- The parameters of the application are updated to the web frontend if they change in the FPGA through scripting tools. So yopu can use a mixed control scheme, if you want.
+- The parameters of the application are updated to the web frontend if they change in the FPGA through scripting tools. So you can use a mixed control scheme, if you want.
 
 - Each time the Web App query for new data the FPGA oscilloscope module
 starts a new triggered acquisition. If you wan to use a mixed scheme and acquire

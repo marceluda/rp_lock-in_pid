@@ -7,7 +7,7 @@ layout: page
 # Download application
 
 The application comes in 3 flavors (**Default**, **Debug** and **Reload**) and packed in two formats
-(**.zip** for windows users and **.tar.gz** for linux users). If you don't know what to download, just use
+(**.zip** for windows users and **.tar.gz** for Linux users). If you don't know what to download, just use
 the Default App in the zip package.
 
 ![three_flavors]({{ site.baseurl }}/img/three_flavors.png "three_flavors")
@@ -73,7 +73,7 @@ all the register values.
 
 # Install App in RedPitaya
 
-First, you need an already running RedPitaya enviroment. If you don't know
+First, you need an already running RedPitaya environment. If you don't know
 how to prepare the device SDCard, just follow the
 [RedPitaya help page instructions](http://redpitaya.readthedocs.io/en/latest/quickStart/SDcard/SDcard.html)
 
@@ -144,7 +144,7 @@ For the while, you can follow this site instructions (using your RP address `rp-
 
 The key generated in that example can also be used in [WinSCP](https://winscp.net/eng/docs/ui_login_authentication)
 
-## For linux
+## For Linux
 
 To enable `rw`, in a Terminal console run:
 

@@ -44,7 +44,7 @@ The *core* of the instruments is in the
 [FPGA layer](https://en.wikipedia.org/wiki/Field-programmable_gate_array).
 Each of them are implemented as
 wired logical gates whose behavior is controlled by configurable **FPGA registers**
-(memory sectors that can be set up from the microprocesor / operating system).
+(memory sectors that can be set up from the microprocessor / operating system).
 So, when you set the values of these registers you change the frequency of the
 lock-in local oscillator, choose the signal that goes to output 1 or modify the
 integrator characteristic time of one of the PID filters.
@@ -54,7 +54,7 @@ the RedPitaya operating system that reads and writes directly in this registers.
 The other way is by using the Web Frontend, the RedPitaya App itself.
 
 In this part of the documentation we cover the Web Frontend control. The Web App
-is an HTML+JS application that runs on your desktop/movile browser and communicates constantly to a web server that runs on RedPitaya operative system.
+is an HTML+JS application that runs on your desktop/mobile browser and communicates constantly to a web server that runs on RedPitaya operative system.
 Each instrument has its controls and information grouped by panels in the web
 interface, for visual simplicity. When you use the these controls the web page
 sends the information the the web server, that process the information and change the
@@ -68,7 +68,7 @@ values of the **FPGA registers**.
 The Red Pitaya applications use a Client - Server structure that allows portability.
 The client is any device that supports an HTML5 web browser. It can be a Personal
 Computer, Notebook, Cell-phone, Tablet or even embebed devices. The client is the User Interface.
-Ther server is the Red Pitaya device, that processes the user commands and make the measurements.
+The server is the Red Pitaya device, that processes the user commands and make the measurements.
 
 ![layers]({{ site.baseurl }}/img/layers_rp.png "layers")
 
@@ -115,7 +115,7 @@ hardware inputs and outputs. The circuit design is programed in
 [Verilog](https://en.wikipedia.org/wiki/Verilog), it's stored in `red_pitaya.bit` file of the
 application and is loaded in the FPGA layer when you start up the application.
 The circuit design cannot be changed on run time. However, the design is mad versatile through
-controsl switches, multiplexers, de-multiplexers and logic elements that are controlled on run time
+control switches, multiplexers, de-multiplexers and logic elements that are controlled on run time
 by the **FPGA registers**.
 
 </div>
