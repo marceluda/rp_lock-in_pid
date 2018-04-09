@@ -144,7 +144,7 @@ For the while, you can follow this site instructions (using your RP address `rp-
 
 The key generated in that example can also be used in [WinSCP](https://winscp.net/eng/docs/ui_login_authentication)
 
-## For Linux
+## For linux
 
 To enable `rw`, in a Terminal console run:
 
