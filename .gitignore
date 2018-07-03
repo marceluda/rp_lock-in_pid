@@ -1,6 +1,7 @@
 # Auxiliar folders #
 ####################
 _save/
+assets
 lock-in+pid/fpga/project/
 lock-in+pid/src/old/
 _settings.env
