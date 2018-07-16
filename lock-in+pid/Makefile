@@ -59,20 +59,19 @@ red_pitaya.bit:
 
 target/$(APP): red_pitaya.bit $(CONTROLLERHF) index.html
 	mkdir -p target/$(APP)
-	cp -r $(CONTROLLERHF) fpga.conf info css js red_pitaya.bit index.html target/$(APP)
+	cp -r $(CONTROLLERHF) fpga.conf info css js py red_pitaya.bit index.html target/$(APP)
 	rm target/$(APP)/info/icon_*.png
 	cp -r upload_app.sh target/
 	cp -r ../resources target/
 	cp ../CHANGELOG.md ../README.md target/
 	mkdir -p target/$(APP)/py
-	cp ../resources/rp_cmds/py/*.py target/$(APP)/py/
 	sed -i target/$(APP)/info/info.json -e 's/REVISION/$(REVISION)/'
 	sed -i target/$(APP)/info/info.json -e 's/BUILD_NUMBER/$(BUILD_NUMBER)/'
 	sed -i target/$(APP)/index.html -e "s/\(\\s*\)var\\s*app_version\\s*=\\s*'VERSION'\\s*;\\s*/\\1var app_version = '$(VER)-$(BUILD_NUMBER)-$(REVISION)';/"
 
 target_dbg/$(APP)_DEBUG: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	mkdir -p target_dbg/$(APP)_DEBUG
-	cp -r $(CONTROLLER_DBG) fpga.conf info css js red_pitaya.bit index.html target_dbg/$(APP)_DEBUG
+	cp -r $(CONTROLLER_DBG) fpga.conf info css js py red_pitaya.bit index.html target_dbg/$(APP)_DEBUG
 	cat target_dbg/$(APP)_DEBUG/info/icon_DEBUG.png > target_dbg/$(APP)_DEBUG/info/icon.png
 	rm  target_dbg/$(APP)_DEBUG/info/icon_*.png
 	mv  target_dbg/$(APP)_DEBUG/$(CONTROLLER_DBG) target_dbg/$(APP)_DEBUG/$(CONTROLLERHF)
@@ -80,7 +79,6 @@ target_dbg/$(APP)_DEBUG: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	cp -r ../resources target_dbg/
 	cp ../CHANGELOG.md ../README.md target_dbg/
 	mkdir -p target_dbg/$(APP)_DEBUG/py
-	cp ../resources/rp_cmds/py/*.py target_dbg/$(APP)_DEBUG/py/
 	sed -i target_dbg/$(APP)_DEBUG/info/info.json -e 's/REVISION/$(REVISION)_DEBUG/'
 	sed -i target_dbg/$(APP)_DEBUG/info/info.json -e 's/BUILD_NUMBER/$(BUILD_NUMBER)/'
 	sed -i target_dbg/$(APP)_DEBUG/index.html -e "s/\(\\s*\)var\\s*app_version\\s*=\\s*'VERSION'\\s*;\\s*/\\1var app_version = '$(VER)-$(BUILD_NUMBER)-$(REVISION)_DEBUG';/"
@@ -89,7 +87,7 @@ target_dbg/$(APP)_DEBUG: red_pitaya.bit $(CONTROLLER_DBG) index.html
 
 target_rld/$(APP)_RELOAD: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	mkdir -p target_rld/$(APP)_RELOAD
-	cp -r $(CONTROLLER_RLD) info css js index.html target_rld/$(APP)_RELOAD
+	cp -r $(CONTROLLER_RLD) info css js py index.html target_rld/$(APP)_RELOAD
 	touch target_rld/$(APP)_RELOAD/fpga.conf
 	cat   target_rld/$(APP)_RELOAD/info/icon_RELOAD.png > target_rld/$(APP)_RELOAD/info/icon.png
 	rm    target_rld/$(APP)_RELOAD/info/icon_*.png
@@ -98,7 +96,6 @@ target_rld/$(APP)_RELOAD: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	cp -r ../resources target_rld/
 	cp ../CHANGELOG.md ../README.md target_rld/
 	mkdir -p target_rld/$(APP)_RELOAD/py
-	cp ../resources/rp_cmds/py/*.py target_rld/$(APP)_RELOAD/py/
 	sed -i target_rld/$(APP)_RELOAD/info/info.json -e 's/REVISION/$(REVISION)_RELOAD/'
 	sed -i target_rld/$(APP)_RELOAD/info/info.json -e 's/BUILD_NUMBER/$(BUILD_NUMBER)/'
 	sed -i target_rld/$(APP)_RELOAD/index.html -e "s/\(\\s*\)var\\s*app_version\\s*=\\s*'VERSION'\\s*;\\s*/\\1var app_version = '$(VER)-$(BUILD_NUMBER)-$(REVISION)_RELOAD';/"
@@ -154,11 +151,11 @@ upload_bit:
 
 upload: target/$(APP) target_dbg/$(APP)_DEBUG target_rld/$(APP)_RELOAD
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP) ; mkdir -p /opt/redpitaya/www/apps/$(APP)"
-	cd target/$(APP) ; scp  $(RPSCP) -r controllerhf.so css js fpga.conf index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
+	cd target/$(APP) ; scp  $(RPSCP) -r controllerhf.so css js py fpga.conf index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)_DEBUG ; mkdir -p /opt/redpitaya/www/apps/$(APP)_DEBUG"
-	cd target_dbg/$(APP)_DEBUG; scp $(RPSCP) -r controllerhf.so css js fpga.conf index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_DEBUG/
+	cd target_dbg/$(APP)_DEBUG; scp $(RPSCP) -r controllerhf.so css js py fpga.conf index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_DEBUG/
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)_RELOAD ; mkdir -p /opt/redpitaya/www/apps/$(APP)_RELOAD"
-	cd target_rld/$(APP)_RELOAD; scp $(RPSCP) -r controllerhf.so css js fpga.conf index.html info root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_RELOAD/
+	cd target_rld/$(APP)_RELOAD; scp $(RPSCP) -r controllerhf.so css js py fpga.conf index.html info root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_RELOAD/
 
 upload_html: target/$(APP) target_dbg/$(APP)_DEBUG target_rld/$(APP)_RELOAD
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)/{index.html,js,css}"
@@ -168,7 +165,7 @@ upload_html: target/$(APP) target_dbg/$(APP)_DEBUG target_rld/$(APP)_RELOAD
 	cd target_dbg/$(APP)_DEBUG; scp $(RPSCP) -r index.html css js root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_DEBUG/
 	cd target_rld/$(APP)_RELOAD; scp $(RPSCP) -r index.html css js root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_RELOAD/
 
-upload_py: ../resources/rp_cmds/py/hugo.py
-	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /root/py/{data_dump.py,set.py,ver_mem.py,*.py}"
-	scp $(RPSCP) ../resources/rp_cmds/py/*.py root@$(RPIP):/root/py/
-	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; chmod +x /root/py/*.py"
+upload_py: ./py/hugo.py
+	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)/py/{data_dump.py,set.py,ver_mem.py,*.py}"
+	scp $(RPSCP) ./py/*.py root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/py/
+	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; chmod +x /opt/redpitaya/www/apps/$(APP)/py/*.py"
