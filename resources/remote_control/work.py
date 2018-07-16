@@ -15,7 +15,7 @@ import time
 from datetime import datetime
 import subprocess
 
-os.chdir('/home/lolo/Dropbox/Doctorado/herramientas/RedPitaya/scope+lock/v0.15/scope+lock/resources/RP_py')
+# os.chdir('/home/user/work_folder')
 
 from read_dump import read_dump
 from read_from_linux import red_pitaya_control,red_pitaya_lock,smooth,findpeaks,goodYlim,now,is_int
@@ -36,9 +36,9 @@ ssh='ssh '+str(RP_addr)+' -l root ' + ('-p {:d} '.format(RP_port) if is_int(RP_p
 
 
 
-rp=red_pitaya_lock(RP_addr='10.0.32.207',RP_port=2022,filename='/home/lolo/Dropbox/Doctorado/datos_labo/lolo/test.npz')
+# rp=red_pitaya_lock(RP_addr='10.0.32.207',RP_port=2022,filename='/home/user//test.npz')
 
-
+rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22,filename='test.npz')
 
 #%% Examples of commands
 
@@ -124,7 +124,3 @@ rp.export_data_csv()
 #rp.osc.set('Dec',64)
 
 #rp.osc.get('Dec')
-
-
-
-
