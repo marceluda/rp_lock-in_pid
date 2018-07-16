@@ -1,5 +1,5 @@
 /**
- * 
+ *
  *
  * @brief Red Pitaya slope detector
  *
@@ -12,10 +12,21 @@
  * for more details on the language used herein.
  */
 
-
-
-
-
+ /** Stimation of slope from 9 points
+   * The slope is stimated by use of linear least sqaures regression
+   * equation reference: https://en.wikipedia.org/wiki/Simple_linear_regression#Linear_regression_without_the_intercept_term
+   *
+   *         -4*y[n-8]-3*y[n-7]-2*y[n-6]-y[n-5]+y[n-3]+2*y[n-2]+3*y[n-1]+4*y[n]
+   * slope = ------------------------------------------------------------------
+   *             (-4)^2 + (-3)^2 + (-2)^2 + (-1)^2 + 1^2 + 2^2 + 3^2 + 4^2
+   *
+   * slope = slope9_dat_o / 60
+   *
+   * The output value of slope9 is multiplied by 60. To get the actual
+   * slope of the set of values you have to divide dat_o by 60 and by the
+   * time interval between data points.
+   *
+   */
 
 module slope9 #(parameter R=15)
 (
@@ -34,8 +45,8 @@ module slope9 #(parameter R=15)
 
    reg  signed [   R-1: 0] mem0,mem1,mem2,mem3,mem4,mem5,mem6,mem7,mem8;
    wire signed [   R-1: 0] mem_next0,mem_next1,mem_next2,mem_next3,mem_next4,mem_next5,mem_next6,mem_next7,mem_next8;
-   
-   
+
+
    always @(posedge clk) begin
       if (rst) begin
          mem0  <= {R{1'b0}} ;
@@ -62,7 +73,7 @@ module slope9 #(parameter R=15)
          dat_o <=   sum_div ;
       end
    end
-   
+
    // Next-state logic
    assign mem_next0 = read_en ? $signed(dat_i) : mem0  ;
    assign mem_next1 = read_en ? mem0           : mem1  ;
@@ -73,7 +84,7 @@ module slope9 #(parameter R=15)
    assign mem_next6 = read_en ? mem5           : mem6  ;
    assign mem_next7 = read_en ? mem6           : mem7  ;
    assign mem_next8 = read_en ? mem7           : mem8  ;
-   
+
    // Output
    assign sum = $signed({mem0, 2'b0 }) +                   // error[ 0] *  4
                 $signed({mem1, 1'b0 }) + $signed(mem1) +   // error[-1] *  3
@@ -87,7 +98,7 @@ module slope9 #(parameter R=15)
 
 
    assign sum_div = $signed( sum[R-1:0] );
-   
+
 endmodule
 
 

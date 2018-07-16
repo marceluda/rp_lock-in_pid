@@ -29,20 +29,20 @@
  *                      \---/
  *
  *
- * Proportional-integral-derivative (PID) controller is made from three parts. 
+ * Proportional-integral-derivative (PID) controller is made from three parts.
  *
  * Error which is difference between set point and input signal is driven into
  * propotional, integral and derivative part. Each calculates its own value which
  * is then summed and saturated before given to output.
  *
  * Integral part has also separate input to reset integrator value to 0.
- * 
+ *
  */
 
 
 
 
-module lock_pid_block 
+module lock_pid_block
 (
    // data
    input                     clk_i           ,  // clock
@@ -54,11 +54,11 @@ module lock_pid_block
    output signed  [ 14-1: 0] dat_o           ,  // output data
 
    // DIV settings
-   
+
    input          [  3-1: 0] PSR             ,  // PSR for proportional
    input          [  4-1: 0] ISR             ,  // ISR for Integration
    input          [  3-1: 0] DSR             ,  // DSR for Derivative
-   
+
    // settings
    input signed   [ 14-1: 0] set_sp_i        ,  // set point
    input signed   [ 14-1: 0] set_kp_i        ,  // Kp
@@ -85,7 +85,7 @@ set_kd_i  --> kd_reg_s
 
 PSR  12
 ISR  18
-DSR  10 
+DSR  10
 
 
 Proporcional:
@@ -160,7 +160,7 @@ wire  signed [   63-1: 0] int_shr       ;      // Memory / 2**ISR  ---> THIS GOE
 reg   signed [   63-1: 0] int_shr_reg   ;      // Memory aux
 //reg          [    5-1: 0] ISR_sat       ;      // Saturation aux
 
-//wire  signed [   47-1: 0] int_shr1       ;      // 
+//wire  signed [   47-1: 0] int_shr1       ;      //
 
 always @(posedge clk_i) begin
    if (rstn_i == 1'b1) begin
@@ -181,7 +181,7 @@ always @(posedge clk_i) begin
             int_shr_reg <= 63'h0; // reset
             sat_int     <=  8'b0;
          end
-      else 
+      else
          begin
             int_reg     <= int_sum_sat[63-1: 0];
             case (ISR)
@@ -247,8 +247,8 @@ always @(posedge clk_i) begin
             3'd4     : begin error_smooth <= mem_smooth_next[28-1:13];  read_en <= cnt_smooth_next[13];  end
             3'd5     : begin error_smooth <= mem_smooth_next[31-1:16];  read_en <= cnt_smooth_next[16];  end
             default  : begin error_smooth <= mem_smooth_next[15-1: 0];  read_en <= 1'b1 ;           end
-         endcase 
-         kd_reg         <= { {6{kd_mult[29-1]}} , kd_mult[29-1: 6] };
+         endcase
+         kd_reg         <= { {6{kd_mult[29-1]}} , kd_mult[29-1: 6] };  // division by 64, to compensate the 60 factor of slope9 module
          mem_smooth     <= mem_smooth_next[31-1:0]    ;
          cnt_smooth     <= cnt_smooth_next[16-1:0 ]    ;
          //error_smooth   <= error_smooth_next  ;
@@ -289,12 +289,12 @@ always @(posedge clk_i)
       else
          dat_o_mem      <= dat_o_mem_next;
 
-assign dat_o_mem_next = pid_freeze ? dat_o_mem : $signed(pid_out[ 14-1: 0]) ; 
+assign dat_o_mem_next = pid_freeze ? dat_o_mem : $signed(pid_out[ 14-1: 0]) ;
 
 
 //assign dat_o = $signed(pid_out[ 14-1: 0]) ;
 assign dat_o = dat_o_mem_next ;
- 
+
 
 endmodule
 
@@ -312,9 +312,9 @@ lock_pid_block NAME (
   .dat_o        (  Bout           ),  // output data
 
    // settings
-  .PSR          (  3'd10    ),  
-  .ISR          (  4'd26    ),  
-  .DSR          (  3'd10    ),  
+  .PSR          (  3'd10    ),
+  .ISR          (  4'd26    ),
+  .DSR          (  3'd10    ),
   .set_sp_i     (  Bsp      ),  // set point
   .set_kp_i     (  Bkp      ),  // Kp
   .set_ki_i     (  Bki      ),  // Ki
