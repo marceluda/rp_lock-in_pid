@@ -19,7 +19,6 @@ import paramiko
 import getpass
 import socket
 
-#os.chdir('/home/lolo/Dropbox/Doctorado/herramientas/RedPitaya/scope+lock/v0.15/scope+lock/resources/RP_py')
 
 #from read_dump import read_dump
 
@@ -209,7 +208,7 @@ class red_pitaya_control():
         if par in self.keys:
             self.parent.log('rp.'+self.name+'.set(par='+par+',val='+str(val)+'): '+self.cmd+' '+par+' '+str(val) )
             result = self.parent.ssh_cmd(self.cmd+' '+par+' '+str(val))
-            for rta in result.stdout.decode().strip().split('\n'):
+            for rta in result.strip().split('\n'):
                 self.data[ rta.strip().split(':')[0].strip() ] = int(rta.strip().split(':')[1].strip())
             #self.upload_changes = False
             #setattr(self,par,self.data[par])
@@ -229,7 +228,7 @@ class red_pitaya_app():
     plot loaded data and keep log of all the activity.
 
     Example:
-        rp=red_pitaya_lock(RP_addr='rp-f01d89.local',RP_port=22,filename='/home/user/experience01.npz')
+        rp=red_pitaya_lock(AppName='lock-in+pid',host='rp-f01d89.local',port=22,filename='/home/user/experience01.npz')
 
     This creates the rp object associated to RP 'rp-f01d89.local' , connecting through port 22
     and will save any data to the file '/home/user/experience01.npz'.
@@ -262,8 +261,12 @@ class red_pitaya_app():
     """
 
 
-    def __init__(self,AppName,host,port=22,password='',user='root',key_path='',filename=None):
-        self.filename       = filename
+    def __init__(self,AppName,host,port=22,password='',user='root',key_path='',filename=None, connect=True):
+        self.ssh = None
+        if not filename==None:
+            self.filename   = filename
+        else:
+            self.filename   = datetime.now().strftime("%Y%m%d_%H%M%S")+'.npz'
         self.AppName        = AppName
         self.host           = host
         self.port           = port
@@ -289,14 +292,17 @@ class red_pitaya_app():
         self.oscA_sw    = [ 'ch'+str(y) for y in range(32) ]
         self.oscB_sw    = [ 'ch'+str(y) for y in range(32) ]
         self.newfig     = True
-        self.check_connection()
-        self.osc.load()
-        self.lock.load()
+        if connect:
+            self.check_connection()
+            self.osc.load()
+            self.lock.load()
         self.stream     = False
+        self.allan      = []
         paramiko.util.log_to_file('ssh_session.log')
 
     def __exit__(self, exc_type, exc_value, traceback):
-        self.ssh.close()
+        if self.connected:
+            self.ssh.close()
         self.active = False
         for i in [exc_type, exc_value, traceback]:
             if not i==None:
@@ -304,7 +310,8 @@ class red_pitaya_app():
         #print('exit')
 
     def __del__(self):
-        self.ssh.close()
+        if self.connected:
+            self.ssh.close()
         #print('del')
 
     def __enter__(self):
@@ -415,13 +422,22 @@ class red_pitaya_app():
         return ''.join(stdout.readlines())
 
     def ssh_close(self):
-        self.ssh.close()
+        if self.connected:
+            self.ssh.close()
         self.connected = False
 
     def check_connection(self):
         """
         Checks that localhost can connect to RP throught SSH and gets some usefull info
         """
+        self.info={}
+        result = self.ssh_cmd('uname -a')
+        self.info['RP kernel'] = result.strip()
+        myIP, myPort, rpIP, rpPort = self.ssh_cmd('echo $SSH_CONNECTION').strip().split(' ')
+        self.info['myIP']   = myIP
+        self.info['myPort'] = myPort
+        self.info['rpIP']   = rpIP
+        self.info['rpPort'] = rpPort
         if self.connected:
             return True
         else:
@@ -488,9 +504,9 @@ class red_pitaya_app():
 
         txt = '{:>'+str(max_num)+'d}  {:s} {:s}'
         for l in self.log_db:
-            print( txt.format( l[0],
-                               datetime.fromtimestamp( l[1] ).strftime('%Y%m%d_%H:%M:%S'),
-                               l[2] ) )
+            print( txt.format( int(l[0]),
+                               datetime.fromtimestamp( float(l[1]) ).strftime('%Y%m%d_%H:%M:%S'),
+                               str(l[2]) ) )
     def print_data(self):
         """
         Usage:
@@ -794,7 +810,7 @@ class red_pitaya_app():
     #            raise SSHError(msj)
 
 
-
+#%%
 
 if __name__ == '__main__':
     rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22)
