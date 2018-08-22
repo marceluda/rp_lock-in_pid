@@ -577,8 +577,8 @@ class red_pitaya_app():
                            'ch1_name': self.oscA_sw[self.lock.oscA_sw],
                            'ch2_name': self.oscB_sw[self.lock.oscB_sw],
                            'dec': self.osc.Dec,
-                           'osc': self.osc.data,
-                           'lock': self.lock.data,
+                           'osc': self.osc.data.copy(),
+                           'lock': self.lock.data.copy(),
                            'log': log
                             }
                            ] )
