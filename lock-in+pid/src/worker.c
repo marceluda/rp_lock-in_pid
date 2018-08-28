@@ -4,7 +4,7 @@
  * @brief Red Pitaya Oscilloscope worker.
  *
  * @Author Jure Menart <juremenart@gmail.com>
- *         
+ *
  * (c) Red Pitaya  http://www.redpitaya.com
  *
  * This part of code is written in C programming language.
@@ -84,14 +84,14 @@ int rp_osc_worker_init(rp_app_params_t *params, int params_len,
         rp_cleanup_signals(&rp_tmp_signals);
         return -1;
     }
-    ret_val = 
+    ret_val =
         pthread_create(rp_osc_thread_handler, NULL, rp_osc_worker_thread, NULL);
     if(ret_val != 0) {
         osc_fpga_exit();
 
         rp_cleanup_signals(&rp_osc_signals);
         rp_cleanup_signals(&rp_tmp_signals);
-        fprintf(stderr, "pthread_create() failed: %s\n", 
+        fprintf(stderr, "pthread_create() failed: %s\n",
                 strerror(errno));
         return -1;
     }
@@ -103,7 +103,7 @@ int rp_osc_worker_init(rp_app_params_t *params, int params_len,
 /*----------------------------------------------------------------------------------*/
 int rp_osc_worker_exit(void)
 {
-    int ret_val = 0; 
+    int ret_val = 0;
 
     rp_osc_worker_change_state(rp_osc_quit_state);
     if(rp_osc_thread_handler) {
@@ -112,7 +112,7 @@ int rp_osc_worker_exit(void)
         rp_osc_thread_handler = NULL;
     }
     if(ret_val != 0) {
-        fprintf(stderr, "pthread_join() failed: %s\n", 
+        fprintf(stderr, "pthread_join() failed: %s\n",
                 strerror(errno));
     }
     osc_fpga_exit();
@@ -159,7 +159,7 @@ int rp_osc_worker_update_params(rp_app_params_t *params, int fpga_update)
     rp_osc_params[PARAMS_NUM].value = -1;
 
     pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-    
+
     return 0;
 }
 
@@ -231,8 +231,8 @@ void *rp_osc_worker_thread(void *args)
     int                   dec_factor = 0;
     int                   time_vect_update = 0;
     uint32_t              trig_source = 0;
-    int                   params_dirty = 0;    
-    
+    int                   params_dirty = 0;
+
     /* Long acquisition special function */
     int long_acq = 0; /* long_acq if acq_time > 1 [s] */
     int long_acq_idx = 0;
@@ -240,32 +240,35 @@ void *rp_osc_worker_thread(void *args)
     int long_acq_last_wr_ptr = 0;
     int long_acq_step = 0;
     int long_acq_init_trig_ptr;
-    
-    
+
+
     rp_osc_meas_res_t ch1_meas, ch2_meas;
     float ch1_max_adc_v = 1, ch2_max_adc_v = 1;
     float max_adc_norm = osc_fpga_calc_adc_max_v(rp_calib_params->fe_ch1_fs_g_hi, 0);
-    
-    
+
+    //lolo
+    int32_t  fe_ch1_dc_offs=0;
+    int32_t  fe_ch2_dc_offs=0;
+
     pthread_mutex_lock(&rp_osc_ctrl_mutex);
     old_state = state = rp_osc_ctrl;
     pthread_mutex_unlock(&rp_osc_ctrl_mutex);
 
     while(1) {
         /* update states - we save also old state to see if we need to reset
-         * FPGA 
+         * FPGA
          */
         old_state = state;
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         state = rp_osc_ctrl;
-        
-        
+
+
         if(rp_osc_params_dirty) {
             rp_copy_params(rp_osc_params, (rp_app_params_t **)&curr_params);
             fpga_update = rp_osc_params_fpga_update;
 
             rp_osc_params_dirty = 0;
-            dec_factor = 
+            dec_factor =
                 osc_fpga_cnv_time_range_to_dec(curr_params[TIME_RANGE_PARAM].value);
             time_vect_update = 1;
 
@@ -281,15 +284,15 @@ void *rp_osc_worker_thread(void *args)
             ch2_max_adc_v =
                     osc_fpga_calc_adc_max_v(fe_fsg2, (int)curr_params[PRB_ATT_CH2].value);
         }
-        
+
         pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-        
+
         /* request to stop worker thread, we will shut down */
         if(state == rp_osc_quit_state) {
             rp_clean_params(curr_params);
             return 0;
         }
-        
+
 
         if(state == rp_osc_auto_set_state) {
             /* Auto-set algorithm was selected - run it */
@@ -297,41 +300,54 @@ void *rp_osc_worker_thread(void *args)
                             curr_params[GEN_DC_OFFS_1].value,
                             curr_params[GEN_DC_OFFS_2].value,
                             curr_params[PRB_ATT_CH1].value,
-                            curr_params[PRB_ATT_CH2].value, 
+                            curr_params[PRB_ATT_CH2].value,
                             curr_params[GAIN_CH1].value,
-                            curr_params[GAIN_CH2].value, 			    
+                            curr_params[GAIN_CH2].value,
                             curr_params[EN_AVG_AT_DEC].value);
             /* Return calculated parameters to main module */
             rp_update_main_params(curr_params);
             continue;
         }
-        
-        
+
+        if( rp_osc_params[LOCK_OSCA_SW].value==1 )
+            fe_ch1_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+        else if( rp_osc_params[LOCK_OSCA_SW].value==2 )
+            fe_ch1_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+        else
+            fe_ch1_dc_offs=0;
+
+        if( rp_osc_params[LOCK_OSCB_SW].value==1 )
+            fe_ch2_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+        else if( rp_osc_params[LOCK_OSCB_SW].value==2 )
+            fe_ch2_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+        else
+            fe_ch2_dc_offs=0;
+
         if(fpga_update) {
             osc_fpga_reset();
             if(osc_fpga_update_params((curr_params[TRIG_MODE_PARAM].value == 0),
-                                      curr_params[TRIG_SRC_PARAM].value, 
+                                      curr_params[TRIG_SRC_PARAM].value,
                                       curr_params[TRIG_EDGE_PARAM].value,
                                       /* Here we could use trigger, but it is safer
                                        * to use start GUI value (it was recalculated
                                        * correctly already in rp_osc_main() so we
-                                       * can use it and be sure that all signal 
+                                       * can use it and be sure that all signal
                                        * (even if extended becuase of decimation
-                                       * will be covered in the acquisition 
+                                       * will be covered in the acquisition
                                        */
                                       /*curr_params[TRIG_DLY_PARAM].value,*/
                                       curr_params[MIN_GUI_PARAM].value,
                                       curr_params[TRIG_LEVEL_PARAM].value,
                                       curr_params[TIME_RANGE_PARAM].value,
                                       max_adc_norm, max_adc_norm,
-                                      rp_calib_params->fe_ch1_dc_offs,
+                                      fe_ch1_dc_offs,
                                       curr_params[GEN_DC_OFFS_1].value,
-                                      rp_calib_params->fe_ch2_dc_offs,
+                                      fe_ch2_dc_offs,
                                       curr_params[GEN_DC_OFFS_2].value,
                                       curr_params[PRB_ATT_CH1].value,
                                       curr_params[PRB_ATT_CH2].value,
                                       curr_params[GAIN_CH1].value,
-                                      curr_params[GAIN_CH2].value,				      
+                                      curr_params[GAIN_CH2].value,
                                       curr_params[EN_AVG_AT_DEC].value) < 0) {
                 fprintf(stderr, "Setting of FPGA registers failed\n");
                 rp_osc_worker_change_state(rp_osc_idle_state);
@@ -343,19 +359,19 @@ void *rp_osc_worker_thread(void *args)
 
             fpga_update = 0;
         }
-        
+
         if(state == rp_osc_idle_state) {
             usleep(10000);
             continue;
         }
-        
+
         if(time_vect_update) {
-            float unit_factor = 
+            float unit_factor =
                 rp_osc_get_time_unit_factor(curr_params[TIME_UNIT_PARAM].value);
-            float t_acq = (curr_params[MAX_GUI_PARAM].value - 
+            float t_acq = (curr_params[MAX_GUI_PARAM].value -
                            curr_params[MIN_GUI_PARAM].value) / unit_factor;
 
-            rp_osc_prepare_time_vector((float **)&rp_tmp_signals[0], 
+            rp_osc_prepare_time_vector((float **)&rp_tmp_signals[0],
                                        dec_factor,
                                        curr_params[MIN_GUI_PARAM].value,
                                        curr_params[MAX_GUI_PARAM].value,
@@ -363,13 +379,13 @@ void *rp_osc_worker_thread(void *args)
 
             time_vect_update = 0;
 
-            /* check if we have long acquisition - if yes the algorithm 
+            /* check if we have long acquisition - if yes the algorithm
              * (wait for pre-defined time and return partial signal) */
             /* TODO: Make it programmable */
             if(t_acq >= 1.5) {
                 long_acq = 1;
-                /* Catch initial trigger - we will poll trigger pointer, 
-                 * when it changes we will act like official 'trigger' 
+                /* Catch initial trigger - we will poll trigger pointer,
+                 * when it changes we will act like official 'trigger'
                  * came
                  */
                 rp_osc_meas_clear(&ch1_meas);
@@ -382,17 +398,17 @@ void *rp_osc_worker_thread(void *args)
             }
             long_acq_idx = 0;
         }
-        
+
         /* Start new acquisition only if it is the index 0 (new acquisition) */
         if(long_acq_idx == 0) {
             float time_delay = curr_params[TRIG_DLY_PARAM].value;
             /* Start the writting machine */
             osc_fpga_arm_trigger();
-        
+
             /* Be sure to have enough time to load necessary history - wait */
             if(time_delay < 0) {
                 /* time delay is always in seconds - convert to [us] and
-                * sleep 
+                * sleep
                 */
                 usleep(round(-1 * time_delay * 1e6));
             } else {
@@ -405,7 +421,7 @@ void *rp_osc_worker_thread(void *args)
             /* Start the trigger */
             osc_fpga_set_trigger(trig_source);
         }
-        
+
         /* start working */
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         old_state = state = rp_osc_ctrl;
@@ -415,7 +431,7 @@ void *rp_osc_worker_thread(void *args)
         } else if(state == rp_osc_quit_state) {
             break;
         }
-        
+
         if(long_acq_idx == 0) {
             /* polling until data is ready */
             while(1) {
@@ -427,7 +443,7 @@ void *rp_osc_worker_thread(void *args)
                 if((state != old_state) || params_dirty) {
                     break;
                 }
-                
+
                 if(!long_acq && osc_fpga_triggered()) {
                     /* for non-long acquisition wait for trigger */
                     break;
@@ -436,7 +452,7 @@ void *rp_osc_worker_thread(void *args)
                     osc_fpga_get_wr_ptr(&curr_ptr, &trig_ptr);
                     if((long_acq_init_trig_ptr != trig_ptr) || osc_fpga_triggered()) {
                         /* FPGA wrote new trigger pointer - which means
-                         * new trigger happened 
+                         * new trigger happened
                          */
                         break;
                     }
@@ -444,8 +460,8 @@ void *rp_osc_worker_thread(void *args)
                 usleep(1000);
             }
         }
-        
-       
+
+
         if((state != old_state) || params_dirty) {
             params_dirty = 0;
             continue;
@@ -454,26 +470,26 @@ void *rp_osc_worker_thread(void *args)
             /* Long acquisition - after trigger wait for a while to collect some
             * data
             */
-            
+
             /* TODO: Make it programmable - Sleep for 200 [ms] */
-            const int long_acq_part_delay = 1000 * 200; 
+            const int long_acq_part_delay = 1000 * 200;
             if(long_acq_idx == 0) {
                 /* Trigger - so let's arrange all the needed pointers & stuff */
                 int wr_ptr_curr, wr_ptr_trig;
                 float smpl_period = c_osc_fpga_smpl_period * dec_factor;
-                int t_start_idx = 
+                int t_start_idx =
                     round(curr_params[MIN_GUI_PARAM].value / smpl_period);
-                float unit_factor = 
+                float unit_factor =
                     rp_osc_get_time_unit_factor(
                                          curr_params[TIME_UNIT_PARAM].value);
-                float t_acq = (curr_params[MAX_GUI_PARAM].value - 
-                               curr_params[MIN_GUI_PARAM].value) / 
+                float t_acq = (curr_params[MAX_GUI_PARAM].value -
+                               curr_params[MIN_GUI_PARAM].value) /
                     unit_factor;
-                
+
                 osc_fpga_get_wr_ptr(&wr_ptr_curr, &wr_ptr_trig);
                 long_acq_first_wr_ptr = wr_ptr_trig + t_start_idx - 3;
                 if(long_acq_first_wr_ptr < 0)
-                    long_acq_first_wr_ptr = 
+                    long_acq_first_wr_ptr =
                         OSC_FPGA_SIG_LEN + long_acq_first_wr_ptr;
                 long_acq_last_wr_ptr  = long_acq_first_wr_ptr +
                     (t_acq / (c_osc_fpga_smpl_period * dec_factor));
@@ -483,19 +499,19 @@ void *rp_osc_worker_thread(void *args)
                          (SIGNAL_LENGTH-1))) < 0)
                     long_acq_step = 1;
                 else
-                    long_acq_step = 
-                        round((t_acq / (c_osc_fpga_smpl_period * dec_factor)) / 
+                    long_acq_step =
+                        round((t_acq / (c_osc_fpga_smpl_period * dec_factor)) /
                               (SIGNAL_LENGTH-1));
 
                 rp_osc_meas_clear(&ch1_meas);
                 rp_osc_meas_clear(&ch2_meas);
             }
-             
-            /* we are after trigger - so let's wait a while to collect some 
+
+            /* we are after trigger - so let's wait a while to collect some
             * samples */
             usleep(long_acq_part_delay); /* Sleep for 200 [ms] */
         }
-        
+
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         state = rp_osc_ctrl;
         params_dirty = rp_osc_params_dirty;
@@ -503,33 +519,33 @@ void *rp_osc_worker_thread(void *args)
 
         if((state != old_state) || params_dirty)
             continue;
-        
-       
-        
+
+
+
         if(!long_acq) {
             /* Triggered, decimate & convert the values */
             rp_osc_meas_clear(&ch1_meas);
             rp_osc_meas_clear(&ch2_meas);
             rp_osc_decimate((float **)&rp_tmp_signals[1], &rp_fpga_cha_signal[0],
                             (float **)&rp_tmp_signals[2], &rp_fpga_chb_signal[0],
-                            (float **)&rp_tmp_signals[0], dec_factor, 
+                            (float **)&rp_tmp_signals[0], dec_factor,
                             curr_params[MIN_GUI_PARAM].value,
                             curr_params[MAX_GUI_PARAM].value,
-                            curr_params[TIME_UNIT_PARAM].value, 
+                            curr_params[TIME_UNIT_PARAM].value,
                             &ch1_meas, &ch2_meas, ch1_max_adc_v, ch2_max_adc_v,
                             curr_params[GEN_DC_OFFS_1].value,
                             curr_params[GEN_DC_OFFS_2].value);
         } else {
-            long_acq_idx = rp_osc_decimate_partial((float **)&rp_tmp_signals[1], 
-                                             &rp_fpga_cha_signal[0], 
+            long_acq_idx = rp_osc_decimate_partial((float **)&rp_tmp_signals[1],
+                                             &rp_fpga_cha_signal[0],
                                              (float **)&rp_tmp_signals[2],
                                              &rp_fpga_chb_signal[0],
                                              (float **)&rp_tmp_signals[0],
-                                             &long_acq_first_wr_ptr, 
+                                             &long_acq_first_wr_ptr,
                                              long_acq_last_wr_ptr,
                                              long_acq_step, long_acq_idx,
                                              curr_params[MIN_GUI_PARAM].value,
-                                             dec_factor, 
+                                             dec_factor,
                                              curr_params[TIME_UNIT_PARAM].value,
                                              &ch1_meas, &ch2_meas,
                                              ch1_max_adc_v, ch2_max_adc_v,
@@ -546,11 +562,11 @@ void *rp_osc_worker_thread(void *args)
                     rp_osc_worker_change_state(rp_osc_idle_state);
                 }
             }
-            
+
         }
-        
-       
-        
+
+
+
         /* check again for change of state */
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         state = rp_osc_ctrl;
@@ -562,19 +578,19 @@ void *rp_osc_worker_thread(void *args)
             rp_osc_worker_change_state(rp_osc_idle_state);
         }
 
-       
-       
+
+
         /* copy the results to the user buffer - if we are finished or not */
         if(!long_acq || long_acq_idx == 0) {
             /* Finish the measurement */
             rp_osc_meas_avg_amp(&ch1_meas, OSC_FPGA_SIG_LEN);
             rp_osc_meas_avg_amp(&ch2_meas, OSC_FPGA_SIG_LEN);
-            
-            rp_osc_meas_period(&ch1_meas, &ch2_meas, &rp_fpga_cha_signal[0], 
+
+            rp_osc_meas_period(&ch1_meas, &ch2_meas, &rp_fpga_cha_signal[0],
                                &rp_fpga_chb_signal[0], dec_factor);
-            rp_osc_meas_convert(&ch1_meas, ch1_max_adc_v, rp_calib_params->fe_ch1_dc_offs);
-            rp_osc_meas_convert(&ch2_meas, ch2_max_adc_v, rp_calib_params->fe_ch2_dc_offs);
-            
+            rp_osc_meas_convert(&ch1_meas, ch1_max_adc_v, fe_ch1_dc_offs);
+            rp_osc_meas_convert(&ch2_meas, ch2_max_adc_v, fe_ch2_dc_offs);
+
             rp_osc_set_meas_data(ch1_meas, ch2_meas);
             rp_osc_set_signals(rp_tmp_signals, SIGNAL_LENGTH-1);
         } else {
@@ -611,11 +627,11 @@ int rp_osc_prepare_time_vector(float **out_signal, int dec_factor,
     if(idx_step > 8)
         idx_step = 8;
 
-    for(out_idx = 0, in_idx = 0, t_curr=t_start; out_idx < SIGNAL_LENGTH; 
+    for(out_idx = 0, in_idx = 0, t_curr=t_start; out_idx < SIGNAL_LENGTH;
         out_idx++, t_curr += t_step, in_idx += idx_step) {
         s[out_idx] = t_curr * t_unit_factor;
     }
-    
+
     return 0;
 }
 
@@ -623,7 +639,7 @@ int rp_osc_prepare_time_vector(float **out_signal, int dec_factor,
 /*----------------------------------------------------------------------------------*/
 int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
                     float **chb_signal, int *in_chb_signal,
-                    float **time_signal, int dec_factor, 
+                    float **time_signal, int dec_factor,
                     float t_start, float t_stop, int time_unit,
                     rp_osc_meas_res_t *ch1_meas, rp_osc_meas_res_t *ch2_meas,
                     float ch1_max_adc_v, float ch2_max_adc_v,
@@ -641,13 +657,25 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
     float *t = *time_signal;
     //lolo
     float cha_tmp,chb_tmp;
-    
+    int32_t  fe_ch1_dc_offs=0;
+    int32_t  fe_ch2_dc_offs=0;
+
+    // if oscilloscope channels are in in1 or in2, make offset correction
+    if( rp_osc_params[LOCK_OSCA_SW].value==1 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCA_SW].value==2 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==1 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==2 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+
     /* If illegal take whole frame */
     if(t_stop <= t_start) {
         t_start = 0;
         t_stop = (OSC_FPGA_SIG_LEN-1) * smpl_period;
     }
-    
+
     /* convert time to samples */
     t_start_idx = round(t_start / smpl_period);
     t_stop_idx  = round(t_stop / smpl_period);
@@ -656,14 +684,14 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
         t_step = 1;
     else {
         /* ceil was used already in rp_osc_main() for parameters, so we can easily
-         * use round() here 
+         * use round() here
          */
         t_step = round((t_stop_idx-t_start_idx)/(float)(SIGNAL_LENGTH-1));
     }
     osc_fpga_get_wr_ptr(&wr_ptr_curr, &wr_ptr_trig);
     in_idx = wr_ptr_trig + t_start_idx - 3;
 
-    if(in_idx < 0) 
+    if(in_idx < 0)
         in_idx = OSC_FPGA_SIG_LEN + in_idx;
     if(in_idx >= OSC_FPGA_SIG_LEN)
         in_idx = in_idx % OSC_FPGA_SIG_LEN;
@@ -677,28 +705,44 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
         rp_osc_meas_min_max(ch1_meas, in_cha_signal[out_idx]);
         rp_osc_meas_min_max(ch2_meas, in_chb_signal[out_idx]);
     }
-    
-    
-    for(out_idx=0, t_idx=0; out_idx < SIGNAL_LENGTH; 
+
+
+    for(out_idx=0, t_idx=0; out_idx < SIGNAL_LENGTH;
         out_idx++, in_idx+=t_step, t_idx+=t_step) {
         /* Wrap the pointer */
         if(in_idx >= OSC_FPGA_SIG_LEN)
             in_idx = in_idx % OSC_FPGA_SIG_LEN;
 
-        
-        cha_tmp = osc_fpga_cnv_cnt_to_v(in_cha_signal[in_idx], ch1_max_adc_v,
-                                   rp_calib_params->fe_ch1_dc_offs,
-                                   ch1_user_dc_off);
+        if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
+            cha_s[out_idx] = osc_fpga_cnv_cnt_to_v(in_cha_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+            chb_s[out_idx] = osc_fpga_cnv_cnt_to_v(in_chb_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+            //cha_s[out_idx] = in_cha_signal[in_idx];
+            //chb_s[out_idx] = in_chb_signal[in_idx];
+        } else {
+            cha_tmp = osc_fpga_cnv_cnt_to_v(in_cha_signal[in_idx], ch1_max_adc_v,
+                                       fe_ch1_dc_offs,
+                                       ch1_user_dc_off);
 
-        chb_tmp = osc_fpga_cnv_cnt_to_v(in_chb_signal[in_idx], ch2_max_adc_v,
-                                           rp_calib_params->fe_ch2_dc_offs,
-                                           ch2_user_dc_off);
+            chb_tmp = osc_fpga_cnv_cnt_to_v(in_chb_signal[in_idx], ch2_max_adc_v,
+                                               fe_ch2_dc_offs,
+                                               ch2_user_dc_off);
+            // check mode
+            if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
+                cha_s[out_idx] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
+                chb_s[out_idx] = atan2( chb_tmp , cha_tmp ) ;
+            } else {
+                cha_s[out_idx] = cha_tmp ;
+                chb_s[out_idx] = chb_tmp ;
+            }
+        }
 
+        //-------
+        /* DISABLED
         if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
             cha_s[out_idx] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
             chb_s[out_idx] = atan2( chb_tmp , cha_tmp ) ;
         } else if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
-            
+
             cha_s[out_idx] = osc_fpga_cnv_cnt_to_v(in_cha_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
             chb_s[out_idx] = osc_fpga_cnv_cnt_to_v(in_chb_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
             //cha_s[out_idx] = in_cha_signal[in_idx];
@@ -706,8 +750,8 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
         } else {
             cha_s[out_idx] = cha_tmp ;
             chb_s[out_idx] = chb_tmp ;
-        }
-        
+        }  // */
+
         t[out_idx] = (t_start + (t_idx * smpl_period)) * t_unit_factor;
 
         /* A bug in FPGA? - Trig & write pointers not sample-accurate. */
@@ -725,12 +769,12 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
 
 
 /*----------------------------------------------------------------------------------*/
-int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal, 
+int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
                             float **chb_out_signal, int *chb_in_signal,
-                            float **time_out_signal, int *next_wr_ptr, 
+                            float **time_out_signal, int *next_wr_ptr,
                             int last_wr_ptr, int step_wr_ptr, int next_out_idx,
                             float t_start, int dec_factor, int time_unit,
-                            rp_osc_meas_res_t *ch1_meas, 
+                            rp_osc_meas_res_t *ch1_meas,
                             rp_osc_meas_res_t *ch2_meas,
                             float ch1_max_adc_v, float ch2_max_adc_v,
                             float ch1_user_dc_off, float ch2_user_dc_off)
@@ -742,10 +786,22 @@ int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
 
     float smpl_period = c_osc_fpga_smpl_period * dec_factor;
     int   t_unit_factor = rp_osc_get_time_unit_factor(time_unit);
-    
+
     // lolo
     float cha_tmp,chb_tmp;
-    
+    int32_t  fe_ch1_dc_offs=0;
+    int32_t  fe_ch2_dc_offs=0;
+
+    // if oscilloscope channels are in in1 or in2, make offset correction
+    if( rp_osc_params[LOCK_OSCA_SW].value==1 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCA_SW].value==2 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==1 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==2 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+
     int curr_ptr;
     /* check if we have reached currently acquired signals in FPGA */
     osc_fpga_get_wr_ptr(&curr_ptr, NULL);
@@ -759,7 +815,7 @@ int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
 
     in_idx = *next_wr_ptr;
 
-    for(; (next_out_idx < SIGNAL_LENGTH); next_out_idx++, 
+    for(; (next_out_idx < SIGNAL_LENGTH); next_out_idx++,
             in_idx += step_wr_ptr) {
         int curr_ptr;
         int diff_ptr;
@@ -769,11 +825,35 @@ int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
             in_idx = in_idx % OSC_FPGA_SIG_LEN;
         diff_ptr = (in_idx-curr_ptr);
         /* Check that we did not hit the curr ptr (and that pointer is not
-         * wrapped 
+         * wrapped
          */
         if((in_idx >= curr_ptr) && (diff_ptr > 0) && (diff_ptr < 100))
             break;
-        
+
+
+        if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
+            cha_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+            chb_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+        } else {
+            cha_tmp = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], ch1_max_adc_v,
+                                            fe_ch1_dc_offs,
+                                            ch1_user_dc_off);
+
+            chb_tmp = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], ch2_max_adc_v,
+                                            fe_ch2_dc_offs,
+                                            ch2_user_dc_off);
+
+            if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
+                cha_out[next_out_idx] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
+                chb_out[next_out_idx] = atan2( chb_tmp , cha_tmp ) ;
+            }else{
+                cha_out[next_out_idx] = cha_tmp ;
+                chb_out[next_out_idx] = chb_tmp ;
+            }
+        }
+
+
+        /* DISABLED
         cha_tmp = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], ch1_max_adc_v,
                                         rp_calib_params->fe_ch1_dc_offs,
                                         ch1_user_dc_off);
@@ -791,10 +871,10 @@ int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
         } else {
             cha_out[next_out_idx] = cha_tmp ;
             chb_out[next_out_idx] = chb_tmp ;
-        }
-        
-        
-        t_out[next_out_idx]   = 
+        }   // */
+
+
+        t_out[next_out_idx]   =
             (t_start + ((next_out_idx*step_wr_ptr)*smpl_period))*t_unit_factor;
 
         /* A bug in FPGA? - Trig & write pointers not sample-accurate. */
@@ -839,7 +919,7 @@ int rp_osc_get_time_unit_factor(int time_unit)
 
 
 /*----------------------------------------------------------------------------------*/
-int rp_osc_auto_set(rp_app_params_t *orig_params, 
+int rp_osc_auto_set(rp_app_params_t *orig_params,
                     float ch1_max_adc_v, float ch2_max_adc_v,
                     float ch1_user_dc_off, float ch2_user_dc_off,
                     int ch1_probe_att, int ch2_probe_att, int ch1_gain, int ch2_gain, int en_avg_at_dec)
@@ -856,20 +936,35 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
     int dy[2]     = { 0, 0 };
     int old_dy[2] = { 0, 0 };
 
+    // lolo
+    int32_t  fe_ch1_dc_offs=0;
+    int32_t  fe_ch2_dc_offs=0;
+
+    // if oscilloscope channels are in in1 or in2, make offset correction
+    if( rp_osc_params[LOCK_OSCA_SW].value==1 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCA_SW].value==2 )
+        fe_ch1_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==1 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch1_dc_offs;
+    if( rp_osc_params[LOCK_OSCB_SW].value==2 )
+        fe_ch2_dc_offs=rp_calib_params->fe_ch2_dc_offs;
+
+
     /* Channel to be used for auto-algorithm:
-     * 0 - Channel A 
-     * 1 - Channel B 
+     * 0 - Channel A
+     * 1 - Channel B
      */
-    int channel; 
+    int channel;
     int smpl_cnt;
     int iter;
     int time_range = 0;
-    
-    TRACE("WORKER LOLO AUTO START: %d\n", 1); 
-    
+
+    TRACE("WORKER LOLO AUTO START: %d\n", 1);
+
     for (iter=0; iter < 10; iter++) {
-        TRACE("WORKER LOLO iter: %d\n", iter); 
-        
+        TRACE("WORKER LOLO iter: %d\n", iter);
+
         /* 10 auto-trigger acquisitions */
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         old_state = state = rp_osc_ctrl;
@@ -877,16 +972,16 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
 
         osc_fpga_reset();
         osc_fpga_update_params(1, 0, 0, 0, 0, time_range, ch1_max_adc_v, ch2_max_adc_v,
-                   rp_calib_params->fe_ch1_dc_offs,
+                   fe_ch1_dc_offs,
                    0,
-                   rp_calib_params->fe_ch2_dc_offs,
+                   fe_ch2_dc_offs,
                    0,
                    ch1_probe_att, ch2_probe_att, ch1_gain, ch2_gain, 0);
 
         /* ARM & Trigger */
         osc_fpga_arm_trigger();
         osc_fpga_set_trigger(1);
-        
+
         TRACE("WORKER LOLO wait for trigger, iter: %d\n", iter);
         /* Wait for trigger to finish */
         while(1) {
@@ -917,10 +1012,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
             if(chb_smpl & (1<<(c_osc_fpga_adc_bits-1)))
                 chb_smpl = -1 * ((chb_smpl ^ ((1<<c_osc_fpga_adc_bits)-1))+1);
             if(rp_osc_params[LOCK_OSC_RAW_MODE].value==0){ // LOLO
-                cha_smpl = cha_smpl + rp_calib_params->fe_ch1_dc_offs;
-                chb_smpl = chb_smpl + rp_calib_params->fe_ch2_dc_offs;
+                cha_smpl = cha_smpl + fe_ch1_dc_offs;
+                chb_smpl = chb_smpl + fe_ch2_dc_offs;
             } else{
-                
+
             } // LOLO
             /* Get min/maxes */
             max_cha = (max_cha < cha_smpl) ? cha_smpl : max_cha;
@@ -931,10 +1026,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
 
         dy[0] = max_cha - min_cha;
         dy[1] = max_chb - min_chb;
-        
+
         TRACE("WORKER LOLO max_cha: %d\n", max_cha);
         TRACE("WORKER LOLO min_cha: %d\n", min_cha);
-        
+
         /* Calculate ratios of last amplitude increase for both channels */
         const float c_inc_thr = 1.1;
         float ratio[2] = { 1e6, 1e6 };
@@ -968,15 +1063,15 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         }
     }
 
-    /* Check the Y axis amplitude on both channels and select the channel with 
+    /* Check the Y axis amplitude on both channels and select the channel with
      * the larger one.
      */
     channel = (dy[0] > dy[1]) ? 0 : 1;
-    
+
     TRACE("WORKER LOLO for ended. channel: %d\n", channel);
-    
+
     TRACE("WORKER LOLO next if. dy[channel] < c_noise_thr: %d\n", (int) (dy[channel] < c_noise_thr) );
-    
+
     if(dy[channel] < c_noise_thr) {
         /* No signal detected, set the parameters to:
          * - no decimation (time range 130 [us])
@@ -988,7 +1083,7 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         int min_y, max_y, ave_y;
 
         orig_params[TRIG_MODE_PARAM].value  = 0;
-        orig_params[MIN_GUI_PARAM].value    = 0;      
+        orig_params[MIN_GUI_PARAM].value    = 0;
         orig_params[MAX_GUI_PARAM].value    = 130;
         orig_params[TIME_RANGE_PARAM].value = 0;
         orig_params[TRIG_SRC_PARAM].value   = 0;
@@ -1003,7 +1098,7 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         ave_y = (min_y + max_y) >> 1;
         min_y = (min_y - ave_y) * 2 + ave_y;
         max_y = (max_y - ave_y) * 2 + ave_y;
-        
+
         if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){ // LOLO
             orig_params[MIN_Y_NORM].value = min_y ;
             orig_params[MAX_Y_NORM].value = max_y ;
@@ -1012,8 +1107,8 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
             orig_params[MAX_Y_NORM].value = max_y / (float)(1 << (c_osc_fpga_adc_bits - 1));
         }
 
-        
-        
+
+
         // For POST response ...
         transform_to_iface_units(orig_params);
         return 0;
@@ -1036,18 +1131,18 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
             max_y = max_cha;
             trig_src_ch = 0;
             max_adc_v = ch1_max_adc_v;
-            calib_dc_off = rp_calib_params->fe_ch1_dc_offs;
+            calib_dc_off = fe_ch1_dc_offs;
         } else {
             min_y = min_chb;
             max_y = max_chb;
             trig_src_ch = 1;
             max_adc_v = ch2_max_adc_v;
-            calib_dc_off = rp_calib_params->fe_ch2_dc_offs;            
+            calib_dc_off = fe_ch2_dc_offs;
         }
         trig_level = (max_y + min_y) >> 1;
         TRACE("AUTO: trig level: %d\n", trig_level);
         TRACE("AUTO: min,max: %d  %d\n", min_y, max_y);
-        
+
         if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){ // LOLO
             trig_level_v = (((trig_level) * max_adc_v)/
                             (float)(1<<(c_osc_fpga_adc_bits-1))) ;
@@ -1057,23 +1152,23 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         }
         int loc_max = INT_MIN;
         int loc_min = INT_MAX;
-        
+
         TRACE("WORKER LOLO trig_level_v: %f\n", trig_level_v);
-        
+
         /* Loop over time ranges and search for the best suiting one (Last range removed: too slow) */
         for(time_range = 0; time_range < 5; time_range++) {
             float period = 0;
             int trig_source = osc_fpga_cnv_trig_source(0, trig_src_ch, 0);
             int *sig_data;
-            
+
             TRACE("WORKER LOLO for time_range: %d\n", time_range);
             osc_fpga_reset();
             osc_fpga_update_params(0, trig_src_ch, 0, 0, trig_level_v, time_range,
                                    ch1_max_adc_v, ch2_max_adc_v,
-                                   rp_calib_params->fe_ch1_dc_offs,
+                                   fe_ch1_dc_offs,
                                    0,
-                                   rp_calib_params->fe_ch2_dc_offs,
-                                   0, 
+                                   fe_ch2_dc_offs,
+                                   0,
                                    ch1_probe_att, ch2_probe_att, ch1_gain, ch2_gain, en_avg_at_dec);
 
             /* ARM & Trigger */
@@ -1094,10 +1189,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                 }
                 if(osc_fpga_triggered()) {
                     break;
-                }    
+                }
                 usleep(500);
             }
-            
+
             TRACE("WORKER LOLO wait for another tirgegr finished: %d\n", 1);
 
             // Checking where acquisition starts
@@ -1131,19 +1226,19 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                     time_unit     = 1;
                     t_unit_factor = 1e3;
                 }
-                
+
                 orig_params[TRIG_MODE_PARAM].value  = 1; /* 'normal' */
                 orig_params[TIME_RANGE_PARAM].value = time_range;
                 orig_params[TRIG_SRC_PARAM].value   = trig_src_ch;
-                
+
                 if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){  // LOLO
                     orig_params[TRIG_LEVEL_PARAM].value =((float)(loc_max + loc_min))/2 ;
                 }else{
                     orig_params[TRIG_LEVEL_PARAM].value = ((float)(loc_max + loc_min))/2 /
                                             (float)(1<<(c_osc_fpga_adc_bits-1));
                 }
-                
-                
+
+
                 orig_params[MIN_GUI_PARAM].value    = 0;
                 orig_params[TRIG_DLY_PARAM].value   = 0;
 
@@ -1178,7 +1273,7 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                 amp_y = ((max_y - min_y) >> 1) * 1.2;
                 min_y = ave_y - amp_y;
                 max_y = ave_y + amp_y;
-                
+
                 if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){  // LOLO
                     orig_params[MIN_Y_NORM].value = min_y ;
                     orig_params[MAX_Y_NORM].value = max_y ;
@@ -1247,7 +1342,7 @@ int rp_osc_meas_avg_amp(rp_osc_meas_res_t *ch_meas, int avg_len)
 
 
 /*----------------------------------------------------------------------------------*/
-int rp_osc_meas_period(rp_osc_meas_res_t *ch1_meas, rp_osc_meas_res_t *ch2_meas, 
+int rp_osc_meas_period(rp_osc_meas_res_t *ch1_meas, rp_osc_meas_res_t *ch2_meas,
                        int *in_cha_signal, int *in_chb_signal, int dec_factor)
 {
     int wr_ptr_curr, wr_ptr_trig;
