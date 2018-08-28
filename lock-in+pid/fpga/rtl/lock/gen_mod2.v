@@ -75,7 +75,7 @@ module gen_mod2
     begin
         $readmemb("data_cos_ss.dat", memory_cos_r); // read memory binary code from data_cos.dat
     end
-    
+
     /*
     reg signed [14-1:0] memory_sinf_r [630-1:0]; // vector for amplitude value
     initial
@@ -95,7 +95,7 @@ module gen_mod2
         $readmemb("data_sin3_ss.dat", memory_sin3_r); // read memory binary code from data_sin.dat
     end
     */
-    
+
     reg signed [14-1:0] memory_cos1_r [630-1:0]; // vector for amplitude value
     initial
     begin
@@ -129,7 +129,7 @@ module gen_mod2
     /*--------------------------------------------------------------------*/
 
 
-    // counter is synchronized with gen_ramp signal 
+    // counter is synchronized with gen_ramp signal
     //ERASE assign cntu_next = (cnt>12'd2518 ) ? 13'b0  : cnt+tau_tick ;
 
     // read address engine *****************************************************************
@@ -312,13 +312,13 @@ module gen_mod2
 
     assign cos_ref  =  quad_bit[1]^quad_bit[0] ?  $signed(-memory_cos_r[cnt]) : memory_cos_r[cnt] ;
     assign sin_ref  =  quad_bit[1]             ?  $signed(-memory_sin_r[cnt]) : memory_sin_r[cnt] ;
-    
+
     /*
     assign sin_1f   =  quad_bit1[1]   ?  $signed(-memory_sin_r[cnt1] ) : memory_sin_r[cnt1]  ;
     assign sin_2f   =  quad_bit2[1]   ?  $signed(-memory_sin2_r[cnt2]) : memory_sin2_r[cnt2] ;
     assign sin_3f   =  quad_bit3[1]   ?  $signed(-memory_sin3_r[cnt3]) : memory_sin3_r[cnt3] ;
     */
-    
+
     assign cos_1f   =  quad_bit1[1]^quad_bit1[0]   ?  $signed(-memory_cos1_r[cnt1] ) : memory_cos1_r[cnt1] ;
     assign cos_2f   =  quad_bit2[1]^quad_bit2[0]   ?  $signed(-memory_cos2_r[cnt2])  : memory_cos2_r[cnt2] ;
     assign cos_3f   =  quad_bit3[1]^quad_bit3[0]   ?  $signed(-memory_cos3_r[cnt3])  : memory_cos3_r[cnt3] ;
@@ -336,7 +336,7 @@ module gen_mod2
         end
 	else
         begin
-            clk_sq_cnt <= clk_sq_cnt_next[32-1:0];
+            clk_sq_cnt <= sqp_off ? cnt_next : clk_sq_cnt_next[32-1:0];
             sq_ref_r   <= sq_ref_next ;
             sq_quad_r  <= sq_quad_next;
             sq_phas_r  <= sq_phas_next;
@@ -369,7 +369,9 @@ module gen_mod2
     assign sq_quad = sqp_off ? (~sin_ref[13])  : sq_quad_r ;
     assign sq_phas = sqp_off ? (~cos_1f[13] )  : sq_phas_r ;
 
-    assign square_trig = clksq_equal_sqp & sq_ref ;
+    //assign square_trig = clksq_equal_sqp & sq_ref ;
+    assign square_trig = clksq_equal_sqp_half & sq_ref ;
+
 
     //assign test = sqp_half ;
 

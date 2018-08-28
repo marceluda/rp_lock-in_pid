@@ -1688,14 +1688,17 @@
     if ( pidA_ki === 0 ){
       txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
     }else{
+      sgn_tag = Math.sign(pidA_ki)==1 ? '(-)' : '(+)' ;
       oom = Math.floor(Math.log10(tau)/3);
       val = tau/Math.pow(10,3*oom);
-      txt = '<div class="col-xs-12 col-md-6" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+      txt = '<div class="col-xs-12 col-md-5" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+      txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
 
       oom  = Math.floor(Math.log10(1/tau)/3);
       val  = (1/tau)/Math.pow(10,3*oom);
       //txt += '<br class="visible-xs visible-sm">';
-      txt += '<div class="col-xs-12 col-md-6" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+      txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
     }
     $('#lock_pidA_ki_text').html( txt   );
 
@@ -1704,14 +1707,17 @@
     if ( pidA_kd === 0 ){
       txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
     }else{
+      sgn_tag = Math.sign(pidA_kd)==1 ? '(-)' : '(+)' ;
       oom = Math.floor(Math.log10(tau)/3);
       val = tau/Math.pow(10,3*oom);
-      txt = '<div class="col-xs-12 col-md-6" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+      txt = '<div class="col-xs-12 col-md-5" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+      txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
 
       oom  = Math.floor(Math.log10(1/tau)/3);
       val  = (1/tau)/Math.pow(10,3*oom);
       //txt += '<br class="visible-xs visible-sm">';
-      txt += '<div class="col-xs-12 col-md-6" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+      txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
     }
     $('#lock_pidA_kd_text').html( txt   );
 
@@ -1720,9 +1726,10 @@
     if ( pidA_kp === 0 ){
       txt="0";
     }else{
+      sgn_tag = Math.sign(pidA_kp)==1 ? '(-)' : '(+)' ;
       oom = Math.min( 0 , Math.ceil(Math.log10(mult)/3) );
       val = Math.sign(pidA_kp)*mult/(Math.pow(10,3*oom));
-      txt = "&nbsp;" + val.toFixed(3) + "&nbsp;" + magni[oom.toString()] ;
+      txt = "&nbsp;" + val.toFixed(3) + "&nbsp;" + magni[oom.toString()] + "&nbsp;"+ sgn_tag ;
     }
 
     $('#lock_pidA_kp_text').html( '<div class="col-xs-12" ><small><b>'+txt+'</b></small></div>'   );
@@ -1786,14 +1793,17 @@
     if ( pidB_ki === 0 ){
       txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
     }else{
+      sgn_tag = Math.sign(pidB_ki)==1 ? '(-)' : '(+)' ;
       oom = Math.floor(Math.log10(tau)/3);
       val = tau/Math.pow(10,3*oom);
-      txt = '<div class="col-xs-12 col-md-6" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+      txt = '<div class="col-xs-12 col-md-5" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+      txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
 
       oom  = Math.floor(Math.log10(1/tau)/3);
       val  = (1/tau)/Math.pow(10,3*oom);
       //txt += '<br class="visible-xs visible-sm">';
-      txt += '<div class="col-xs-12 col-md-6" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+      txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
     }
     $('#lock_pidB_ki_text').html( txt   );
 
@@ -1802,14 +1812,17 @@
     if ( pidB_kd === 0 ){
       txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
     }else{
+      sgn_tag = Math.sign(pidB_kd)==1 ? '(-)' : '(+)' ;
       oom = Math.floor(Math.log10(tau)/3);
       val = tau/Math.pow(10,3*oom);
-      txt = '<div class="col-xs-12 col-md-6" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+      txt = '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+      txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
 
       oom  = Math.floor(Math.log10(1/tau)/3);
       val  = (1/tau)/Math.pow(10,3*oom);
       //txt += '<br class="visible-xs visible-sm">';
-      txt += '<div class="col-xs-12 col-md-6" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+      txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
     }
     $('#lock_pidB_kd_text').html( txt   );
 
@@ -1818,9 +1831,10 @@
     if ( pidB_kp === 0 ){
       txt="0";
     }else{
+      sgn_tag = Math.sign(pidB_kp)==1 ? '(-)' : '(+)' ;
       oom = Math.min( 0 , Math.ceil(Math.log10(mult)/3) );
       val = Math.sign(pidB_kp)*mult/(Math.pow(10,3*oom));
-      txt = "&nbsp;" + val.toFixed(3) + "&nbsp;" + magni[oom.toString()] ;
+      txt = "&nbsp;" + val.toFixed(3) + "&nbsp;" + magni[oom.toString()]+ "&nbsp;"+ sgn_tag ;
     }
 
     $('#lock_pidB_kp_text').html( '<div class="col-xs-12" ><small><b>'+txt+'</b></small></div>'   );
