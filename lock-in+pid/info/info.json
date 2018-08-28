@@ -1,6 +1,6 @@
 {
     "name": "Oscilloscope+Lock-in+PID",
-    "version": "0.1.1-BUILD_NUMBER",
+    "version": "0.1.2-BUILD_NUMBER",
     "revision": "REVISION",
     "description": "A toolkit application for lock-in and PID implementation. Includes: Oscilloscope, Lock-in with internal modulation generator, Two enhanced PIDs, Ramp generator and control tools."
 }
