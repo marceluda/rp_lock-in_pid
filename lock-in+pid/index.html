@@ -109,6 +109,7 @@
   trigger_just_set=false;
   last_disp_units=false;
   lasttsp=Math.floor((new Date().getTime())/1000);
+  last_unit_mode = 0 ;
 
   // List of params to save/load
   config_params_txts = 'xmin,xmax,trig_mode,trig_source,trig_edge,trig_delay,trig_level,time_range,time_units,en_avg_at_dec,min_y,'+
@@ -2701,8 +2702,6 @@
         orig_params.lock_lock_control=orig_params.lock_lock_feedback;
     }
 
-
-
     // Same data in local and original params
     params.original = $.extend({}, orig_params);
     params.local = $.extend({}, params.original);
@@ -3004,6 +3003,23 @@
   function updateTimeUnits(new_params) {
     if(! $.isPlainObject(new_params)) {
       return;
+    }
+
+    if(last_unit_mode != params.local.lock_osc_raw_mode){
+      console.log('lock_osc_raw_mode changed')
+      last_unit_mode=params.local.lock_osc_raw_mode;
+      unitval= params.local["lock_osc_raw_mode"]==1 ? 'int' : 'V';
+      $('#ytitle').text('Voltage ['+unitval+']');
+
+      tmpsel=$('#measure >>>> span.unit');
+      tmpsel[0].innerText=unitval ;
+      tmpsel[1].innerText=unitval ;
+      tmpsel[2].innerText=unitval ;
+      tmpsel[3].innerText=unitval ;
+      tmpsel[4].innerText=unitval+'pp' ;
+      tmpsel[5].innerText=unitval+'pp' ;
+      tmpsel[6].innerText=unitval ;
+      tmpsel[7].innerText=unitval ;
     }
 
     params.original.time_units = params.local.time_units = new_params.time_units;
