@@ -19,6 +19,8 @@ import paramiko
 import getpass
 import socket
 
+import requests
+import bs4
 
 #from read_dump import read_dump
 
@@ -31,6 +33,19 @@ NORMAL='\033[0m'
 
 #%%
 ## This are some auxilliary functions
+
+
+
+def get_url(url,get={}):
+    res = requests.get(url,get)
+    
+    try:
+        res.raise_for_status()
+    except Exception as exc:
+        print('There was a problem: %s' % (exc))
+        
+    return res.text
+
 
 def smooth(x, window_len=11, window='hanning'):
     s=r_[2*x[0]-array(x[window_len:1:-1]), x, 2*x[-1]-array(x[-1:-window_len:-1])]
@@ -219,7 +234,7 @@ class red_pitaya_control():
 
 ###################################################################################
 
-
+#%%
 class red_pitaya_app():
     """
     This class is used to control RedPitaya (RP) lock-in+pid app using memory registers
@@ -296,6 +311,8 @@ class red_pitaya_app():
             self.check_connection()
             self.osc.load()
             self.lock.load()
+            self.get_html()
+            self.config_sw_names()
         self.stream     = False
         self.allan      = []
         paramiko.util.log_to_file('ssh_session.log')
@@ -316,7 +333,14 @@ class red_pitaya_app():
 
     def __enter__(self):
         return self
-
+    
+    def get_html(self):
+        self.html = self.ssh_cmd('cat /opt/redpitaya/www/apps/'+self.AppName+'/index.html')
+    
+    def config_sw_names(self):
+        h         = bs4.BeautifulSoup(self.html, "lxml")
+        self.oscA_sw = [ y.getText() for y in h.select('#lock_oscA_sw option') ]
+        self.oscB_sw = [ y.getText() for y in h.select('#lock_oscB_sw option') ]
 
     def resolve_dns(self):
         try:
@@ -370,8 +394,10 @@ class red_pitaya_app():
     def try_keypath(self):
         try:
             self.ssh.connect(hostname=self.host,port=self.port,username=self.user, key_filename=self.key_path)
+            return True
         except Exception as e:
             print('could not connect with key('+self.key_path+'):'+ repr(e) )
+            return False
 
     def ssh_connect(self):
         # globals()['__file__']
@@ -526,7 +552,50 @@ class red_pitaya_app():
                     (dd[2]['ch1_name'] + ','+dd[2]['ch2_name']).ljust(20),
                     dd[2]['log']
                     ))
+    
+    def osc_trig_fire(self,trig=1,dec=1):
+        """
+        Usage:
+            self.osc_trig_fire(trig=6,dec=8)
 
+        Sets the oscilloscope to wait for trigger signal
+        Returns control inmediatly
+        
+        Parameters:
+            trig param sets the trigger type:
+               1 : manual
+               2 : A ch rising edge
+               3 : A ch falling edge
+               4 : B ch rising edge
+               5 : B ch falling edge
+               6 : external - rising edge
+               7 : external - falling edge
+               8 : ASG - rising edge
+               9 : ASG - falling edge
+               
+            dec : posible values
+                [1,8,64, 1024, 8192, 65536]
+        """
+        if not dec in [1, 8, 64, 1024, 8192, 65536]:
+            print(RED+'ERROR: '+NORMAL+'dec should be one of: 1, 8, 64, 1024, 8192, 65536')
+            return False
+        
+        if not trig in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
+            print(RED+'ERROR: '+NORMAL+'trig should be one of: 1, 2, 3, 4, 5, 6, 7, 8, 9')
+            return False
+        
+        #self.osc.Dec    = dec  # sets decimation
+        #self.osc.TrgSrc = trig # sets Trigger source / type
+        #self.osc.conf   = 1    # Launch trigger
+        
+        self.log('rp.osc_trig_fire(dec='+str(dec ) +',trig='+str(trig)+')' )
+        cmds   = self.osc.cmd+' Dec '   +str(dec ) + '; '
+        cmds  += self.osc.cmd+' TrgSrc '+str(trig) + '; '
+        cmds  += self.osc.cmd+' conf 1 ;'
+        result = self.ssh_cmd(cmds)
+        
+        return True
+           
     def get_curv(self,log=''):
         """
         Gets oscilloscope channels data from RP memory. Its assumes the trigger is
@@ -593,7 +662,8 @@ class red_pitaya_app():
         savez(self.filename, data  = self.data,
                              log   = self.log_db,
                              info  = self.info,
-                             allan = self.allan )
+                             allan = self.allan,
+                             html  = self.html ) 
 
     def load(self):
         """
@@ -608,6 +678,10 @@ class red_pitaya_app():
         self.log_db = tmp['log'].tolist()
         self.info   = tmp['info'].tolist()
         self.allan  = tmp['allan'].tolist()
+        if 'html' in tmp.keys():
+            self.html   = tmp['html'].tolist()
+            if len(self.html) >0:
+                self.config_sw_names()
 
     def fire_trig(self,trig_src,trig_pos=None,dec=None,hys=None,threshold=None,timeout=10):
         """
