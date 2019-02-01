@@ -6,10 +6,6 @@ mathjax: true
 ---
 
 
-<div class="alert alert-danger" role="alert" markdown="1" >
-  **Info:**   This site is under construction
-</div>
-
 
 **Lock-in+PID** is an application for the [RedPitaya](https://redpitaya.com/) enviroment / STEMlab 125-14 board
 that implements an Oscilloscope application and a Lock-in amplifier. It's based on
