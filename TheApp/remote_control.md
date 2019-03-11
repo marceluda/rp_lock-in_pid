@@ -269,6 +269,9 @@ ch2_act = (ch2_val + rp.calib_params['FE_CH2_DC_offs'])*float(rp.calib_params['F
 rp.plot()
 ```
 
+<div class="alert alert-danger" role="alert">
+  <strong>Attention!</strong> If you are going to make remote acquisition, make sure the Web App oscilloscope is not running. **The best way to do that is to set it in "Mode: Single"**.
+</div>
 
 You can run this example with [Anaconda Python](https://www.anaconda.com/distribution/) on Windows or Linux platforms.
 To install Paramiko, just run in console:
