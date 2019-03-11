@@ -24,7 +24,6 @@ import platform
 
 
 
-os.chdir('/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid/resources/remote_control')
 
 
 BLUE='\033[34m'
@@ -50,7 +49,7 @@ class config_RP:
         self.home           = os.environ['HOME'] if platform.system()=='Linux' else os.environ['USERPROFILE']
         self.verbose        = True
         paramiko.util.log_to_file('ssh_session.log')
-    
+
     def __exit__(self, exc_type, exc_value, traceback):
         self.ssh.close()
         self.active = False
@@ -58,21 +57,21 @@ class config_RP:
             if not i==None:
                 print(repr(i))
         #print('exit')
-    
+
     def __del__(self):
         self.ssh.close()
         #print('del')
-        
+
     def __enter__(self):
         return self
-    
+
     def __repr__(self):
         txt ='config_RP(host="'+self.host+'",'
         txt+=          'port='+str(self.port)+','
         txt+=          'user="'+self.user+'"'
         txt+=')\n'
         return txt
-    
+
     def resolve_dns(self):
         try:
             addr    = socket.gethostbyname(self.host)
@@ -80,7 +79,7 @@ class config_RP:
             return True
         except Exception as e:
             return False
-    
+
     def check_tcp_connection(self):
         with socket.socket() as s:
             try:
@@ -88,7 +87,7 @@ class config_RP:
                 return True
             except Exception as e:
                 return False
-    
+
     def try_local_key(self):
         if not os.path.isfile('key'):
             return False
@@ -100,7 +99,7 @@ class config_RP:
         except Exception as e:
             print('could not connect with local key:'+ repr(e) )
             return False
-    
+
     def try_user_key(self):
         for i in ['id_rsa','id_dsa']:
             key_path = os.path.join(os.environ['HOME'], '.ssh', i)
@@ -112,7 +111,7 @@ class config_RP:
                 except Exception as e:
                     print('could not connect with user key('+i+'):'+ repr(e) )
         return False
-    
+
     def try_pass(self):
         try:
             self.ssh.connect(hostname=self.host,port=self.port,username=self.user,password=self.password)
@@ -121,13 +120,13 @@ class config_RP:
         except Exception as e:
             print('could not connect with password:'+ repr(e))
             return False
-    
+
     def try_keypath(self):
         try:
             self.ssh.connect(hostname=self.host,port=self.port,username=self.user, key_filename=self.key_path)
         except Exception as e:
             print('could not connect with key('+self.key_path+'):'+ repr(e) )
-    
+
     def ssh_connect(self):
         # globals()['__file__']
         if self.connected:
@@ -146,7 +145,7 @@ class config_RP:
         else:
             self.connected = False
             return(False)
-    
+
     def create_local_key(self):
         if os.path.isfile('key'):
             print('Already exists key file.')
@@ -158,13 +157,13 @@ class config_RP:
         except Exception as e:
             print('could not create key:'+ repr(e) )
             return False
-        
+
         with open("key.pub", 'w') as f:
             f.write("{:s} {:s}".format(private_key.get_name(), private_key.get_base64()) )
             f.write(" Generated automatically for lock-in+pid app")
             print('public key file "key.pub" was created')
         return True
-    
+
     def upload_public_key(self):
         if not os.path.isfile('key'):
             print('No local key file found.')
@@ -172,18 +171,18 @@ class config_RP:
         private_key = paramiko.RSAKey(filename='key')
         if not self.connected:
             self.ssh_connect()
-        
+
         self.ssh_cmd('mkdir -p /root/.ssh')
         self.ssh_cmd('touch /root/.ssh/authorized_keys')
-        
+
         stdout = self.ssh_cmd('cat /root/.ssh/authorized_keys | grep "'+private_key.get_base64()+'"')
         print(BLUE+stdout+NORMAL)
         if len(stdout)>0:
             print('Public key already loaded')
             self.key_path = os.path.join(os.getcwd(),'key')
             return True
-        
-        stdout = self.ssh_cmd('echo "'+ 
+
+        stdout = self.ssh_cmd('echo "'+
                                      private_key.get_name()+' '+
                                      private_key.get_base64()+
                                      '" >> /root/.ssh/authorized_keys' )
@@ -198,7 +197,7 @@ class config_RP:
         else:
             print('Public key load FAILED')
             return False
-        
+
     def ssh_cmd(self,cmd):
         if not self.ssh_connect():
             print('Could not connect trought ssh')
@@ -209,7 +208,7 @@ class config_RP:
             print('Remote Command: '+RED+cmd+NORMAL)
         stdin,stdout,stderr = self.ssh.exec_command(cmd)
         return ''.join(stdout.readlines())
-    
+
     def ssh_close(self):
         self.ssh.close()
         self.connected = False
@@ -217,97 +216,18 @@ class config_RP:
 
 
 
+if __name__ == '__main__':
 
-rp = config_RP(host='10.0.32.207',port=2022,password='demtroder')
+    rp = config_RP(host='10.0.32.207',port=22,password='root')
 
-print( rp.resolve_dns() )
-
-print( rp.check_tcp_connection() )
-
-print( rp.ssh_connect() )
-
-print( BLUE+rp.ssh_cmd('find /root/py')+NORMAL )
-
-rp.upload_public_key()
-
-print(rp.ssh_cmd('ls /root/py')    )
-
-
-
-#%%
-
-
-app_folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid/archive/lock-in+pid-0.1.1-2-devbuild/lock-in+pid'
-
-app_folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid/archive/lock-in+pid-0.1.1-2-devbuild'
-
-
-dd=[ y for y in os.scandir(app_folder) ]
-
-
-def upload_folder(folder,sftp='',index=0):
-    for y in os.scandir(folder):
-        if y.is_file():
-            print('--'*index+y.name)
-        if y.is_dir():
-            print('--'*index+RED+y.name+NORMAL)
-            upload_folder(os.path.join(folder,y.name),index=index+1)
-
-upload_folder(app_folder)
-
-sftp = rp.ssh.open_sftp()
-
-sftp.chdir('/root')
-sftp.mkdir('tmp_')
-sftp.chdir('/root/tmp_')
-sftp.getcwd()
-
-
-for y in os.walk(app_folder):
-    print('estoy en:' + RED + y[0]+NORMAL)
-    for i in y[1]:
-        print('CREATE FOLDER: '+ BLUE+ i +NORMAL)
-    for i in y[2]:
-        print('CREATE FILE  : '+ i )
-    
-
-
-
-
-for i in os.walk(app_folder):
-    print(repr(i))
-
-
-#%% TEST
-
-
-# Text color
-# http://jafrog.com/2013/11/23/colors-in-terminal.html
-#
-#BLUE='\033[34m'
-#RED='\033[31m'
-#NORMAL='\033[0m'
-#
-#print(RED+"Invalid ip addresss = "+NORMAL + str(25))
-
-
-
-
-#%% main
-
-if __name__ == '__main__':    
-
-    rp = config_RP(host='10.0.32.207',port=2022,password='demtroder')
-    
     print( rp.resolve_dns() )
-    
-    print( rp.check_tcp_connection() )
-    
-    print( rp.ssh_connect() )
-    
-    print( BLUE+rp.ssh_cmd('find /root/py')+NORMAL )
-    
-    rp.upload_public_key()
-    
-    print(rp.ssh_cmd('ls /root/py')    )
 
+    print( rp.check_tcp_connection() )
+
+    print( rp.ssh_connect() )
+
+    print( BLUE+rp.ssh_cmd('find /root/py')+NORMAL )
+
+    rp.upload_public_key()
+
+    print(rp.ssh_cmd('ls /root/py')    )

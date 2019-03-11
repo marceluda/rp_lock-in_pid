@@ -13,9 +13,10 @@ from time import sleep
 import time
 
 from datetime import datetime
-#import subprocess
+import subprocess
 import platform
 import paramiko
+# conda install -c anaconda paramiko 
 import getpass
 import socket
 
@@ -307,12 +308,23 @@ class red_pitaya_app():
         self.oscA_sw    = [ 'ch'+str(y) for y in range(32) ]
         self.oscB_sw    = [ 'ch'+str(y) for y in range(32) ]
         self.newfig     = True
+        self.calib_params = {'BE_CH1_DC_offs': 0,
+                             'BE_CH1_FS': 42949673,
+                             'BE_CH2_DC_offs': 0,
+                             'BE_CH2_FS': 42949673,
+                             'FE_CH1_DC_offs': 0,          # Offset raw entrada
+                             'FE_CH1_FS_G_HI': 42949673,   # ganancia para LV
+                             'FE_CH1_FS_G_LO': 858993459,  # ganancia para HV
+                             'FE_CH2_DC_offs': 0,
+                             'FE_CH2_FS_G_HI': 42949673,
+                             'FE_CH2_FS_G_LO': 858993459}
         if connect:
             self.check_connection()
             self.osc.load()
             self.lock.load()
             self.get_html()
             self.config_sw_names()
+            self.get_adc_dac_calib()
         self.stream     = False
         self.allan      = []
         paramiko.util.log_to_file('ssh_session.log')
@@ -371,6 +383,8 @@ class red_pitaya_app():
             return False
 
     def try_user_key(self):
+        if not 'HOME' in os.environ.keys():
+            return False
         for i in ['id_rsa','id_dsa']:
             key_path = os.path.join(os.environ['HOME'], '.ssh', i)
             if os.path.isfile(key_path):
@@ -437,15 +451,22 @@ class red_pitaya_app():
         return True
 
     def ssh_cmd(self,cmd):
-        if not self.ssh_connect():
-            print('Could not connect trought ssh')
-            return False
-        if not self.rw:
-            self.ssh.exec_command('rw')
+        if not self.host=='local':
+            if not self.ssh_connect():
+                print('Could not connect trought ssh')
+                return False
         if self.verbose:
             print('Remote Command: '+RED+cmd+NORMAL)
-        stdin,stdout,stderr = self.ssh.exec_command(cmd)
-        return ''.join(stdout.readlines())
+        if self.host=='local':
+            completed = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, shell=True)
+            #completed.returncode
+            #completed.stderr.decode('utf-8')
+            return completed.stdout.decode('utf-8')
+        else:
+            #if not self.rw:
+            #    self.ssh.exec_command('rw')
+            stdin,stdout,stderr = self.ssh.exec_command(cmd)
+            return ''.join( stdout.readlines() )
 
     def ssh_close(self):
         if self.connected:
@@ -496,17 +517,16 @@ class red_pitaya_app():
         if type(key)==slice:
             return self.data[key]
 
-    def log(self,txt,silent=False):
+    def log(self,txt):
         """
         Usage:
-            self.log(txt, silent=False)
+            self.log(txt)
 
         Logs txt string in self.log_db , with order and timestamp info
-        if silent==False, prints txt
         """
         num=len(self.log_db)
         self.log_db.append( [ num, datetime.now().timestamp() , txt ] )
-        if not silent:
+        if self.verbose:
             print(txt)
         return num
 
@@ -648,9 +668,36 @@ class red_pitaya_app():
                            'dec': self.osc.Dec,
                            'osc': self.osc.data.copy(),
                            'lock': self.lock.data.copy(),
+                           'calib_params': self.calib_params.copy(),
                            'log': log
                             }
                            ] )
+    def get_adc_dac_calib(self,calib_path=''):
+        """
+        Gets calibration params for ADCs and DACs
+        """
+        if calib_path=='':
+            calib_path='/opt/redpitaya/bin/calib'
+        
+        txt = self.ssh_cmd(calib_path+' -r -v')
+        
+        for par in [ y.split('=') for y in txt.strip().split('\n') ]:
+            self.calib_params[ par[0].strip() ] = int(par[1])
+    
+    def set_adc_dac_calib(self,calib_path=''):
+        """
+        Sets calibration params for ADCs and DACs
+        """
+        if calib_path=='':
+            calib_path='/opt/redpitaya/bin/calib'
+        params  = 'FE_CH1_FS_G_HI,FE_CH2_FS_G_HI,FE_CH1_FS_G_LO,FE_CH2_FS_G_LO,'
+        params +='FE_CH1_DC_offs,FE_CH2_DC_offs,BE_CH1_FS,BE_CH2_FS,'
+        params +='BE_CH1_DC_offs,BE_CH2_DC_offs'
+        
+        txt = ' '.join([ str(self.calib_params[par]) for par in params.split(',') ])
+        self.ssh_cmd('echo "{:s}" | '.format(txt)+calib_path+' -w')
+            
+        
     def save(self):
         """
         Saves stored data, logs, etc in self.filename using numpy.savez()
@@ -781,13 +828,13 @@ class red_pitaya_app():
                             self.data[n][2]['ch2'][i],
                             ))
 
-    def plot(self,num=-1,figsize=(12,5),time=True,rel=None,same_plot=True,autotime=True):
+    def plot(self,num=-1,figsize=(12,5),time=True,rel=None,same_plot=True,autotime=True,raw=False):
         """
         Plot stored data taken from oscilloscope channels.
-
+        
         Usage:
             self.plot(num=-1,figsize=(12,5),time=True,rel=None,same_plot=True,autotime=True)
-
+            
         num       : The dataset to plot. Will plot self.data[num]
         time      : if True, x axis the time vector. Else, x axis is the index position vector.
         rel       : Realtive. If rel==True, the 0 of x axis will be the trigger position.
@@ -801,13 +848,17 @@ class red_pitaya_app():
 
         Example:
             rp.plot(num=-1,same_plot=False)
-
+            
         """
         xx=array(self.data[num][2]['i'])
         y1=array(self.data[num][2]['ch1'])
         y2=array(self.data[num][2]['ch2'])
         y1_lbl=self.data[num][2]['ch1_name']
         y2_lbl=self.data[num][2]['ch2_name']
+        
+        if raw:
+            y1 = ( y1 + self.data[num][2]['calib_params']['FE_CH1_DC_offs'])*float(self.data[num][2]['calib_params']['FE_CH1_FS_G_HI'])/2**32*100/8192
+            y2 = ( y2 + self.data[num][2]['calib_params']['FE_CH2_DC_offs'])*float(self.data[num][2]['calib_params']['FE_CH2_FS_G_HI'])/2**32*100/8192
 
         if rel==None:
             rel=time
@@ -846,7 +897,7 @@ class red_pitaya_app():
             self.ax.append( plt.subplot2grid( (2,1), (1, 0), sharex=self.ax[0])  )
             ax1=self.ax[0]
             ax2=self.ax[1]
-
+        
         ax1.plot(xx,y1,label=y1_lbl)
         ax2.plot(xx,y2,label=y2_lbl)
         if same_plot:
@@ -857,6 +908,13 @@ class red_pitaya_app():
         ax1.grid(b=True)
         ax2.grid(b=True)
         ax2.set_xlabel(xlbl)
+        
+        if raw:
+            ax1.set_ylabel('ch1 [int]')
+            ax2.set_ylabel('ch2 [int]')
+        else:
+            ax1.set_ylabel('ch1 [V]')
+            ax2.set_ylabel('ch2 [V]')
         plt.tight_layout()
 
     #    def run(self,cmd):
@@ -888,3 +946,7 @@ class red_pitaya_app():
 
 if __name__ == '__main__':
     rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22)
+    rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22,password='root')
+    
+    
+    
