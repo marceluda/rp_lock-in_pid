@@ -59,6 +59,11 @@ probably for the Default option.
 
 The source code is available at [GitHub](https://github.com/marceluda/rp_lock-in_pid)
 
+## Source Code
+
+The project code is available on GitHub:
+[github.com/marceluda/rp_lock-in_pid/](https://github.com/marceluda/rp_lock-in_pid/)
+
 ## The App Web GUI
 
 ![app gui]({{ site.baseurl }}/img/app_frontend.png "app gui")

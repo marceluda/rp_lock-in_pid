@@ -58,7 +58,7 @@ navbar-links:
     - Using the Lock-in: app/lala
     - Using the Ramp scan: app/lala
   Dev:
-    - Source and tools: app/lala
+    - Source code: https://github.com/marceluda/rp_lock-in_pid
     - Dev Documentation: app/lala
     - HTML+JS doc: app/lala
     - C++ web server doc: app/lala
