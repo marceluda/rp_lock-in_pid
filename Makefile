@@ -34,6 +34,7 @@ export CFLAGS
 .PHONY: clean upload
 
 all:
+	mkdir -p archive
 	$(MAKE) -C $(APP) all
 	$(MAKE) -C $(APP) zip
 	$(MAKE) -C $(APP) tar

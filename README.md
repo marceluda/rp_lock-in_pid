@@ -18,3 +18,35 @@ The project is hosted in: https://marceluda.github.io/rp_lock-in_pid
 
 There you can find documentation about use and building of the app, and
 some suggested applications.
+
+# Compile / implementation HELP
+
+Run on terminal:
+
+$ source settings.sh
+$ make
+
+Or form App folder `lock-in+pid` :
+
+$ source ../settings.sh
+
+and then...
+
+For web controller C code compiling:
+$ make app
+
+For FPGA implementation:
+$ make fpga
+
+For zip packaging
+$ mkdir -p ../archive
+$ make zip
+
+For tar.gz packaging
+$ mkdir -p ../archive
+$ make tar
+
+For cleaning:
+$ make clean       # clean all
+$ make clean_app   # clean only C objects
+$ make clean_fpga  # clean only FPGA implementation temp files and .bin
