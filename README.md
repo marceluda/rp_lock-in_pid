@@ -50,3 +50,14 @@ For cleaning:
 $ make clean       # clean all
 $ make clean_app   # clean only C objects
 $ make clean_fpga  # clean only FPGA implementation temp files and .bin
+
+# Upload App to Red Pitaya device
+
+UnZip / UnTar the App folder. Execute from terminal:
+
+$ ./upload_app.sh rp-XXXXXX.local
+
+Replace `rp-XXXXXX.local` by your RP localname or IP address
+
+Also, you can use your own SSH client and upload the lock-in+pid folder the the
+RedPiaya folder: `/opt/redpitaya/www/apps`
