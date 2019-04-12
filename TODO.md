@@ -1,5 +1,7 @@
 # FPGA
 
+  - Bug: PID_B unresponsive and ever increasing k_p, k_i 
+
 # main C
 
 
