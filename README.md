@@ -6,7 +6,7 @@ This is an application build for the [Red Pitaya STEMlab 125-14](https://www.red
 The board is closed-hardware and open-software. You can buy the board and build your own software.
 
 If you have a RP board you can install the **Lock-in+PID** application
-by copying the `lock-in+pid` folder (that comes with this tar/zip file) to the
+by copying the `lock_in+pid` folder (that comes with this tar/zip file) to the
 `/opt/redpitaya/www/apps` folder (inside the RP).
 
 For more information about installing procedure, refer to:
@@ -26,7 +26,7 @@ Run on terminal:
 $ source settings.sh
 $ make
 
-Or form App folder `lock-in+pid` :
+Or form App folder `lock_in+pid` :
 
 $ source ../settings.sh
 
@@ -59,5 +59,5 @@ $ ./upload_app.sh rp-XXXXXX.local
 
 Replace `rp-XXXXXX.local` by your RP localname or IP address
 
-Also, you can use your own SSH client and upload the lock-in+pid folder the the
+Also, you can use your own SSH client and upload the lock_in+pid folder the the
 RedPiaya folder: `/opt/redpitaya/www/apps`

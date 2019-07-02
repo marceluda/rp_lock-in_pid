@@ -15,6 +15,7 @@ import os
 
 import enum
 
+APP='lock_in+pid'
 
 #os.chdir(folder)
 
@@ -47,7 +48,7 @@ def get_mod_ports(name):
     if name=='mult_dsp_14':
         return {'ins':['CLK','A','B'] , 'outs':['P']}
 
-    with open('lock-in+pid/fpga/rtl/lock/'+name+'.v', 'r') as file:
+    with open(APP+'/fpga/rtl/lock/'+name+'.v', 'r') as file:
         aa=file.readlines()
     aa=clean_comments(aa)
 
@@ -84,10 +85,10 @@ def get_mod_ports(name):
 #%%
 
 #
-#with open('lock-in+pid/fpga/rtl/red_pitaya_top.v', 'r') as file:
+#with open(APP+'/fpga/rtl/red_pitaya_top.v', 'r') as file:
 #    aa=file.readlines()
 
-with open('lock-in+pid/fpga/rtl/lock.v', 'r') as file:
+with open(APP+'/fpga/rtl/lock.v', 'r') as file:
     aa=file.readlines()
 
 aa=clean_comments(aa)
@@ -266,10 +267,10 @@ if False:
 
 if False:
     #
-    #with open('lock-in+pid/fpga/rtl/red_pitaya_top.v', 'r') as file:
+    #with open(APP+'/fpga/rtl/red_pitaya_top.v', 'r') as file:
     #    aa=file.readlines()
 
-    with open('lock-in+pid/fpga/rtl/lock.v', 'r') as file:
+    with open(APP+'/fpga/rtl/lock.v', 'r') as file:
         aa=file.readlines()
 
     aa=clean_comments(aa)
@@ -406,10 +407,10 @@ if False:
 #%%
 
 #
-#with open('lock-in+pid/fpga/rtl/red_pitaya_top.v', 'r') as file:
+#with open(APP+'/fpga/rtl/red_pitaya_top.v', 'r') as file:
 #    aa=file.readlines()
 
-with open('lock-in+pid/fpga/rtl/lock.v', 'r') as file:
+with open(APP+'/fpga/rtl/lock.v', 'r') as file:
     aa=file.readlines()
 
 aa=clean_comments(aa)

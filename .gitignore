@@ -2,22 +2,22 @@
 ####################
 _save/
 assets
-lock-in+pid/fpga/project/
-lock-in+pid/src/old/
+lock_in+pid/fpga/project/
+lock_in+pid/src/old/
 _settings.env
 _build_number
-lock-in+pid/target/
-lock-in+pid/target_dbg/
-lock-in+pid/target_rld/
-lock-in+pid/fpga/out/
-lock-in+pid/fpga/.srcs/
+lock_in+pid/target/
+lock_in+pid/target_dbg/
+lock_in+pid/target_rld/
+lock_in+pid/fpga/out/
+lock_in+pid/fpga/.srcs/
 
 
 # Compiled source #
 ###################
 *.o
 *.so
-!lock-in+pid/controllerhf.so
+!lock_in+pid/controllerhf.so
 
 # Packages #
 ############

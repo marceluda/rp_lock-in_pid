@@ -160,7 +160,7 @@ class config_RP:
 
         with open("key.pub", 'w') as f:
             f.write("{:s} {:s}".format(private_key.get_name(), private_key.get_base64()) )
-            f.write(" Generated automatically for lock-in+pid app")
+            f.write(" Generated automatically for lock_in+pid app")
             print('public key file "key.pub" was created')
         return True
 

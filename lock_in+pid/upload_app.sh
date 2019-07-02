@@ -1,6 +1,6 @@
 #!/bin/bash
 
-APP="lock-in+pid"
+APP="lock_in+pid"
 
 
 

@@ -20,7 +20,7 @@ from datetime import datetime
 import subprocess
 import platform
 import paramiko
-# conda install -c anaconda paramiko 
+# conda install -c anaconda paramiko
 import getpass
 import socket
 
@@ -47,12 +47,12 @@ NORMAL='\033[0m'
 
 def get_url(url,get={}):
     res = requests.get(url,get)
-    
+
     try:
         res.raise_for_status()
     except Exception as exc:
         print('There was a problem: %s' % (exc))
-        
+
     return res.text
 
 
@@ -140,10 +140,10 @@ class data2obj(object):
                 self.__dict__[k] = data2obj(v)
             if isinstance(v, list):
                 self.__dict__[k] = [ data2obj(f) if isinstance(f, dict) else f  for f in v ]
-    
+
     def __getitem__(self, key):
         return self.__dict__[key]
-    
+
     def __repr__(self):
         return repr(self.__dict__)
 
@@ -161,7 +161,7 @@ class RpDat():
             setattr(self,jj, data[2][jj])
         self.d         = {}
         self.update()
-        
+
     def update(self):
         for i in [1,2]:
             raw  = array( self.data[2]['ch'+str(i)] ) * 1.0
@@ -171,13 +171,13 @@ class RpDat():
             self.d['ch{:d}'.format(i)    ] = ch
         xx  = array(self.data[2]['i'])-(self.data[2]['osc']['TrgWpt']-self.data[2]['osc']['CurWpt'])
         xx  = xx*8e-9*self.dec
-        
+
         self.d['t'] =  xx
         self.d['N'] =  arange(self.len)
         for k in self.d.keys():
             setattr(self, k , self.d[k] )
-    
-        
+
+
     def plot(self,chs=[],fun=[],scale=False):
         if type(chs)==int:
             chs = [chs]
@@ -187,10 +187,10 @@ class RpDat():
             fun = lambda x: x
         if callable(fun):
             fun = [fun]*len(chs)
-        
+
         prefix = { 0: '', 1:'k' , 2:'M' , 3:'G' , 4:'T' , 5:'P' ,
                  -1:'m' ,-2:'μ' ,-3:'n' ,-4:'p' ,-5:'a'}
-        
+
         if scale:
             tsc      = min( log10( max(self.t)-min(self.t ))//3 , 0 )
             t_factor = 1/10**(tsc*3)
@@ -198,24 +198,24 @@ class RpDat():
         else:
             t_prefix = ''
             t_factor = 1
-        
-        
+
+
         self.ax = []
         self.ax.append( plt.subplot2grid((len(chs),1), (0, 0) ))
         for i,ch in enumerate(chs):
             if i>0:
                 self.ax.append( plt.subplot2grid((len(chs),1), (i, 0) , sharex=self.ax[0] ))
-            
+
             if scale:
                 tmp_y   = fun[i](self.d['ch{:d}'.format(ch)])
-                sc      = log10( max(tmp_y)-min( tmp_y ))//3 
+                sc      = log10( max(tmp_y)-min( tmp_y ))//3
                 factor = 1/10**(sc*3)
                 v_prefix = prefix[sc]
             else:
                 v_prefix = ''
                 factor = 1
-            self.ax[-1].plot( self.t * t_factor , 
-                              fun[i](self.d['ch{:d}'.format(ch)]) * factor, 
+            self.ax[-1].plot( self.t * t_factor ,
+                              fun[i](self.d['ch{:d}'.format(ch)]) * factor,
                               label=self.__dict__['ch'+str(ch)+'_name'] )
             self.ax[-1].grid(b=True,linestyle='--',color='lightgray')
             self.ax[-1].set_ylabel(self.__dict__['ch'+str(ch)+'_name']+' ['+v_prefix+'V]')
@@ -243,7 +243,7 @@ class RPError(Exception):
         self.msj = msj
     def __str__(self):
         return repr(self.msj)
-    
+
 
 
 
@@ -308,7 +308,7 @@ class red_pitaya_control():
             #setattr(self,i,self.data[i])
             self.__dict__[i] = self.data[i]
         #self.upload_changes = True
-    
+
     def get_data(self):
         """
         Returns a Dict with all the keys and values already loaded
@@ -357,13 +357,13 @@ class red_pitaya_control():
 #%%
 class red_pitaya_app():
     """
-    This class is used to control RedPitaya (RP) lock-in+pid app using memory registers
+    This class is used to control RedPitaya (RP) lock_in+pid app using memory registers
     from the RP itself. The object lets you set and load regs, control oscilloscope and lock,
     load plots from oscilloscope, stream regs values to binary files in localhost,
     plot loaded data and keep log of all the activity.
 
     Example:
-        rp=red_pitaya_lock(AppName='lock-in+pid',host='rp-f01d89.local',port=22,filename='/home/user/experience01.npz')
+        rp=red_pitaya_lock(AppName='lock_in+pid',host='rp-f01d89.local',port=22,filename='/home/user/experience01.npz')
 
     This creates the rp object associated to RP 'rp-f01d89.local' , connecting through port 22
     and will save any data to the file '/home/user/experience01.npz'.
@@ -446,10 +446,10 @@ class red_pitaya_app():
             self.get_html()
             self.config_sw_names()
             self.get_adc_dac_calib()
-            
+
             self.lock_control_ref ='lock_now,launch_lock,pidB_enable_ctrl,pidA_enable_ctrl,ramp_enable_ctrl,set_pidB_enable'.split(',')
             self.lock_control_ref+='set_pidA_enable,set_ramp_enable,trig_time,trig_val,lock_trig_rise'.split(',')
-            
+
 
         self.stream     = False
         self.allan      = []
@@ -471,14 +471,14 @@ class red_pitaya_app():
 
     def __enter__(self):
         return self
-    
+
     def loadApp(self):
         cmd = '/opt/redpitaya/www/apps/'+self.AppName+'/py/load_app.py'
         stdin,stdout,stderr = self.ssh.exec_command(cmd)
-    
+
     def get_html(self):
         self.html = self.ssh_cmd('cat /opt/redpitaya/www/apps/'+self.AppName+'/index.html')
-    
+
     def config_sw_names(self):
         h         = bs4.BeautifulSoup(self.html, "lxml")
         self.oscA_sw = [ y.getText() for y in h.select('#lock_oscA_sw option') ]
@@ -576,7 +576,7 @@ class red_pitaya_app():
 
         with open("key.pub", 'w') as f:
             f.write("{:s} {:s}".format(private_key.get_name(), private_key.get_base64()) )
-            f.write(" Generated automatically for lock-in+pid app")
+            f.write(" Generated automatically for lock_in+pid app")
             print('public key file "key.pub" was created')
         return True
 
@@ -695,13 +695,13 @@ class red_pitaya_app():
               0 12:22:10 : signals=sin_ref,sin_3f       log=
               1 12:23:14 : signals=sin_ref,sin_2f       log=Check here the slope
         """
-        
-        
+
+
 
         data =[ (dd[0],dd[1], dd[2]['ch1_name']+','+dd[2]['ch2_name'],  dd[2]['log'] ) for dd in self.data ]
         if userlog:
             data+=[ (-1, float(l[1]), 'LOG'  ,str(l[2])) for l in filter(lambda x: 'rp.'!=x[2][0:3] , self.log_db) ]
-                
+
         for dd in sorted(data, key=lambda i: i[1]):
             print('{:s} {:s} : {:28s} {:s}'.format(
                     str(dd[0]).rjust(3) if dd[0]>=0 else '   ' ,
@@ -709,7 +709,7 @@ class red_pitaya_app():
                     ('signals='+dd[2]) if dd[0]>=0 else '-'*28 ,
                     dd[3]
                     ))
-    
+
     def osc_trig_fire(self,trig=1,dec=1,wait=False,timeout=10):
         """
         Usage:
@@ -717,7 +717,7 @@ class red_pitaya_app():
 
         Sets the oscilloscope to wait for trigger signal
         Returns control inmediatly
-        
+
         Parameters:
             trig param sets the trigger type:
                1 : manual
@@ -729,22 +729,22 @@ class red_pitaya_app():
                7 : external - falling edge
                8 : ASG - rising edge
                9 : ASG - falling edge
-               
+
             dec : posible values
                 [1,8,64, 1024, 8192, 65536]
         """
         if not dec in [1, 8, 64, 1024, 8192, 65536]:
             print(RED+'ERROR: '+NORMAL+'dec should be one of: 1, 8, 64, 1024, 8192, 65536')
             return False
-        
+
         if not trig in [1, 2, 3, 4, 5, 6, 7, 8, 9]:
             print(RED+'ERROR: '+NORMAL+'trig should be one of: 1, 2, 3, 4, 5, 6, 7, 8, 9')
             return False
-        
+
         #self.osc.Dec    = dec  # sets decimation
         #self.osc.TrgSrc = trig # sets Trigger source / type
         #self.osc.conf   = 1    # Launch trigger
-        
+
         self.log('rp.osc_trig_fire(dec='+str(dec ) +',trig='+str(trig)+')' )
         cmds   = self.osc.cmd+' Dec '   +str(dec ) + '; '
         if not trig==1:
@@ -761,9 +761,9 @@ class red_pitaya_app():
             else:
                 cmds  += '/opt/redpitaya/www/apps/'+self.AppName+'/py/wait_trig.py '+str(timeout)+';'
         result = self.ssh_cmd(cmds)
-        
+
         return True
-           
+
     def get_curv(self,log=''):
         """
         Gets oscilloscope channels data from RP memory. Its assumes the trigger is
@@ -826,12 +826,12 @@ class red_pitaya_app():
         """
         if calib_path=='':
             calib_path='/opt/redpitaya/bin/calib'
-        
+
         txt = self.ssh_cmd(calib_path+' -r -v')
-        
+
         for par in [ y.split('=') for y in txt.strip().split('\n') ]:
             self.calib_params[ par[0].strip() ] = int(par[1])
-    
+
     def set_adc_dac_calib(self,calib_path=''):
         """
         Sets calibration params for ADCs and DACs
@@ -841,11 +841,11 @@ class red_pitaya_app():
         params  = 'FE_CH1_FS_G_HI,FE_CH2_FS_G_HI,FE_CH1_FS_G_LO,FE_CH2_FS_G_LO,'
         params +='FE_CH1_DC_offs,FE_CH2_DC_offs,BE_CH1_FS,BE_CH2_FS,'
         params +='BE_CH1_DC_offs,BE_CH2_DC_offs'
-        
+
         txt = ' '.join([ str(self.calib_params[par]) for par in params.split(',') ])
         self.ssh_cmd('echo "{:s}" | '.format(txt)+calib_path+' -w')
-            
-        
+
+
     def save(self):
         """
         Saves stored data, logs, etc in self.filename using numpy.savez()
@@ -858,7 +858,7 @@ class red_pitaya_app():
                              log   = self.log_db,
                              info  = self.info,
                              allan = self.allan,
-                             html  = self.html ) 
+                             html  = self.html )
 
     def load(self):
         """
@@ -877,7 +877,7 @@ class red_pitaya_app():
             self.html   = tmp['html'].tolist()
             if len(self.html) >0:
                 self.config_sw_names()
-    
+
     def __getattr__(self, name):
         if name=='lock_control':
             lock_control = self.lock.get('lock_control')
@@ -893,7 +893,7 @@ class red_pitaya_app():
             for nn in 'lock_trig_sw,lock_trig_time,lock_trig_val'.split(','):
                 rta[nn] = int(self.lock.get(nn))
             return rta
-    
+
     def set_lock_control_trigger_config(self,params):
         for key in params:
             lock_control = self.lock.get('lock_control')
@@ -901,41 +901,41 @@ class red_pitaya_app():
                 self.__lock_control_update(key,params[key])
             elif key in ['lock_trig_sw', 'lock_trig_time', 'lock_trig_val']:
                 self.lock.set(key,params[key])
-    
+
     def __lock_control_update(self,param,val):
         if param in self.lock_control_ref:
             lock_control = self.lock.get('lock_control')
             lock_control&= 0b11111111111 - 2**self.lock_control_ref.index(param)
             lock_control+= 2**self.lock_control_ref.index(param)*int(val)
             self.lock.set('lock_control',lock_control)
-        
+
     def pidA_enable(self,val=True):
         self.__lock_control_update('pidA_enable_ctrl',val)
-        
+
     def pidB_enable(self,val=True):
         self.__lock_control_update('pidB_enable_ctrl',val)
-        
+
     def ramp_enable(self,val=True):
         self.__lock_control_update('ramp_enable_ctrl',val)
-    
+
     def launch_lock(self):
         self.rp.__lock_control_update('launch_lock',True)
-    
+
     def lock_now(self):
         self.rp.__lock_control_update('lock_now',True)
-        
+
     def counter_start(self):
         self.lock.read_ctrl = self.lock.get('read_ctrl') | 0b10
-    
+
     def counter_freeze(self):
         self.lock.read_ctrl = self.lock.get('read_ctrl') | 0b01
-    
+
     def counter_unfreeze(self):
         self.lock.read_ctrl = self.lock.get('read_ctrl') & 0b10
-    
+
     def counter_reset(self):
         self.lock.read_ctrl =0b00
-    
+
     def counter_get_cnt(self):
         freezed = bool(self.lock.read_ctrl&0b01)
         if not freezed:  # if not freezed
@@ -944,32 +944,32 @@ class red_pitaya_app():
         if not freezed:
             self.counter_unfreeze()
         return rta
-    
+
     def counter_get_time(self):
         return float(self.counter_get_cnt())*1e-8
-    
+
     def start_streaming(self,signals='error',log=''):
         """
         Start an streaming of regs values and store it in a .bin file in local host.
         start_streaming() gives the control back to the console inmediatly. To stop the
         streaming you should use self.stop_streaming() .
-        
+
         Usage:
             self.start_streaming(signals='error',log='')
-        
+
         signals   : A list or a space separated string of signals names that should be streamed.
                     Each signal name should be one of self.lock.keys
-        
+
         Each stream is saved in a .bin file in the same folder of filename. The name of the file
         has the fire time information in format: YYYYMMDD_hhmmss.bin
-        
+
         Example:
             rp.start_streaming('error ctrl_A ctrl_B')
             time.sleep(3600)
             rp.stop_streaming()
             d=read_dump(rp.allan[-1][2])
             d.plotr(start=0,end=-1,signals='error ctrl_A')
-            
+
         """
         if type(signals)==str:
             signals=signals.split(' ')
@@ -980,16 +980,16 @@ class red_pitaya_app():
         print('Getting streaming for ['+' '.join(signals)+']')
         self.log('start_streaming(): Getting streaming for ['+' '.join(signals)+']')
         self.log('start_streaming():'+log)
-        
+
         self.file   = open(fn,'a')
         self.stream = subprocess.Popen( 'nc -l 6000'.split(' ') , shell=False , stdin=subprocess.PIPE , stdout=self.file , stderr=subprocess.PIPE)
         #subprocess.Popen('nc -d -l 6000 > '+name, shell=True)
         #cmd='/root/py/data_dump.py -s '+ip+' -p 6000 --params '+' '.join(signals)
-        
+
         cmd ='/opt/redpitaya/www/apps/'+ self.AppName +'/py/data_dump.py '
         cmd+=' -s '+ self.info['myIP'] + ' -p 6000 '
         cmd+='--params ' + ' '.join(signals)
-        
+
         self.log('start_streaming(): filename='+fn)
         print(fn)
         self.log('remote: '+cmd)
@@ -1000,14 +1000,14 @@ class red_pitaya_app():
         """
         Stops an streaming of regs values already launched.
         See start_streaming().
-        
+
         Example:
             rp.start_streaming('error ctrl_A ctrl_B')
             time.sleep(3600)
             rp.stop_streaming()
             d=read_dump(rp.allan[-1][2])
             d.plotr(start=0,end=-1,signals='error ctrl_A')
-            
+
         """
         if self.stream==False:
             print('Streaming never started')
@@ -1021,7 +1021,7 @@ class red_pitaya_app():
             self.stream.communicate()
             self.file.close()
             self.stream=False
-    
+
     def fire_trig(self,trig_src,trig_pos=None,dec=None,hys=None,threshold=None,timeout=10):
         """
         Configure the oscilloscope trigger and make it wait and capture the next
@@ -1123,10 +1123,10 @@ class red_pitaya_app():
     def plot(self,num=-1,figsize=(12,5),time=True,rel=None,same_plot=True,autotime=True,raw=False):
         """
         Plot stored data taken from oscilloscope channels.
-        
+
         Usage:
             self.plot(num=-1,figsize=(12,5),time=True,rel=None,same_plot=True,autotime=True)
-            
+
         num       : The dataset to plot. Will plot self.data[num]
         time      : if True, x axis the time vector. Else, x axis is the index position vector.
         rel       : Realtive. If rel==True, the 0 of x axis will be the trigger position.
@@ -1140,14 +1140,14 @@ class red_pitaya_app():
 
         Example:
             rp.plot(num=-1,same_plot=False)
-            
+
         """
         xx=array(self.data[num][2]['i'])
         y1=array(self.data[num][2]['ch1'])
         y2=array(self.data[num][2]['ch2'])
         y1_lbl=self.data[num][2]['ch1_name']
         y2_lbl=self.data[num][2]['ch2_name']
-        
+
         if raw:
             y1 = ( y1 + self.data[num][2]['calib_params']['FE_CH1_DC_offs'])*float(self.data[num][2]['calib_params']['FE_CH1_FS_G_HI'])/2**32*100/8192
             y2 = ( y2 + self.data[num][2]['calib_params']['FE_CH2_DC_offs'])*float(self.data[num][2]['calib_params']['FE_CH2_FS_G_HI'])/2**32*100/8192
@@ -1189,7 +1189,7 @@ class red_pitaya_app():
             self.ax.append( plt.subplot2grid( (2,1), (1, 0), sharex=self.ax[0])  )
             ax1=self.ax[0]
             ax2=self.ax[1]
-        
+
         ax1.plot(xx,y1,label=y1_lbl)
         ax2.plot(xx,y2,label=y2_lbl)
         if same_plot:
@@ -1200,7 +1200,7 @@ class red_pitaya_app():
         ax1.grid(b=True)
         ax2.grid(b=True)
         ax2.set_xlabel(xlbl)
-        
+
         if raw:
             ax1.set_ylabel('ch1 [int]')
             ax2.set_ylabel('ch2 [int]')
@@ -1244,19 +1244,19 @@ class read_dump():
     """
     This class is a toolkit to read .bin files generated by red_pitaya_lock() streaming
     functions.
-    
+
     Example:
     d = read_dump(filename='/path/file.bin', head1_size=100, head2_size=3400 )
-    
+
     This creates d object that lets you processes the streamead data.
     The first 100 bytes have information about the starting time of the streaming and
     the streamed reg names.
     The next 3400 bytes have information about the lock regs in FPGA at the time of
     streaming start. Both numbers can be changed for special situatiosn using head1_size
     and head2_size params.
-    
-    
-    
+
+
+
     Usage:
         d.load_params()     # loads regs values from self.filename headers
         d.load_range()      # loads a range of values by index position
@@ -1265,22 +1265,22 @@ class read_dump():
         d.plotr()           # Loads a range of values by index and plots
         d.plott()           # Loads a range of values by time and plots
         d.fast_plotr()      # Fast plot by index range
-        
+
         d.time_stats()      # Calcs useful time statistical information
         d.allan_range()     # Calcs Allan deviation of a data set selected by index range
         d.allan_range2()    # Calcs Allan deviation of a data set selected by index range
                             # with a heavier algorithm that takes care of error intervals
-        
+
         d.save_buff()       # Saves allan_dev data and time_stats data in a file
         d.load_buff()       # Loads allan_dev data and time_stats data in a file
         d.export_range()    # Exports data to a text file
         d.print_t0()        # Prints data adquisition start time
-        
+
         d.plot_allan()      # Plots allan deviation
         d.plot_allan_error  # Plots allan deviation with error intervals
-        
-        
-    
+
+
+
     """
     def __init__(self,filename,head1_size=100,head2_size=3400):
         self.filename   = filename
@@ -1296,26 +1296,26 @@ class read_dump():
         self.time_stats_data = {}
         self.t          = []
         self.t0         = datetime.fromtimestamp( float([ y.split(' ')[-1] for y in filter(lambda x: 'timestamp' in x , self.txt1.decode().split('\n') ) ][0]))
-        
+
     def load_params(self):
         """
-        Reads self.filename and gets header information. 
-        
+        Reads self.filename and gets header information.
+
         Usage:
             d.load_params()
-        
+
         Headers texts are stored in self.txt .
         The text is processed and the params keys and values of RP lock module memory regs
         are stored in self.params as a Dictionary.
         The names for the signals sotred in the .bin file are stored in self.names .
         Labels for plots are stored in dself.ylbl
-        
+
         Example:
             d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
             d.load_params()
-            
+
             print(d.params['error_offset'])
-        
+
         """
         with open(self.filename,'rb') as f:
             txt1=f.read(self.head1_size)
@@ -1331,7 +1331,7 @@ class read_dump():
         for i in txt2.decode().split('{')[1].split('}')[0].replace('\n','').split(','):
             if len(i)>2:
                 self.params[i.split(':')[0].split('"')[1]]=float(i.split(':')[1])
-    
+
     def __getitem__(self, key):
         if type(key)==int:
             return self.data[key]
@@ -1339,7 +1339,7 @@ class read_dump():
             return self.data[self.names.index(key)]
         if type(key)==slice:
             return self.data[key]
-        
+
     def print_t0(self):
         """
         Prints data adquisition start time read from .bin fiel
@@ -1347,10 +1347,10 @@ class read_dump():
              d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
              d.print_t0()
              20171109_18:47:20
-        
+
         """
         print(self.t0.strftime('%Y%m%d_%H:%M:%S'))
-        
+
     def load_range(self,start=0,end=-1,large=None,step='auto'):
         """
         Loads data from .bin filename and stores it in numpy arrays for data processing and plotting.
@@ -1361,24 +1361,24 @@ class read_dump():
             self.t           : time array
             self.n           : index array
             self.SIGNAL_NAME : for each signal read, one adata array is set.
-        
+
         Usage:
             self.load_range(start=0,end=-1,large=None,step='auto')
-            
+
         Params:
             start : Start position of the data to read
             stop  : Stop position of the data to read
             step  : step size in number of bins between data. step==1 means no jumps.
             large : if defined, data reading is stopped after getting 'large' data points.
-            
-        After succesfully reading the data, its stored in self.data. 
-        
+
+        After succesfully reading the data, its stored in self.data.
+
         Example:
              d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
              d.load_range(start=1000,end=5000,step=1)
              print( std( d.error ) )
-             plt.plot( d.t , d.oscA ) 
-             
+             plt.plot( d.t , d.oscA )
+
         """
         self.check_time_stats()
         autoset=False
@@ -1390,9 +1390,9 @@ class read_dump():
             autoset=True
         if autoset:
             print('autoset: end={:d}, step={:d}'.format(end,step))
-        
+
         large_break = is_int(large);
-        
+
         tbuff=time.time()
         with open(self.filename,'rb') as f:
             f.read(self.head_size)
@@ -1418,7 +1418,7 @@ class read_dump():
         self.data=array(data)
         for i,n in enumerate(['n']+self.names):
             setattr(self,n,self.data[:,i])
-    
+
     def load_time(self,start=0,end=-1,large=None,step='auto'):
         """
         Loads data from .bin filename and stores it in numpy arrays for data processing and plotting.
@@ -1429,24 +1429,24 @@ class read_dump():
             self.t           : time array
             self.n           : index array
             self.SIGNAL_NAME : for each signal read, one adata array is set.
-        
+
         Usage:
             self.load_time(start=0,end=-1,large=None,step='auto')
-            
+
         Params:
             start : Start time of the data to read
             stop  : Stop time of the data to read
             step  : step size in number of bins between data. step==1 means no jumps.
             large : if defined, data reading is stopped after getting 'large' seconds of data points.
-            
-        After succesfully reading the data, its stored in self.data. 
-        
+
+        After succesfully reading the data, its stored in self.data.
+
         Example:
              d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
              d.load_time(start=60*5,end=60*15,step=1)
              print( std( d.error ) )
-             plt.plot( d.t , d.oscA ) 
-             
+             plt.plot( d.t , d.oscA )
+
         """
 #        self.check_time_stats()
 #        if end==None and large==None:
@@ -1456,7 +1456,7 @@ class read_dump():
 #        large_break = is_int(large);
         end_break   = is_int(end);
         large_break = is_int(large);
-        
+
         self.check_time_stats()
         autoset=False
         if end<0:
@@ -1468,9 +1468,9 @@ class read_dump():
             autoset=True
         if autoset:
             print('autoset: end={:d}, step={:d}'.format(int(end),int(step)))
-        
+
         large_break = is_int(large);
-        
+
         tbuff=time.time()
         with open(self.filename,'rb') as f:
             f.read(self.head_size)
@@ -1501,7 +1501,7 @@ class read_dump():
         print('Data length: {:d}'.format( len(self.data) ) )
         for i,n in enumerate(['n']+self.names):
             setattr(self,n,self.data[:,i])
-    
+
 
     def plot_from_range(self):
         rr=array(plt.ginput(2)).astype(int)[:,0]
@@ -1509,33 +1509,33 @@ class read_dump():
         if type(step)==ndarray:
             step=step[0]
         print('step='+str(step))
-        self.plotr(signals=self.last_signals,start=min(rr),end=max(rr),step=step)    
-    
+        self.plotr(signals=self.last_signals,start=min(rr),end=max(rr),step=step)
+
     def get_index(self,n=1):
         ind=array(plt.ginput(n)).astype(int)[:,0].tolist()
         for i in ind:
             print('index: '+str(i))
         return ind
-    
+
     def plot(self,signals,figsize=(12,5),time=True,relative=False,autotime=True):
         """
         Plots loaded data.
-        
+
         Usage:
             self.plot(signals,figsize=(12,5),time=True,relative=False,autotime=True)
-            
+
         Params:
             signals  : space separated string or a list with signals names to plot
             figsize  : size of figure windows
             time     : if True, x axis is in time units. Else, in index [int] units
             relative : if True, x axis starts at zero, else use absolute value for time/index
             autotime : If True, x axis units are set in human readble most useful units.
-                    
+
         Example:
              d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
              d.load_time(start=60*5,end=60*15,step=1)
-             d.plot( 'error' ) 
-             
+             d.plot( 'error' )
+
         """
         if type(signals)==str:
             signals=signals.split(' ')
@@ -1586,26 +1586,26 @@ class read_dump():
             t0,t1=self.ax[-1].get_xlim()
             self.ax[-1].set_xticks( arange( ceil(t0/60)*60 , floor(t1/60)*60+60 , 60 ) )
             self.ax[-1].set_xlim( (t0,t1))
-            
+
         plt.tight_layout()
-    
+
     def plott(self,signals,start=0,end=-1,large=None,step='auto',relative=False):
         self.load_time(start=start,end=end,large=large,step=step)
         self.plot(signals=signals,time=True,relative=relative)
     def plotr(self,signals,start=0,end=-1,large=None,step='auto',relative=False):
         self.load_range(start=start,end=end,large=large,step=step)
         self.plot(signals=signals,time=False,relative=relative)
-    
+
     def fast_plotr(self,signals,index=10000,large=10000,relative=False):
         self.plotr(signals,start=int(index-large/2),end=int(index+large/2),relative=relative )
-    
+
     def time_stats(self):
         """
         Calculates time statistics data
-        
+
         Usage:
             self.time_stats())
-             
+
         """
         tbuff=time.time()
         with open(self.filename,'rb') as f:
@@ -1667,33 +1667,33 @@ class read_dump():
                 j+=1
         print('Load time: {:f} sec'.format( time.time()-tbuff ))
         self.locked_range= j
-        
+
     def save_buff(self):
         """
         Saves data in file: self.filename+'_buff.npz'
-        
+
         Usage:
             self.save_buff()
-             
+
         """
-        savez(self.filename.split('.')[0:-1][0]+'_buff.npz', 
+        savez(self.filename.split('.')[0:-1][0]+'_buff.npz',
               locked_ranges   = self.locked_ranges,
               time_stats_data = self.time_stats_data ,
               allan           = self.allan )
-    
+
     def load_buff(self):
         """
         Loads data from file: self.filename+'_buff.npz'
-        
+
         Usage:
             self.save_buff()
-             
+
         """
         data=load(self.filename.split('.')[0:-1][0]+'_buff.npz')
         self.locked_ranges   = data['locked_ranges']
         self.time_stats_data = data['time_stats_data'].tolist()
         self.allan           = data['allan'].tolist()
-    
+
     def print_locked_ranges(self):
         min_val=sort(diff(self.locked_ranges).flatten())[-10]-1
         for i,num in enumerate(diff(self.locked_ranges).flatten()):
@@ -1702,14 +1702,14 @@ class read_dump():
                         self.locked_ranges[i][0],
                         self.locked_ranges[i][1],
                         num ) )
-                
+
     def export_range(self,signal,start=0,end=1,sp=0):
         """
         Exports data.
-        
+
         Usage:
             self.export_range(signal,start=0,end=1,sp=0)
-             
+
         """
         self.check_time_stats()
         s_ind=self.names.index(signal)
@@ -1748,11 +1748,11 @@ class read_dump():
         print('')
         bins_num=int(  floor(log( (t1-t0)/max_dt )/log(2)) -1 )
         print('Number of bins: {:d}'.format(bins_num))
-        
+
         steps=max_dt
         v_s   = []
         v_tmp = []
-        
+
         #v_lastmod  = 1e10
         v_lasttime = t0
         percentage      = '0%'
@@ -1763,7 +1763,7 @@ class read_dump():
                 f.read(self.head_size)
                 cs=struct.calcsize(self.strstr)
                 for j in range(start):
-                    fc=f.read(cs)  
+                    fc=f.read(cs)
                     j+=1
                 n=0
                 while fc:
@@ -1786,36 +1786,36 @@ class read_dump():
                             percentage = str(int((j-start)/(end-start)*100)) + '%'
                             print( percentage )
         print('Total Load time: {:f} sec'.format( time.time()-tbuff ))
-    
+
     def check_time_stats(self):
         """
         Check if time_stats  is done.
-        
+
         Usage:
             self.check_time_stats()
-             
+
         """
         if len(self.time_stats_data)==0:
             print('running first: self.time_stats()')
             self.time_stats()
             return False
         return True
-    
+
     def plot_allan(self,num=-1):
         """
         Plots allan deviation of signals taken from allan_range
         Usage:
             self.plot_allan(num=-1)
-        
+
         Params:
             num  : number of dataset to plot
-        
+
         Example:
             d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
             d.allan_range(start=6944, end=8148326,signal='error')
             d.allan[-1]['factor']= 1.5   # Factor multipliyed to signal before plotting
             d.plot_allan()
-             
+
         """
         if len(self.allan)==0:
             print('Not allan data to plot')
@@ -1830,21 +1830,21 @@ class read_dump():
         plt.grid(b=True)
         plt.legend()
         plt.tight_layout()
-    
-    
+
+
     def plot_allan_error(self,num=-1,figsize=(12,5),bar=True):
         """
         Plots allan deviation of signals taken from allan_range2 with error intervals
-        
+
         Usage:
             self.plot_allan_error(num=-1,figsize=(12,5),bar=True)
-        
+
         Params:
             num     : number of dataset to plot or 'all'
             figsize : size of figure windows
             bar     : If True, express error intervals as error bars. Else, using color area.
-            
-        
+
+
         Example:
             d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
             d.allan_range2(start=6944, end=8148326,signal='error')
@@ -1852,7 +1852,7 @@ class read_dump():
             d.allan[0]['factor']= 1.5   # Factor multipliyed to signal before plotting
             d.allan[1]['factor']= 100   # Factor multipliyed to signal before plotting
             d.plot_allan_error()
-             
+
         """
         if len(self.allan)==0:
             print('Not allan data to plot')
@@ -1865,7 +1865,7 @@ class read_dump():
             plt.figure(figsize=figsize)
         else:
             plt.clf()
-            
+
         self.ax=[]
         self.ax.append( plt.subplot2grid( (1,1), (0, 0))  )
         self.ax[-1].set_yscale('log')
@@ -1886,7 +1886,7 @@ class read_dump():
         self.ax[-1].grid(b=True)
         self.ax[-1].legend()
         plt.tight_layout()
-    
+
     def allan_range2(self,signal,start=0,end=1,sp=0,div=16):
         """
         Calculates allan deviation of the signal ( 'signal'- sp ) from 'start' index to 'end' index.
@@ -1894,10 +1894,10 @@ class read_dump():
         The, calculates the mean value of each time bin creating a v_s vector of the signal data that is
         equally spaced in time.
         Then calculates the allan deviation on the v_s vector.
-        
+
         Usage:
             self.allan_range2(signal,start=0,end=1,sp=0,div=16)
-        
+
         Params:
             signal    : signal name to be processed
             start,end : index limits of data to process
@@ -1905,13 +1905,13 @@ class read_dump():
             div       : for time ranges that uses several time bins, the allan deviation is calculated
                         from at most 'div' diferent time offsets. This produces several values for time
                         range, that enables so select the max, min and mean value for error plotting.
-            
-        
+
+
         Example:
             d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
             d.allan_range2(start=6944, end=8148326,signal='ctrl_A')
             d.plot_allan_error()
-             
+
         """
         # First we find the optimal time range
         self.check_time_stats()
@@ -1955,7 +1955,7 @@ class read_dump():
         print('')
         bins_num=int(  floor(log( (t1-t0)/max_dt )/log(2)) -1 )
         print('Number of bins: {:d}'.format(bins_num))
-        
+
         steps = max_dt * 2**arange(bins_num)
         step  = max_dt
         v_s   = []
@@ -1982,7 +1982,7 @@ class read_dump():
                         v_s.append( mean( v_tmp ) )
                         v_n.append(len(v_tmp))
                         v_tmp=[ vv[s_ind] - sp   ]
-                        
+
                     else:
                         v_tmp.append(  vv[s_ind] - sp    )
                 j+=1
@@ -2013,16 +2013,16 @@ class read_dump():
                 tmp = sum(tmp*nnn,axis=0)
                 nnn = sum(nnn,axis=0)
                 tmp = (tmp/nnn).tolist()
-                
+
                 if len(v_s[k+np:])>0:
-                    tmp.append( sum( array(v_s[k+np:])*array(v_n[k+np:]) ) / sum( array(v_n[k+np:]) ) ) 
+                    tmp.append( sum( array(v_s[k+np:])*array(v_n[k+np:]) ) / sum( array(v_n[k+np:]) ) )
                 #v_s.append(tmp)
                 aa=array(tmp)
-                alvar.append( sum((aa[0:-1]-aa[1:])**2) / ( 2 * (len(aa)-1) )  )  
+                alvar.append( sum((aa[0:-1]-aa[1:])**2) / ( 2 * (len(aa)-1) )  )
                 aldev.append( sqrt(alvar[-1]) )
             allan_var_all.append(alvar)
             allan_dev_all.append(aldev)
-        
+
         allan_dev     = []
         allan_dev_max = []
         allan_dev_min = []
@@ -2035,7 +2035,7 @@ class read_dump():
             allan_dev_std.append( std(i) )
         for i in allan_var_all:
             allan_var.append(     mean(i) )
-            
+
         i=len(self.allan)
         self.allan.append( { 'num':i, 'signal':signal, 'signal_index': s_ind,
                              't0':t0  , 't1':t1,
@@ -2047,8 +2047,8 @@ class read_dump():
         print('Total Load time: {:f} sec'.format( time.time()-tbuff ))
 
 
-    
-    
+
+
     def allan_range(self,signal,start=0,end=1,sp=0):
         """
         Calculates allan deviation of the signal ( 'signal'- sp ) from 'start' index to 'end' index.
@@ -2056,20 +2056,20 @@ class read_dump():
         The, calculates the mean value of each time bin creating a v_s vector of the signal data that is
         equally spaced in time.
         Then calculates the allan deviation on the v_s vector.
-        
+
         Usage:
             self.allan_range(signal,start=0,end=1,sp=0)
-        
+
         Params:
             signal    : signal name to be processed
             start,end : index limits of data to process
-            sp        : set-point value to supress from signal            
-        
+            sp        : set-point value to supress from signal
+
         Example:
             d=read_dump(filename='/home/lolo/data/20171109_184719.bin')
             d.allan_range(start=6944, end=8148326,signal='error')
             d.plot_allan()
-             
+
         """
         # First we find the optimal time range
         self.check_time_stats()
@@ -2113,7 +2113,7 @@ class read_dump():
         print('')
         bins_num=int(  floor(log( (t1-t0)/max_dt )/log(2)) -1 )
         print('Number of bins: {:d}'.format(bins_num))
-        
+
         steps=max_dt * 2**arange(bins_num)
         v_s=[]
         for i in range(bins_num):
@@ -2185,11 +2185,11 @@ class read_dump():
 #%%
 
 if __name__ == '__main__':
-    rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22)
-    rp=red_pitaya_app(AppName='lock-in+pid',host='10.0.32.207',port=22,password='root')
-    
-    
-    
+    rp=red_pitaya_app(AppName='lock_in+pid',host='10.0.32.207',port=22)
+    rp=red_pitaya_app(AppName='lock_in+pid',host='10.0.32.207',port=22,password='root')
+
+
+
 
 # load_app.py
 """

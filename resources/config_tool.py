@@ -12,15 +12,15 @@ import os
 
 import enum
 
-
+APP='lock_in+pid'
 
 do_verilog = False
 do_main    = False
 do_html    = False
 do_py      = False
 
-folder=''
-folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid'
+#folder=''
+#folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid'
 
 
 #%%
@@ -78,7 +78,7 @@ class fpga_registers():
                                        desc=desc, fpga_update=fpga_update , index=self.len ))
         self.names.append(name)
         self.len = len(self.names)
-    
+
     def print_hugo(self,ret=False):
         txt=''
         txt+='li = fpga_lock_in(base_addr=0x40600000,dev_file="/dev/mem")\n'
@@ -487,7 +487,7 @@ def update_verilog(filename,dock,txt):
 #%
 
 
-fpga_mod_fn='lock-in+pid/fpga/rtl/lock.v'
+fpga_mod_fn=APP+'/fpga/rtl/lock.v'
 
 if __name__ == '__main__' and do_verilog:
     print('do_verilog')
@@ -1141,29 +1141,29 @@ if __name__ == '__main__' and do_main:
     if not os.path.isdir(folder):
         raise ValueError('"folder" variable should be the source code folder path.')
     os.chdir(folder)
-    
-    filename='lock-in+pid/src/lock.c'
+
+    filename=APP+'/src/lock.c'
     update_main(filename , dock = ['PARAMSUPDATE'      , 'FPGAUPDATE'],
                            txt  = [main_update_params(), main_update_fpga()])
-    
-    filename='lock-in+pid/src/fpga_lock.c'
+
+    filename=APP+'/src/fpga_lock.c'
     update_main(filename , dock = ['FPGARESET'],
                            txt  = [main_fpga_regs_reset()])
-    
-    
-    filename='lock-in+pid/src/fpga_lock.h'
-    
+
+
+    filename=APP+'/src/fpga_lock.h'
+
     update_main(filename , dock = ['FPGAREG'],
                            txt  = [main_fpga_regs_def()])
-    
-    filename='lock-in+pid/src/main.c'
+
+    filename=APP+'/src/main.c'
     update_main(filename , dock = ['MAINDEF'],
                            txt  = [main_def()])
-    
-    filename='lock-in+pid/src/main.h'
+
+    filename=APP+'/src/main.h'
     update_main(filename , dock = ['MAINDEFH'],
                            txt  = [main_defh()])
-    
+
     replace_pattern(filename , pattern = ['^#define[ ]+PARAMS_NUM[ ]+[0-9]+'],
                                txt     = [ '#define PARAMS_NUM        {:>3d}'.format(m[-1].index+1) ])
 
@@ -1717,7 +1717,7 @@ def get_muxer(filename,name):
         return ret
 
 if False:
-    filename='lock-in+pid/fpga/rtl/lock.v'
+    filename=APP+'/fpga/rtl/lock.v'
     print(get_muxer(filename,"slow_out1_sw"))
     print(get_muxer(filename,"lpf_F1"))
     print(get_muxer(filename,"sg_amp1"))
@@ -1726,14 +1726,14 @@ if False:
     print(get_muxer(filename,"pidA_sw"))
     print(get_muxer(filename,"signal_sw"))
     print(get_muxer(filename,"out1_sw"))
-    
+
     for i in get_muxer(filename,"pidB_sw"):
         print('`'+i+'`,')
 
 
 
 
-filename='lock-in+pid/fpga/rtl/lock.v'
+filename=APP+'/fpga/rtl/lock.v'
 if not os.path.isdir(folder):
     raise ValueError('"folder" variable should be the source code folder path.')
 os.chdir(folder)
@@ -1894,7 +1894,7 @@ h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','
 h["lock_ctrl_aux_trig_type"].control = select(idd="lock_ctrl_aux_trig_type",items=['OFF','Time trigger','Level Trigger','Level+time Trigger'])
 
 
-# h['lock_oscA_sw'].control.items = 
+# h['lock_oscA_sw'].control.items =
 
 # Hide some intems for advance options
 if False:
@@ -1953,7 +1953,7 @@ if False:
 
 
 if False:
-    fn1='lock-in+pid/index.html'
+    fn1=APP+'/index.html'
     with open(fn1, 'r') as input:
         out=False
         for line in input:
@@ -2218,7 +2218,7 @@ def update_html(filename,h):
 
 
 #os.chdir(folder)
-filename='lock-in+pid/index.html'
+filename=APP+'/index.html'
 
 if __name__ == '__main__' and do_html:
     print('do_html')

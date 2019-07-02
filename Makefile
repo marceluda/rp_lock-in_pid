@@ -2,7 +2,7 @@
 # Red Pitaya specific application Makefile.
 #
 
-APP=lock-in+pid
+APP=lock_in+pid
 
 -include _settings.env
 -include _build_number
