@@ -1,6 +1,6 @@
 # FPGA
 
-  - Bug: PID_B unresponsive and ever increasing k_p, k_i 
+  - Bug: PID_B unresponsive and ever increasing k_p, k_i
 
 # main C
 
@@ -11,4 +11,4 @@ on control_hugo.py
   - check python existence
   - check executables bit
   - check netcat
-  - ofer to install packages
+  - offer to install packages
