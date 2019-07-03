@@ -1,6 +1,12 @@
 
 # Devbuild  changes
 
+## 0.2.0-0-devbuild
+  - FEATURE: better mousewheel behaviour for input number web interface.
+             change step size with SHIFT and/or CTRL keys.
+  - BUGFIX: Smoother real-time parame change on number inputs for web
+
+
 ## 0.1.1-2-devbuild
   - BUGFIX: Corrected Month value for now() and pretty_now() JS functions
             in index.html

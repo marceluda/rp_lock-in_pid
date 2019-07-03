@@ -9,11 +9,15 @@ OPTIND=1         # Reset in case getopts has been used previously in the shell.
 
 # Initialize our own variables:
 port_number=22
+webonly=false
 
-while getopts "p:h?" opt; do
+while getopts "wp:h?" opt; do
     case "$opt" in
     p)  port_number=$OPTARG
         echo "port_number: $port_number"
+        ;;
+    w)  webonly=true
+        echo "webonly: $webonly"
         ;;
     h|\?)
         echo "${0} [-p port_number] rp-XXXXXX.local "
@@ -110,13 +114,19 @@ txt=( "\nIn the future, you will not need to type the root password again for re
       "\nEn el futuro no necesitarás tipear nuevamente la clave SSH para root. \n")
 echo -e ${txt[$L]}
 
-ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP} ; mkdir -p /opt/redpitaya/www/apps/${APP} "
+if $webonly ; then
 
-echo -e "\n\n---------------------\n\n"
+    ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP}/{index.html,js.css} "
+    echo -e "\n\n---------------------\n\n"
+    scp  ${RPSCP} -r index.html css js root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
 
-scp  ${RPSCP} -r controllerhf.so css js fpga.conf index.html info py red_pitaya.bit  root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
+else
+ 
+    ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP} ; mkdir -p /opt/redpitaya/www/apps/${APP} "
+    echo -e "\n\n---------------------\n\n"
+    scp  ${RPSCP} -r controllerhf.so css js fpga.conf index.html info py red_pitaya.bit  root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
 
-
+fi
 
 echo -e "\n\n---------------------\n\n"
 

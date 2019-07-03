@@ -35,6 +35,8 @@
   For Cookies https://github.com/js-cookie/js-cookie/releases/tag/v2.1.4 >
   <script src="js/js.cookie.min.js"></script-->
 
+  <script src="js/jquery.mousewheel.js"></script>
+
   <script type="text/javascript">
 
   // Settings which can be modified
@@ -1229,8 +1231,73 @@
             if(e.keyCode == 13) {
               $(this).blur();
             }
-        });
+        })
+        // Mouse scroll for number inputs
+        .mousewheel(function(event, delta) {
+                        ScrollIncrement(event, delta);
+                        return false; // prevent default
+                    });
+        ;
 
+    }
+
+    var ScrollIncrement = function(event, delta) {
+        var id = event.currentTarget.id || event.currentTarget.nodeName;
+        //console.log(id);
+        //console.log('ctrl:'+event.ctrlKey + ' alt:'+ event.altKey + ' shift:'+ event.shiftKey);
+
+        var user_editing_old = user_editing;
+        user_editing = true ;
+        //console.log('user_editing: '+user_editing + ' user_editing_old:'+user_editing_old);
+        //console.log(event);
+        event.preventDefault();
+        $this = $('#'+id);
+        //$inc = parseFloat($this.attr('step'));
+
+        $inc = 1;
+        if(event.shiftKey) $inc = $inc * 10 ;
+        if(event.ctrlKey)  $inc = $inc * 100 ;
+
+        $max = parseFloat($this.attr('max'));
+        $min = parseFloat($this.attr('min'));
+        $currVal = parseInt($this.val());
+        //console.log( $currVal );
+        // If blank, assume value of 0
+        if (isNaN($currVal)) {
+            $currVal = 0;
+        }
+
+        // Increment or decrement numeric based on scroll distance
+        if (event.deltaFactor * event.deltaY > 0) {
+            if ($currVal + $inc <= $max) {
+                $this.val($currVal + $inc);
+                $currVal = $currVal + $inc;
+            }
+        } else {
+            if ($currVal - $inc >= $min) {
+                $this.val($currVal - $inc);
+                $currVal = $currVal - $inc;
+            }
+        }
+        event.stopPropagation();
+        event.preventDefault();
+        //user_editing = user_editing_old ;
+        /*if(cmd_timestamp< + new Date()-10000) {
+            console.log('new delayed');
+            cmd_timestamp=+ new Date();
+            delayed_send(id);
+        }else{
+            console.log('delay');
+            cmd_timestamp=+ new Date();
+        }*/
+
+        params.local[id] = $currVal;
+        sendParams(true,true,true,true);
+        //console.log('currVal='+$currVal);
+        //user_editing = false ;
+        //console.log('SENT '+id);
+        //user_editing = false ;
+        //console.log('user_editing after: '+user_editing );
     }
 
 
@@ -3039,7 +3106,7 @@
     return false;
   }
 
-  function sendParams(refresh_data, force_send, single_btn) {
+  function sendParams(refresh_data, force_send, single_btn, user_editing_update) {
     if(sending || (force_send !== true && !isParamChanged())) {
       send_que = sending;
       return;
@@ -3093,7 +3160,8 @@
           plot.draw();
         }
 
-        loadParams(dresult.datasets.params);
+        if(!user_editing) loadParams(dresult.datasets.params);
+        //console.log('lock_error_offset: '+dresult.datasets.params["lock_error_offset"]);
         updateTriggerSlider();
 
         if(refresh_data && !downloading) {
@@ -3113,7 +3181,8 @@
     })
     .always(function() {
       sending = false;
-      user_editing = false;
+      if(user_editing_update) { user_editing = true ; } else { user_editing = false } ;
+      //console.log('user_editing: '+user_editing);
 
       if(send_que) {
         send_que = false;
