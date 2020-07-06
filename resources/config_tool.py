@@ -1636,7 +1636,7 @@ for i in [ y.name for y in filter( lambda x: x.type=='button' , h) ]:
 h['lock_ctrl_aux_ramp_enable_ctrl'].control.text='Scan enable'
 h['lock_ctrl_aux_pidA_enable_ctrl'].control.text='PID&nbsp;A enable'
 h['lock_ctrl_aux_pidB_enable_ctrl'].control.text='PID&nbsp;B enable'
-h['lock_ctrl_aux_pidC_enable_ctrl'].control.text='PID&nbsp;B enable'
+h['lock_ctrl_aux_pidC_enable_ctrl'].control.text='PID&nbsp;C enable'
 h['lock_ctrl_aux_launch_lock_trig'].control.text='Trigger<br>Lock'
 h['lock_ctrl_aux_lock_now'        ].control.text='Lock<br>Now'
 
@@ -1990,12 +1990,12 @@ if False:
     for i,v in enumerate(h['lock_pidA_sw'].control.items):
         print('{:2d} {:}'.format(i,v))
 
-h['lock_oscA_sw'].control.enable = [True]*30 + [False]*2
-h['lock_oscB_sw'].control.enable = [True]*30 + [False]*2
+h['lock_oscA_sw'].control.enable = [True]*32 + [False]*0
+h['lock_oscB_sw'].control.enable = [True]*32 + [False]*0
 
-h['lock_pidA_sw'].control.enable = [True]*25 + [False]*7
-h['lock_pidB_sw'].control.enable = [True]*25 + [False]*7
-h['lock_pidC_sw'].control.enable = [True]*25 + [False]*7
+h['lock_pidA_sw'].control.enable = [True]*27 + [False]*5
+h['lock_pidB_sw'].control.enable = [True]*27 + [False]*5
+h['lock_pidC_sw'].control.enable = [True]*27 + [False]*5
 
 h['lock_pidA_sw'].control.hide = list(range(1,9))+list(range(10,22))
 h['lock_pidB_sw'].control.hide = list(range(1,9))+list(range(10,22))
@@ -2004,7 +2004,7 @@ h['lock_pidC_sw'].control.hide = list(range(1,9))+list(range(10,22))
 
 h['lock_pidA_sw'].control.hide_group = 'pidA_more'
 h['lock_pidB_sw'].control.hide_group = 'pidB_more'
-h['lock_pidC_sw'].control.hide_group = 'pidB_more'
+h['lock_pidC_sw'].control.hide_group = 'pidC_more'
 
 
 h["lock_signal_sw"].control.enable = [True]*12+[False]*4
