@@ -300,7 +300,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     /*********************************************/
 
     // [MAINDEF DOCK]
-
+    
     { "lock_oscA_sw"                  ,      1, 1, 0,            0,           31 }, /** switch for muxer oscA **/
     { "lock_oscB_sw"                  ,      2, 1, 0,            0,           31 }, /** switch for muxer oscB **/
     { "lock_osc1_filt_off"            ,      1, 1, 0,            0,            1 }, /** oscilloscope control osc1_filt_off **/
@@ -328,11 +328,14 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_rl_state"                 ,      0, 0, 1,            0,           31 }, /** Relock state: [state:idle|searching|failed,signal_fail,error_fail,locked]  **/
     { "lock_sf_jumpA"                 ,      0, 1, 0,        -8192,         8191 }, /** Step function measure jump value for ctrl_A **/
     { "lock_sf_jumpB"                 ,      0, 1, 0,        -8192,         8191 }, /** Step function measure jump value for ctrl_B **/
+    { "lock_sf_jumpC"                 ,      0, 1, 0,        -8192,         8191 }, /** Step function measure jump value for ctrl_C **/
     { "lock_sf_start"                 ,      0, 1, 0,            0,            1 }, /** Step function start  **/
     { "lock_sf_AfrzO"                 ,      0, 1, 0,            0,            1 }, /** Step function pidA_freeze  **/
     { "lock_sf_AfrzI"                 ,      0, 1, 0,            0,            1 }, /** Step function pidA_ifreeze  **/
     { "lock_sf_BfrzO"                 ,      0, 1, 0,            0,            1 }, /** Step function pidB_freeze  **/
     { "lock_sf_BfrzI"                 ,      0, 1, 0,            0,            1 }, /** Step function pidB_ifreeze  **/
+    { "lock_sf_CfrzO"                 ,      0, 1, 0,            0,            1 }, /** Step function pidC_freeze  **/
+    { "lock_sf_CfrzI"                 ,      0, 1, 0,            0,            1 }, /** Step function pidC_ifreeze  **/
     { "lock_signal_sw"                ,      0, 1, 0,            0,           15 }, /** Input selector for signal_i **/
     { "lock_signal_i"                 ,      0, 0, 1,        -8192,         8191 }, /** signal for demodulation **/
     { "lock_sg_amp1"                  ,      0, 1, 0,            0,           15 }, /** amplification of Xo, Yo and F1o **/
@@ -427,9 +430,6 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidB_freeze"              ,      0, 1, 0,            0,            1 }, /** pidB_freeze **/
     { "lock_pidB_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidB_ifreeze **/
     { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidB_out + ramp_B **/
-    { "lock_aux_A"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
-    { "lock_aux_B"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
-    { "lock_sf_jumpC"                 ,      0, 1, 0,        -8192,         8191 }, /** Step function measure jump value for ctrl_C **/
     { "lock_pidC_sw"                  ,      0, 1, 0,            0,           31 }, /** switch selector for pidC input **/
     { "lock_pidC_PSR"                 ,      3, 1, 0,            0,            4 }, /** pidC PSR **/
     { "lock_pidC_ISR"                 ,      8, 1, 0,            0,            9 }, /** pidC ISR **/
@@ -444,13 +444,16 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidC_irst"                ,      0, 1, 0,            0,            1 }, /** pidC_irst **/
     { "lock_pidC_freeze"              ,      0, 1, 0,            0,            1 }, /** pidC_freeze **/
     { "lock_pidC_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidC_ifreeze **/
-    { "lock_ctrl_C"                   ,      0, 0, 1,        -8192,         8191 }, /** control_C: pidC_out + ramp_C **/
-
+    { "lock_ctrl_C"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidC_out + ramp_A **/
+    { "lock_aux_A"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
+    { "lock_aux_B"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_ctrl_aux_lock_now"        ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_launch_lock_trig",      0, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_pidC_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_pidB_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_pidA_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_ramp_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_set_pidC_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_set_pidB_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_set_pidA_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_set_ramp_enable" ,      0, 0, 0,            0,            1 }, /** todo **/
@@ -458,9 +461,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_ctrl_aux_lock_trig_rise"  ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_sq_on"                ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_harmonic_on"          ,      1, 0, 0,            0,            1 }, /** todo **/
-    { "lock_ctrl_aux_pidC_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
-    { "lock_ctrl_aux_set_pidC_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
-
+    
     // [MAINDEF DOCK END]
 
     { /* Must be last! */

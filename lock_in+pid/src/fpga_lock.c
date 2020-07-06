@@ -99,6 +99,7 @@ void reset_locks(void)
         g_lock_reg->rl_state             =      0;
         g_lock_reg->sf_jumpA             =      0;
         g_lock_reg->sf_jumpB             =      0;
+        g_lock_reg->sf_jumpC             =      0;
         g_lock_reg->sf_config            =      0;
         g_lock_reg->signal_sw            =      0;
         g_lock_reg->signal_i             =      0;

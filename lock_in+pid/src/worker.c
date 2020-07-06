@@ -1307,7 +1307,7 @@ int rp_osc_meas_clear(rp_osc_meas_res_t *ch_meas)
 
 
 /*----------------------------------------------------------------------------------*/
-inline int rp_osc_adc_sign(int in_data)
+int rp_osc_adc_sign(int in_data)
 {
     int s_data = in_data;
     if(s_data & (1<<(c_osc_fpga_adc_bits-1)))
@@ -1438,7 +1438,7 @@ int meas_period(rp_osc_meas_res_t *meas, int *in_signal, int wr_ptr_trig, int de
 
 
 /*----------------------------------------------------------------------------------*/
-inline float rp_osc_meas_cnv_cnt(float data, float adc_max_v)
+float rp_osc_meas_cnv_cnt(float data, float adc_max_v)
 {
     if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){ // LOLO
         return data ;

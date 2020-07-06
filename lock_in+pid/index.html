@@ -119,17 +119,20 @@
                        'lock_oscA_sw,lock_oscB_sw,lock_osc1_filt_off,lock_osc2_filt_off,lock_osc_raw_mode,lock_osc_lockin_mode,lock_trig_sw,'+
                        'lock_out1_sw,lock_out2_sw,lock_slow_out1_sw,lock_slow_out2_sw,lock_slow_out3_sw,lock_slow_out4_sw,lock_lock_control,'+
                        'lock_lock_trig_val,lock_lock_trig_time_val,lock_lock_trig_sw,lock_rl_error_threshold,lock_rl_signal_sw,lock_rl_signal_threshold,'+
-                       'lock_rl_error_enable,lock_rl_signal_enable,lock_rl_reset,lock_sf_jumpA,lock_sf_jumpB,lock_sf_start,lock_sf_AfrzO,'+
-                       'lock_sf_AfrzI,lock_sf_BfrzO,lock_sf_BfrzI,lock_signal_sw,lock_sg_amp1,lock_sg_amp2,lock_sg_amp3,lock_sg_amp_sq,'+
-                       'lock_lpf_F1_tau,lock_lpf_F1_order,lock_lpf_F2_tau,lock_lpf_F2_order,lock_lpf_F3_tau,lock_lpf_F3_order,lock_lpf_sq_tau,'+
-                       'lock_lpf_sq_order,lock_error_sw,lock_error_offset,lock_gen_mod_phase,lock_gen_mod_phase_sq,lock_gen_mod_hp,lock_gen_mod_sqp,'+
-                       'lock_ramp_step,lock_ramp_low_lim,lock_ramp_hig_lim,lock_ramp_reset,lock_ramp_enable,lock_ramp_direction,lock_ramp_B_factor,'+
-                       'lock_read_ctrl,lock_pidA_sw,lock_pidA_PSR,lock_pidA_ISR,lock_pidA_DSR,lock_pidA_SAT,lock_pidA_sp,lock_pidA_kp,'+
-                       'lock_pidA_ki,lock_pidA_kd,lock_pidA_irst,lock_pidA_freeze,lock_pidA_ifreeze,lock_pidB_sw,lock_pidB_PSR,lock_pidB_ISR,'+
-                       'lock_pidB_DSR,lock_pidB_SAT,lock_pidB_sp,lock_pidB_kp,lock_pidB_ki,lock_pidB_kd,lock_pidB_irst,lock_pidB_freeze,'+
-                       'lock_pidB_ifreeze,lock_aux_A,lock_aux_B,lock_ctrl_aux_lock_now,lock_ctrl_aux_launch_lock_trig,lock_ctrl_aux_pidB_enable_ctrl,'+
-                       'lock_ctrl_aux_pidA_enable_ctrl,lock_ctrl_aux_ramp_enable_ctrl,lock_ctrl_aux_set_pidB_enable,lock_ctrl_aux_set_pidA_enable,'+
-                       'lock_ctrl_aux_set_ramp_enable,lock_ctrl_aux_trig_type,lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on,lock_pidA_ofs,lock_pidB_ofs';
+                       'lock_rl_error_enable,lock_rl_signal_enable,lock_rl_reset,lock_sf_jumpA,lock_sf_jumpB,lock_sf_jumpC,lock_sf_start,'+
+                       'lock_sf_AfrzO,lock_sf_AfrzI,lock_sf_BfrzO,lock_sf_BfrzI,lock_sf_CfrzO,lock_sf_CfrzI,lock_signal_sw,lock_sg_amp1,'+
+                       'lock_sg_amp2,lock_sg_amp3,lock_sg_amp_sq,lock_lpf_F1_tau,lock_lpf_F1_order,lock_lpf_F2_tau,lock_lpf_F2_order,'+
+                       'lock_lpf_F3_tau,lock_lpf_F3_order,lock_lpf_sq_tau,lock_lpf_sq_order,lock_error_sw,lock_error_offset,lock_gen_mod_phase,'+
+                       'lock_gen_mod_phase_sq,lock_gen_mod_hp,lock_gen_mod_sqp,lock_ramp_step,lock_ramp_low_lim,lock_ramp_hig_lim,lock_ramp_reset,'+
+                       'lock_ramp_enable,lock_ramp_direction,lock_ramp_B_factor,lock_read_ctrl,lock_pidA_sw,lock_pidA_PSR,lock_pidA_ISR,'+
+                       'lock_pidA_DSR,lock_pidA_SAT,lock_pidA_sp,lock_pidA_kp,lock_pidA_ki,lock_pidA_kd,lock_pidA_irst,lock_pidA_freeze,'+
+                       'lock_pidA_ifreeze,lock_pidB_sw,lock_pidB_PSR,lock_pidB_ISR,lock_pidB_DSR,lock_pidB_SAT,lock_pidB_sp,lock_pidB_kp,'+
+                       'lock_pidB_ki,lock_pidB_kd,lock_pidB_irst,lock_pidB_freeze,lock_pidB_ifreeze,lock_pidC_sw,lock_pidC_PSR,lock_pidC_ISR,'+
+                       'lock_pidC_DSR,lock_pidC_SAT,lock_pidC_sp,lock_pidC_kp,lock_pidC_ki,lock_pidC_kd,lock_pidC_irst,lock_pidC_freeze,'+
+                       'lock_pidC_ifreeze,lock_aux_A,lock_aux_B,lock_ctrl_aux_lock_now,lock_ctrl_aux_launch_lock_trig,lock_ctrl_aux_pidC_enable_ctrl,'+
+                       'lock_ctrl_aux_pidB_enable_ctrl,lock_ctrl_aux_pidA_enable_ctrl,lock_ctrl_aux_ramp_enable_ctrl,lock_ctrl_aux_set_pidC_enable,'+
+                       'lock_ctrl_aux_set_pidB_enable,lock_ctrl_aux_set_pidA_enable,lock_ctrl_aux_set_ramp_enable,lock_ctrl_aux_trig_type,'+
+                       'lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on';
 
   config_params_keys = config_params_txts.split(",");
 
@@ -1161,10 +1164,11 @@
     // [LOLO DOCK PAGELOAD]
 
     // Number inputs
-    var input_number=['lock_lock_trig_val','lock_lock_trig_time_val','lock_rl_error_threshold','lock_rl_signal_threshold','lock_sf_jumpA',
-                      'lock_sf_jumpB','lock_error_offset','lock_gen_mod_phase','lock_gen_mod_phase_sq','lock_gen_mod_hp','lock_gen_mod_sqp',
-                      'lock_ramp_step','lock_ramp_low_lim','lock_ramp_hig_lim','lock_ramp_B_factor','lock_pidA_sp','lock_pidA_kp','lock_pidA_ki',
-                      'lock_pidA_kd','lock_pidA_ofs','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_pidB_ofs','lock_aux_A','lock_aux_B'];
+    var input_number=['lock_lock_trig_val','lock_lock_trig_time_val','lock_rl_error_threshold','lock_rl_signal_threshold','lock_sf_jumpA', 
+                      'lock_sf_jumpB','lock_sf_jumpC','lock_error_offset','lock_gen_mod_phase','lock_gen_mod_phase_sq','lock_gen_mod_hp', 
+                      'lock_gen_mod_sqp','lock_ramp_step','lock_ramp_low_lim','lock_ramp_hig_lim','lock_ramp_B_factor','lock_pidA_sp','lock_pidA_kp', 
+                      'lock_pidA_ki','lock_pidA_kd','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_pidC_sp','lock_pidC_kp', 
+                      'lock_pidC_ki','lock_pidC_kd','lock_aux_A','lock_aux_B'];
 
     for(ii in input_number){
       $('#'+input_number[ii])
@@ -1320,6 +1324,10 @@
         lock_pidB_update();
         //$(this).blur();
     });
+    $('#lock_pidC_sp,#lock_pidC_kp,#lock_pidC_ki,#lock_pidC_kd,#lock_pidC_ofs').on('input', function() {
+        lock_pidC_update();
+        //$(this).blur();
+    });
     $('#lock_ramp_step,#lock_ramp_low_lim,#lock_ramp_hig_lim,#lock_ramp_B_factor').on('input', function() {
         lock_ramp_step_update();
         //$(this).blur();
@@ -1335,7 +1343,8 @@
                   '#lock_sg_amp2','#lock_sg_amp3','#lock_sg_amp_sq','#lock_lpf_F1_tau','#lock_lpf_F1_order','#lock_lpf_F2_tau','#lock_lpf_F2_order',
                   '#lock_lpf_F3_tau','#lock_lpf_F3_order','#lock_lpf_sq_tau','#lock_lpf_sq_order','#lock_error_sw','#lock_read_ctrl','#lock_pidA_sw',
                   '#lock_pidA_PSR','#lock_pidA_ISR','#lock_pidA_DSR','#lock_pidA_SAT','#lock_pidB_sw','#lock_pidB_PSR','#lock_pidB_ISR',
-                  '#lock_pidB_DSR','#lock_pidB_SAT','#lock_ctrl_aux_trig_type'];
+                  '#lock_pidB_DSR','#lock_pidB_SAT','#lock_pidC_sw','#lock_pidC_PSR','#lock_pidC_ISR','#lock_pidC_DSR','#lock_pidC_SAT',
+                  '#lock_ctrl_aux_trig_type'];
     for(ii in switches)
         $(switches[ii]).on('change', function() { onDropdownChange($(this), $(this)[0].id ); });
 
@@ -1344,8 +1353,8 @@
 
     // Buttons
     var input_buttons = '#lock_osc_raw_mode,#lock_osc_lockin_mode,#lock_sf_start,#lock_ctrl_aux_lock_now,#lock_ctrl_aux_launch_lock_trig,'+
-                        '#lock_ctrl_aux_pidB_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_ramp_enable_ctrl,#lock_mod_sq_on,'+
-                        '#lock_mod_harmonic_on';
+                        '#lock_ctrl_aux_pidC_enable_ctrl,#lock_ctrl_aux_pidB_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_ramp_enable_ctrl,'+
+                        '#lock_mod_sq_on,#lock_mod_harmonic_on';
     $(input_buttons).on('click', function() {
       $(this).toggleClass('btn-default btn-primary');
       params.local[this.id] = ($(this).is('.btn-primary') ? 1 : 0);
@@ -1354,8 +1363,9 @@
 
     // Checkboxes inputs
     var input_checkboxes = '#lock_osc1_filt_off,#lock_osc2_filt_off,#lock_rl_error_enable,#lock_rl_signal_enable,#lock_rl_reset,#lock_sf_AfrzO,'+
-                           '#lock_sf_AfrzI,#lock_sf_BfrzO,#lock_sf_BfrzI,#lock_ramp_reset,#lock_ramp_enable,#lock_ramp_direction,#lock_pidA_irst,'+
-                           '#lock_pidA_freeze,#lock_pidA_ifreeze,#lock_pidB_irst,#lock_pidB_freeze,#lock_pidB_ifreeze,#lock_ctrl_aux_set_pidB_enable,'+
+                           '#lock_sf_AfrzI,#lock_sf_BfrzO,#lock_sf_BfrzI,#lock_sf_CfrzO,#lock_sf_CfrzI,#lock_ramp_reset,#lock_ramp_enable,'+
+                           '#lock_ramp_direction,#lock_pidA_irst,#lock_pidA_freeze,#lock_pidA_ifreeze,#lock_pidB_irst,#lock_pidB_freeze,'+
+                           '#lock_pidB_ifreeze,#lock_pidC_irst,#lock_pidC_freeze,#lock_pidC_ifreeze,#lock_ctrl_aux_set_pidC_enable,#lock_ctrl_aux_set_pidB_enable,'+
                            '#lock_ctrl_aux_set_pidA_enable,#lock_ctrl_aux_set_ramp_enable,#lock_ctrl_aux_lock_trig_rise';
     $(input_checkboxes).on('change', function() {
       params.local[this.id] = ($(this).is(':checked') ? 1 : 0);
@@ -1539,12 +1549,14 @@
     lock_ctrl_update();
     lock_pidA_update();
     lock_pidB_update();
+    lock_pidC_update();
     lpf_update();
 
     $('[data-toggle="tooltip"]').tooltip({container: 'body'});
 
     $('option[data-tag=pidA_more]').hide();
     $('option[data-tag=pidB_more]').hide();
+    $('option[data-tag=pidC_more]').hide();
 
     $('#btn_config_load_file')[0].addEventListener('change', config_load_file, false);
 
@@ -1946,6 +1958,128 @@
     $('#lock_pidB_ofs_text').html( "<small><b>"+offset.toFixed(2)+"&nbsp;mV</b></small>"   );
 
   }
+
+function lock_pidC_update(){
+  // Get inputs text values
+  lock_pidC_sp_arr = $("#lock_pidC_sp" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+  lock_pidC_kp_arr = $("#lock_pidC_kp" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+  lock_pidC_ki_arr = $("#lock_pidC_ki" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+  lock_pidC_kd_arr = $("#lock_pidC_kd" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+  lock_pidC_ofs_arr = $("#lock_pidC_ofs" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+
+  // Check if inputs are numbers
+  if( !$.isNumeric(lock_pidC_sp_arr[0]) ||
+      !$.isNumeric(lock_pidC_kp_arr[0]) ||
+      !$.isNumeric(lock_pidC_ki_arr[0]) ||
+      !$.isNumeric(lock_pidC_kd_arr[0]) ||
+      !$.isNumeric(lock_pidC_ofs_arr[0])    ) return -1 ;
+
+  // Check if values changed from last execution. We don't want to update DIVs constantly but only
+  // when there are changes (to save processor time / resources)
+  if (params) if (params.local)
+  if( parseInt(lock_pidC_sp_arr[0])         == pidC_sp &&
+      parseInt(lock_pidC_kp_arr[0])         == pidC_kp &&
+      parseInt(lock_pidC_ki_arr[0])         == pidC_ki &&
+      parseInt(lock_pidC_kd_arr[0])         == pidC_kd &&
+      parseInt(lock_pidC_ofs_arr[0])        == pidC_ofs &&
+      parseInt(params.local.lock_pidC_PSR ) == parseInt($("#lock_pidC_PSR" ).val()) &&
+      parseInt(params.local.lock_pidC_ISR ) == parseInt($("#lock_pidC_ISR" ).val()) &&
+      parseInt(params.local.lock_pidC_DSR ) == parseInt($("#lock_pidC_DSR" ).val()) &&
+      parseInt(params.local.lock_pidC_SAT ) == parseInt($("#lock_pidC_SAT" ).val())
+      ) return -1 ;
+
+  // Get number values
+  pidC_sp = parseInt( lock_pidC_sp_arr[0] ) ;
+  pidC_kp = parseInt( lock_pidC_kp_arr[0] ) ;
+  pidC_ki = parseInt( lock_pidC_ki_arr[0] ) ;
+  pidC_kd = parseInt( lock_pidC_kd_arr[0] ) ;
+  pidC_ofs = parseInt( lock_pidC_ofs_arr[0] ) ;
+
+  // If there is a text that sets units, process the correct unit and number value
+  if( lock_pidC_sp_arr.length === 2) {
+    if ( lock_pidC_sp_arr[1].toLowerCase()=="v" )
+      pidC_sp = Math.round( pidC_sp * 8192 );
+    if ( lock_pidC_sp_arr[1].toLowerCase()=="mv" )
+      pidC_sp = Math.round( pidC_sp * 8192 /1000 );
+    pidC_sp = Math.min(  8191 , pidC_sp  ) ;
+    pidC_sp = Math.max( -8192 , pidC_sp  ) ;
+    $("#lock_pidC_sp").val(""+pidC_sp);
+  }
+  if( lock_pidC_ofs_arr.length === 2) {
+    if ( lock_pidC_ofs_arr[1].toLowerCase()=="v" )
+      pidC_ofs = Math.round( pidC_ofs * 8192 );
+    if ( lock_pidC_ofs_arr[1].toLowerCase()=="mv" )
+      pidC_ofs = Math.round( pidC_ofs * 8192 /1000 );
+    pidC_ofs = Math.min(  8191 , pidC_ofs  ) ;
+    pidC_ofs = Math.max( -8192 , pidC_ofs  ) ;
+    $("#lock_pidC_ofs").val(""+pidC_ofs);
+  }
+
+  // Update text labels with correct info values
+
+  var isrval=[0,3,6,10,13,16,20,23,26,30];
+  var psrval=[0,3,6,10,12];
+
+  // Integration part
+  tau=8e-9 * Math.pow(2,isrval[parseInt($('#lock_pidC_ISR').val())]) / Math.abs( pidC_ki )  ;
+  if ( pidC_ki === 0 ){
+    txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
+  }else{
+    sgn_tag = Math.sign(pidC_ki)==1 ? '(-)' : '(+)' ;
+    oom = Math.floor(Math.log10(tau)/3);
+    val = tau/Math.pow(10,3*oom);
+    txt = '<div class="col-xs-12 col-md-5" ><small><b>&tau;&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+    txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
+
+    oom  = Math.floor(Math.log10(1/tau)/3);
+    val  = (1/tau)/Math.pow(10,3*oom);
+    //txt += '<br class="visible-xs visible-sm">';
+    txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+  }
+  $('#lock_pidC_ki_text').html( txt   );
+
+  // Derivative part
+  tau=8e-9 * Math.pow(2,parseInt($('#lock_pidC_DSR').val())-6) * Math.abs(pidA_kd*60) ;
+  if ( pidC_kd === 0 ){
+    txt='<div class="col-xs-12" ><small><b>OFF</b></small></div>';
+  }else{
+    sgn_tag = Math.sign(pidC_kd)==1 ? '(-)' : '(+)' ;
+    oom = Math.floor(Math.log10(tau)/3);
+    val = tau/Math.pow(10,3*oom);
+    txt = '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 's</b></small></div>';
+
+    txt+= '<div class="col-xs-12 col-md-2" ><small><b>'+sgn_tag+'</b></small></div>';
+
+    oom  = Math.floor(Math.log10(1/tau)/3);
+    val  = (1/tau)/Math.pow(10,3*oom);
+    //txt += '<br class="visible-xs visible-sm">';
+    txt += '<div class="col-xs-12 col-md-5" ><small><b>f&nbsp;=&nbsp;' + val.toPrecision(3) + '&nbsp;' + units[oom.toString()] + 'Hz</b></small></div>';
+  }
+  $('#lock_pidC_kd_text').html( txt   );
+
+  // Proportional part
+  mult= Math.abs(pidC_kp) / Math.pow(2,psrval[parseInt($('#lock_pidC_PSR').val())] ) ;
+  if ( pidC_kp === 0 ){
+    txt="0";
+  }else{
+    sgn_tag = Math.sign(pidC_kp)==1 ? '(-)' : '(+)' ;
+    oom = Math.min( 0 , Math.ceil(Math.log10(mult)/3) );
+    val = Math.sign(pidC_kp)*mult/(Math.pow(10,3*oom));
+    txt = "&nbsp;" + val.toFixed(3) + "&nbsp;" + magni[oom.toString()]+ "&nbsp;"+ sgn_tag ;
+  }
+
+  $('#lock_pidC_kp_text').html( '<div class="col-xs-12" ><small><b>'+txt+'</b></small></div>'   );
+
+  // set - point
+  setpoint=Math.round(pidC_sp / 8191*1000*100 )/100 ;
+  $('#lock_pidC_sp_text').html( "<small><b>"+setpoint.toFixed(2)+"&nbsp;mV</b></small>"   );
+
+  // offset
+  offset=Math.round(pidC_ofs / 8191*1000*100 )/100 ;
+  $('#lock_pidC_ofs_text').html( "<small><b>"+offset.toFixed(2)+"&nbsp;mV</b></small>"   );
+
+}
 
   function lock_modulation_update() {
     lock_gen_mod_phase_arr    = $("#lock_gen_mod_phase"    ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
@@ -2771,6 +2905,7 @@
 
     if ( $.inArray( param_name, [ 'lock_pidA_PSR', 'lock_pidA_ISR', 'lock_pidA_DSR', 'lock_pidA_SAT' ] )>-1 ) lock_pidA_update() ;
     if ( $.inArray( param_name, [ 'lock_pidB_PSR', 'lock_pidB_ISR', 'lock_pidB_DSR', 'lock_pidB_SAT' ] )>-1 ) lock_pidB_update() ;
+    if ( $.inArray( param_name, [ 'lock_pidC_PSR', 'lock_pidC_ISR', 'lock_pidC_DSR', 'lock_pidC_SAT' ] )>-1 ) lock_pidC_update() ;
     if ( $.inArray( param_name, [ 'lock_lpf_F1_tau', 'lock_lpf_F1_order', 'lock_lpf_F2_tau', 'lock_lpf_F2_order', 'lock_lpf_F3_tau', 'lock_lpf_F3_order', 'lock_lpf_sq_tau', 'lock_lpf_sq_order' ] )>-1 ) lpf_update();
 
     params.local[param_name] = parseInt(that.val());
@@ -2953,6 +3088,8 @@
     $('#lock_sf_AfrzI'                ).prop('checked', (params.original.lock_sf_AfrzI                    ? true : false));
     $('#lock_sf_BfrzO'                ).prop('checked', (params.original.lock_sf_BfrzO                    ? true : false));
     $('#lock_sf_BfrzI'                ).prop('checked', (params.original.lock_sf_BfrzI                    ? true : false));
+    $('#lock_sf_CfrzO'                ).prop('checked', (params.original.lock_sf_CfrzO                    ? true : false));
+    $('#lock_sf_CfrzI'                ).prop('checked', (params.original.lock_sf_CfrzI                    ? true : false));
     $('#lock_ramp_reset'              ).prop('checked', (params.original.lock_ramp_reset                  ? true : false));
     $('#lock_ramp_enable'             ).prop('checked', (params.original.lock_ramp_enable                 ? true : false));
     $('#lock_ramp_direction'          ).prop('checked', (params.original.lock_ramp_direction              ? true : false));
@@ -2962,11 +3099,15 @@
     $('#lock_pidB_irst'               ).prop('checked', (params.original.lock_pidB_irst                   ? true : false));
     $('#lock_pidB_freeze'             ).prop('checked', (params.original.lock_pidB_freeze                 ? true : false));
     $('#lock_pidB_ifreeze'            ).prop('checked', (params.original.lock_pidB_ifreeze                ? true : false));
+    $('#lock_pidC_irst'               ).prop('checked', (params.original.lock_pidC_irst                   ? true : false));
+    $('#lock_pidC_freeze'             ).prop('checked', (params.original.lock_pidC_freeze                 ? true : false));
+    $('#lock_pidC_ifreeze'            ).prop('checked', (params.original.lock_pidC_ifreeze                ? true : false));
+    $('#lock_ctrl_aux_set_pidC_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidC_enable    ? true : false));
     $('#lock_ctrl_aux_set_pidB_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidB_enable    ? true : false));
     $('#lock_ctrl_aux_set_pidA_enable').prop('checked', (params.original.lock_ctrl_aux_set_pidA_enable    ? true : false));
     $('#lock_ctrl_aux_set_ramp_enable').prop('checked', (params.original.lock_ctrl_aux_set_ramp_enable    ? true : false));
     $('#lock_ctrl_aux_lock_trig_rise' ).prop('checked', (params.original.lock_ctrl_aux_lock_trig_rise     ? true : false));
-
+    
     // Numbers
     $('#lock_lock_trig_val'      ).val(params.original.lock_lock_trig_val         );
     $('#lock_lock_trig_time_val' ).val(params.original.lock_lock_trig_time_val    );
@@ -2974,6 +3115,7 @@
     $('#lock_rl_signal_threshold').val(params.original.lock_rl_signal_threshold   );
     $('#lock_sf_jumpA'           ).val(params.original.lock_sf_jumpA              );
     $('#lock_sf_jumpB'           ).val(params.original.lock_sf_jumpB              );
+    $('#lock_sf_jumpC'           ).val(params.original.lock_sf_jumpC              );
     $('#lock_error_offset'       ).val(params.original.lock_error_offset          );
     $('#lock_gen_mod_phase'      ).val(params.original.lock_gen_mod_phase         );
     $('#lock_gen_mod_phase_sq'   ).val(params.original.lock_gen_mod_phase_sq      );
@@ -2987,15 +3129,17 @@
     $('#lock_pidA_kp'            ).val(params.original.lock_pidA_kp               );
     $('#lock_pidA_ki'            ).val(params.original.lock_pidA_ki               );
     $('#lock_pidA_kd'            ).val(params.original.lock_pidA_kd               );
-    $('#lock_pidA_ofs'           ).val(params.original.lock_pidA_ofs              );
     $('#lock_pidB_sp'            ).val(params.original.lock_pidB_sp               );
     $('#lock_pidB_kp'            ).val(params.original.lock_pidB_kp               );
     $('#lock_pidB_ki'            ).val(params.original.lock_pidB_ki               );
     $('#lock_pidB_kd'            ).val(params.original.lock_pidB_kd               );
-    $('#lock_pidB_ofs'           ).val(params.original.lock_pidB_ofs              );
+    $('#lock_pidC_sp'            ).val(params.original.lock_pidC_sp               );
+    $('#lock_pidC_kp'            ).val(params.original.lock_pidC_kp               );
+    $('#lock_pidC_ki'            ).val(params.original.lock_pidC_ki               );
+    $('#lock_pidC_kd'            ).val(params.original.lock_pidC_kd               );
     $('#lock_aux_A'              ).val(params.original.lock_aux_A                 );
     $('#lock_aux_B'              ).val(params.original.lock_aux_B                 );
-
+    
     // Switches
     $('#lock_oscA_sw'           ).val(params.original.lock_oscA_sw              );
     $('#lock_oscB_sw'           ).val(params.original.lock_oscB_sw              );
@@ -3033,8 +3177,13 @@
     $('#lock_pidB_ISR'          ).val(params.original.lock_pidB_ISR             );
     $('#lock_pidB_DSR'          ).val(params.original.lock_pidB_DSR             );
     $('#lock_pidB_SAT'          ).val(params.original.lock_pidB_SAT             );
+    $('#lock_pidC_sw'           ).val(params.original.lock_pidC_sw              );
+    $('#lock_pidC_PSR'          ).val(params.original.lock_pidC_PSR             );
+    $('#lock_pidC_ISR'          ).val(params.original.lock_pidC_ISR             );
+    $('#lock_pidC_DSR'          ).val(params.original.lock_pidC_DSR             );
+    $('#lock_pidC_SAT'          ).val(params.original.lock_pidC_SAT             );
     $('#lock_ctrl_aux_trig_type').val(params.original.lock_ctrl_aux_trig_type   );
-
+    
     // Buttons
     if (params.original.lock_osc_raw_mode){                 // lock_osc_raw_mode
       $('#lock_osc_raw_mode').removeClass('btn-default').addClass('btn-primary').data('checked',true);
@@ -3061,6 +3210,11 @@
     }else{
       $('#lock_ctrl_aux_launch_lock_trig').removeClass('btn-primary').addClass('btn-default').data('checked',false);
     }
+    if (params.original.lock_ctrl_aux_pidC_enable_ctrl){    // lock_ctrl_aux_pidC_enable_ctrl
+      $('#lock_ctrl_aux_pidC_enable_ctrl').removeClass('btn-default').addClass('btn-primary').data('checked',true);
+    }else{
+      $('#lock_ctrl_aux_pidC_enable_ctrl').removeClass('btn-primary').addClass('btn-default').data('checked',false);
+    }
     if (params.original.lock_ctrl_aux_pidB_enable_ctrl){    // lock_ctrl_aux_pidB_enable_ctrl
       $('#lock_ctrl_aux_pidB_enable_ctrl').removeClass('btn-default').addClass('btn-primary').data('checked',true);
     }else{
@@ -3086,7 +3240,7 @@
     }else{
       $('#lock_mod_harmonic_on').removeClass('btn-primary').addClass('btn-default').data('checked',false);
     }
-
+    
     // [LOLO DOCK LOADPARAMS END]
 
 
@@ -3095,6 +3249,7 @@
     lock_ctrl_update();
     lock_pidA_update();
     lock_pidB_update();
+    lock_pidC_update();
     lpf_update();
     display_update();
 
@@ -4061,6 +4216,7 @@
       params.storage[num].data['lock_ctrl_aux_ramp_enable_ctrl']   = 0 ;
       params.storage[num].data['lock_ctrl_aux_pidA_enable_ctrl']   = 0 ;
       params.storage[num].data['lock_ctrl_aux_pidB_enable_ctrl']   = 0 ;
+      params.storage[num].data['lock_ctrl_aux_pidC_enable_ctrl']   = 0 ;
     }
     // */
     user_editing = true;
@@ -4339,8 +4495,8 @@
                             <option  value="27">sqXo</option>
                             <option  value="28">sqYo</option>
                             <option  value="29">sqFo</option>
-                            <!--option value="30">0</option-->
-                            <!--option value="31">0</option-->
+                            <option value="30">PID C out</option>
+                            <option value="31">pidC_in</option>
                           </select>
                         </div>
                       </div>
@@ -4357,7 +4513,7 @@
                             <option  value="2" selected="selected">in2</option>
                             <option  value="3">error</option>
                             <option  value="4">ctrl_A</option>
-                            <option  value="5">ctrl_B</option>
+                            <option  value="5">ctrl_C</option>
                             <option  value="6">Ramp A</option>
                             <option  value="7">Ramp B</option>
                             <option  value="8">pidA_in</option>
@@ -4382,8 +4538,8 @@
                             <option  value="27">sqXo</option>
                             <option  value="28">sqYo</option>
                             <option  value="29">sqFo</option>
-                            <!--option value="30">0</option-->
-                            <!--option value="31">0</option-->
+                            <option value="30">PID C out</option>
+                            <option value="31">pidC_in</option>
                           </select>
                         </div>
                       </div>
@@ -4400,8 +4556,8 @@
                           <select id="lock_trig_sw" class="form-control">
                             <option  value="0" selected="selected">None</option>
                             <option  value="1">Pin</option>
-                            <option  value="2">Ramp floor</option>
-                            <option  value="4">Ramp ceil</option>
+                            <option  value="2">Scan floor</option>
+                            <option  value="4">Scan ceil</option>
                             <option  value="8">harmonic mod.</option>
                             <option  value="16">Square mod.</option>
                             <option  value="32">Out of lock</option>
@@ -4488,8 +4644,8 @@
                             <option  value="3">in1-in2</option>
                             <option  value="4">sin_ref</option>
                             <option  value="5">cos_1f</option>
-                            <option  value="6">cos_2f</option>
-                            <option  value="7">cos_3f</option>
+                            <option  value="6">PID C out</option>
+                            <option  value="7">ctrl_C</option>
                             <option  value="8">sq_ref</option>
                             <option  value="9">sq_quad</option>
                             <option  value="10">sq_phas</option>
@@ -4609,8 +4765,8 @@
                                 <option  value="3">in1-in2</option>
                                 <option  value="4">sin_ref</option>
                                 <option  value="5">cos_1f</option>
-                                <option  value="6">cos_2f</option>
-                                <option  value="7">cos_3f</option>
+                                <option  value="6">PID C out</option>
+                                <option  value="7">ctrl_C</option>
                                 <option  value="8">sq_ref</option>
                                 <option  value="9">sq_phas</option>
                                 <option  value="10">Ramp A</option>
@@ -5214,7 +5370,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_reset">Ramp reset
+                          <input type="checkbox" id="lock_ramp_reset">Scan reset
                         </label>
                       </div>
                     </form>
@@ -5223,7 +5379,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_enable">Ramp enable
+                          <input type="checkbox" id="lock_ramp_enable">Scan enable
                         </label>
                       </div>
                     </form>
@@ -5232,7 +5388,7 @@
                     <form class="form-horizontal" role="form" onsubmit="return false;">
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
-                          <input type="checkbox" id="lock_ramp_direction">Ramp direction
+                          <input type="checkbox" id="lock_ramp_direction">Scan direction
                         </label>
                       </div>
                     </form>
@@ -5347,7 +5503,6 @@
                               <option  value="24">in1-in2</option>
                               <option value="25">PID B out</option>
                               <option value="26">PID C out</option>
-                              <!--option value="26">0</option-->
                               <!--option value="27">0</option-->
                               <!--option value="28">0</option-->
                               <!--option value="29">0</option-->
@@ -5653,7 +5808,6 @@
                               <option  value="24">in1-in2</option>
                               <option value="25">PID A out</option>
                               <option value="26">PID C out</option>
-                              <!--option value="26">0</option-->
                               <!--option value="27">0</option-->
                               <!--option value="28">0</option-->
                               <!--option value="29">0</option-->
@@ -5910,7 +6064,310 @@
                   </div>
 
                 </div>
+              </div><!-- PID B end -->
+
+              <!-- PID C ---------------------------------------------------->
+              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                <p class="text-center">
+                  <a data-toggle="collapse" href="#lock_pidC" aria-expanded="true" aria-controls="lock_pidC">
+                    <strong>PID C</strong>
+                  </a>
+                </p>
               </div>
+              <hr style="margin: 7px 7px">
+              <div id="lock_pidC" class="collapse">
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <div class="row">  <!-- label + reset -->
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group">
+                          <label for="lock_pidC_sw" class="col-xs-4 control-label">input:</label>
+                          <div class="col-xs-8">
+                            <select id="lock_pidC_sw" class="form-control">
+                              <option  value="0" selected="selected">error</option>
+                              <option data-tag="pidC_more" value="1">Xo</option>
+                              <option data-tag="pidC_more" value="2">Yo</option>
+                              <option data-tag="pidC_more" value="3">F1o</option>
+                              <option data-tag="pidC_more" value="4">F2o</option>
+                              <option data-tag="pidC_more" value="5">F3o</option>
+                              <option data-tag="pidC_more" value="6">sqXo</option>
+                              <option data-tag="pidC_more" value="7">sqYo</option>
+                              <option data-tag="pidC_more" value="8">sqFo</option>
+                              <option  value="9">signal_i</option>
+                              <option data-tag="pidC_more" value="10">Ramp A</option>
+                              <option data-tag="pidC_more" value="11">sin_ref</option>
+                              <option data-tag="pidC_more" value="12">cos_ref</option>
+                              <option data-tag="pidC_more" value="13">cos_1f</option>
+                              <option data-tag="pidC_more" value="14">cos_2f</option>
+                              <option data-tag="pidC_more" value="15">cos_3f</option>
+                              <option data-tag="pidC_more" value="16">sq_ref</option>
+                              <option data-tag="pidC_more" value="17">sq_quad</option>
+                              <option data-tag="pidC_more" value="18">sq_phas</option>
+                              <option data-tag="pidC_more" value="19">aux_A</option>
+                              <option data-tag="pidC_more" value="20">aux_B</option>
+                              <option data-tag="pidC_more" value="21">test14</option>
+                              <option  value="22">in1</option>
+                              <option  value="23">in2</option>
+                              <option  value="24">in1-in2</option>
+                              <option value="25">PID A out</option>
+                              <option value="26">PID C out</option>
+                              <!--option value="27">0</option-->
+                              <!--option value="28">0</option-->
+                              <!--option value="29">0</option-->
+                              <!--option value="30">0</option-->
+                              <!--option value="31">0</option-->
+                            </select>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_pidC_irst">reset integral
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_pidC_freeze">freeze out
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_pidC_ifreeze">freeze integral
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                  <hr style="margin: 7px 7px">
+
+                  <div class="row">
+                    <div class="row collapse"  data-tag="PidCOptions"> <!-- sp control -->
+                      <div class="panel-group col-xs-12 col-sm-5 col-md-5">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <div class="col-xs-12 col-sm-12">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidC_sp" step="1" min="-8192" max="8191">
+                              <span style="display: none;" class="input-group-btn" id="lock_pidC_sp_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-2 col-md-2">
+                        <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>sp:</b></small></div>
+                      </div>
+                      <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
+                        <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidC_sp_text">lock_pidC_sp</div>
+                      </div>
+                    </div>
+
+                      <div class="row collapse"  data-tag="PidCOptions"> <!-- offset control -->
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidC_ofs" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidC_ofs_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+  
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2">
+                          <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>ofs:</b></small></div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
+                          <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidC_ofs_text">lock_pidC_ofs</div>
+                        </div>
+                      </div>
+
+                    <!--hr style="margin: 7px 7px"-->
+
+                    <div style="border-style: solid; border-color: #FF9999;">
+                      <div class="row"> <!-- kp control -->
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidCctrl">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidC_kp" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidC_kp_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidCOptions">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12">
+                                <select id="lock_pidC_PSR" class="form-control">
+                                  <option  value="0">/1</option>
+                                  <option  value="1">/8</option>
+                                  <option  value="2">/64</option>
+                                  <option  value="3" selected="selected">/1024</option>
+                                  <option  value="4">/4096</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                          <div style="padding: 7px 0 10px;" class="col-xs-12">kp:</div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                          <div style="padding: 7px 0 10px;" class="row" id="lock_pidC_kp_text">lock_pidC_kp</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="border-style: solid; border-color: #99FF99;">
+                      <div class="row"> <!-- ki control -->
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12"  data-tag="PidCctrl">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidC_ki" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidC_ki_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidCOptions">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12">
+                                <select id="lock_pidC_ISR" class="form-control">
+                                  <option  value="0">8 ns</option>
+                                  <option  value="1">64 ns</option>
+                                  <option  value="2">512 ns</option>
+                                  <option  value="3">8 us</option>
+                                  <option  value="4">6 us</option>
+                                  <option  value="5">524 us</option>
+                                  <option  value="6">8 ms</option>
+                                  <option  value="7">67 ms</option>
+                                  <option  value="8" selected="selected">537 ms</option>
+                                  <option  value="9">9 s</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                          <div style="padding: 7px 0 10px;" class="col-xs-12">ki:</div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                          <div style="padding: 7px 0 10px;" class="row" id="lock_pidC_ki_text">lock_pidC_ki</div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div style="border-style: solid; border-color: #9999FF;">
+                      <div class="row"> <!-- kd control -->
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidCctrl">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidC_kd" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidC_kd_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidCOptions">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12">
+                                <select id="lock_pidC_DSR" class="form-control">
+                                  <option  value="0" selected="selected"> 0</option>
+                                  <option  value="1"> 3</option>
+                                  <option  value="2"> 6</option>
+                                  <option  value="3">10</option>
+                                  <option  value="4">13</option>
+                                  <option  value="5">16</option>
+                                </select>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2 text-center">
+                          <div style="padding: 7px 0 10px;" class="col-xs-12">kd:</div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-9 col-md-9 text-center">
+                          <div style="padding: 7px 0 10px;" class="row" id="lock_pidC_kd_text">lock_pidC_kd</div>
+                         </div>
+                      </div>
+                    </div>
+
+                  </div>
+                  <hr style="margin: 7px 7px">
+                  <div class="row">
+                    <div data-tag="PidBOptions" class="collapse">
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group">
+                            <label for="lock_pidC_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
+                            <div class="col-xs-8">
+                              <select id="lock_pidC_SAT" class="form-control">
+                                <option  value="0">&plusmn;122uV</option>
+                                <option  value="1">&plusmn;244uV</option>
+                                <option  value="2">&plusmn;488uV</option>
+                                <option  value="3">&plusmn;977uV</option>
+                                <option  value="4">&plusmn;2mV</option>
+                                <option  value="5">&plusmn;4mV</option>
+                                <option  value="6">&plusmn;8mV</option>
+                                <option  value="7">&plusmn;16mV</option>
+                                <option  value="8">&plusmn;31mV</option>
+                                <option  value="9">&plusmn;62mV</option>
+                                <option  value="10">&plusmn;125mV</option>
+                                <option  value="11">&plusmn;250mV</option>
+                                <option  value="12">&plusmn;500mV</option>
+                                <option  value="13" selected="selected">&plusmn;1 V</option>
+                              </select>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <p class="text-center">
+                        <button id="btn_PidCOptions" class="btn btn-default btn-lg" data-autozoom="false" onclick="$('#btn_PidCOptions').toggleClass('btn-default btn-primary');$('div[data-tag=PidCOptions]').toggleClass('in collapse') ; $('div[data-tag=PidCctrl]').toggleClass('col-md-5 col-md-12').toggleClass('col-sm-5 col-sm-12') ; $('option[data-tag=pidC_more]').toggle() ;">
+                          More Options
+                        </button>
+                      </p>
+                    </div>
+                  </div>
+
+                </div>
+              </div><!-- PID C end -->
 
             </div>
           </div> <!-- PIDs collapse end -->
@@ -6128,7 +6585,7 @@
                       <div class="panel-group col-xs-12">
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Ramp enable</button>
+                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
                           </div>
                         </form>
                       </div>
@@ -6149,6 +6606,16 @@
                         <form class="form-horizontal" role="form" onsubmit="return false;">
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_pidB_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;B enable</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="panel-group col-xs-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_pidC_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;C enable</button>
                           </div>
                         </form>
                       </div>
@@ -6189,7 +6656,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Ramp enable
+                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
                           </label>
                         </div>
                       </form>
@@ -6199,7 +6666,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_pidA_enable"checked>PID A enable
+                            <input type="checkbox" id="lock_ctrl_aux_set_pidA_enable" checked>PID A enable
                           </label>
                         </div>
                       </form>
@@ -6209,4 +6676,804 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;">
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable"checked>PID B enable
+                            <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable" checked>PID B enable
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_set_pidC_enable" checked>PID C enable
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group">
+                          <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
+                          <div class="col-xs-8">
+                            <select id="lock_ctrl_aux_trig_type" class="form-control">
+                              <option  value="0" selected="selected">OFF</option>
+                              <option  value="1">Time trigger</option>
+                              <option  value="2">Level Trigger</option>
+                              <option  value="3">Level+time Trigger</option>
+                            </select>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_sw">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group">
+                          <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
+                          <div class="col-xs-8">
+                            <select id="lock_lock_trig_sw" class="form-control">
+                              <option  value="0" selected="selected">error</option>
+                              <option  value="1">Xo</option>
+                              <option  value="2">Yo</option>
+                              <option  value="3">F1o</option>
+                              <option  value="4">F2o</option>
+                              <option  value="5">F3o</option>
+                              <option  value="6">sqXo</option>
+                              <option  value="7">sqYo</option>
+                              <option  value="8">sqFo</option>
+                              <option  value="9">signal_i</option>
+                              <option  value="10">Ramp A</option>
+                              <option  value="11">aux_A</option>
+                              <option  value="12">in1</option>
+                              <option  value="13">in2</option>
+                              <option  value="14">in1-in2</option>
+                              <option  value="15">PID A out</option>
+                            </select>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_time_val">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group">
+                          <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295">
+                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_time_val_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_time_val_text">lock_lock_trig_time_val</div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_val">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group">
+                          <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191">
+                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_val_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_val_text">lock_lock_trig_val</div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_ctrl_aux_lock_trig_rise">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_lock_trig_rise">trig upward?
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_btn_set_trig">
+                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <div class="form-group text-center">
+                          <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
+                          <br>
+                          <input type="checkbox" id="btn_set_trig_auto_zoom" checked>Auto-zoom
+                        </div>
+                      </form>
+                    </div>
+
+
+                  </div>
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- END left panel -->
+      </div>
+      <!-- Central column -->
+      <div class="col-xs-12 col-sm-6 col-md-6">
+        <!-- Plot holder -->
+        <div class="row">
+          <div class="graph-holder well well-small">
+            <div id="ytitle">Voltage [ V ]</div>
+            <div id="trigger_cnv_holder">
+              <canvas id="trigger_canvas" width="25" height="460"></canvas>
+              <div id="trigger_tooltip"></div>
+            </div>
+            <div id="plot_holder"></div>
+            <div id="xtitle"></div>
+          </div>
+        </div>
+        <!-- Mouse position -->
+        <div class="row">
+          <div class="panel-body">
+            <div id='mousepos'><p><label>Mouse position</label> <span id='hoverdata'></span></p></div>
+          </div>
+        </div>
+        <!-- Bottom panel group -->
+        <div class="row">
+          <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="bottom_panel">
+            <!-- Display panel -->
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" href="#slow_lock_in_display">
+                    Harmonic Lock-in
+                  </a>
+                </h4>
+              </div>
+              <div id="slow_lock_in_display" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <!-- div class="panel-group col-xs-12 col-sm-12 col-md-12" -->
+
+                  <div class="row text-center">
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_x">X</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_x">Valor</span></h2>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_x_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;" ></div>
+                      </div>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_y">Y</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_y">Valor</span></h2>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_y_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row text-center">
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_r">R</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_r">Valor</span></h2>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_fi">ϕ</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_fi">Valor</span></h2>
+                    </div>
+                  </div>
+
+                  <div class="row text-center">
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <h3><label class="group-label" for="disp_F1">F1</label></h3>
+                      <h3><span class="label label-info" style="display:block;" id="disp_F1">Valor</span></h3>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_F1_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
+                      </div>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <h3><label class="group-label" for="disp_F2">F2</label></h3>
+                      <h3><span class="label label-info" style="display:block;" id="disp_F2">Valor</span></h3>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_F2_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
+                      </div>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                      <h3><label class="group-label" for="disp_F3">F3</label></h3>
+                      <h3><span class="label label-info" style="display:block;" id="disp_F3">Valor</span></h3>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_F3_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+
+              </div>
+            </div>
+            <div class="panel panel-default">
+              <div class="panel-heading">
+                <h4 class="panel-title">
+                  <a data-toggle="collapse" href="#fast_lock_in_display">
+                    Square Lock-in
+                  </a>
+                </h4>
+              </div>
+              <div id="fast_lock_in_display" class="panel-collapse collapse">
+                <div class="panel-body">
+                  <div class="row text-center">
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_sqx">X</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_sqx">Valor</span></h2>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_sqx_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;" ></div>
+                      </div>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_sqy">Y</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_sqy">Valor</span></h2>
+                      <div class="progress" style="height: 5px;">
+                        <div id="disp_sqy_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div class="row text-center">
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_sqr">R</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_sqr">Valor</span></h2>
+                    </div>
+                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                      <h2><label class="group-label" for="disp_sqfi">ϕ</label></h2>
+                      <h2><span class="label label-info" style="display:block;" id="disp_sqfi">Valor</span></h2>
+                    </div>
+                  </div>
+                </div>
+
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+
+      </div>
+      <!-- END OF Bottom panel group -->
+      <!--/  div  LOLO ERASE -->
+      <div class="panel-group col-xs-12 col-sm-3 col-md-3" id="accordion">
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#trigger">
+                Trigger
+              </a>
+            </h4>
+          </div>
+          <div id="trigger" class="panel-collapse collapse in">
+            <div class="panel-body">
+              <form class="form-horizontal" role="form" onsubmit="return false;">
+                <div class="form-group">
+                  <label for="trig_source" class="col-xs-4 control-label">Source:</label>
+                  <div class="col-xs-8">
+                    <select id="trig_source" class="form-control">
+                      <option value="0">Channel 1</option>
+                      <option value="1">Channel 2</option>
+                      <option value="2">External</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="trig_mode" class="col-xs-4 control-label">Mode:</label>
+                  <div class="col-xs-8">
+                    <select id="trig_mode" class="form-control">
+                      <option value="0">Auto</option>
+                      <option value="1">Normal</option>
+                      <option value="2">Single</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="trig_edge" class="col-xs-4 control-label">Edge:</label>
+                  <div class="col-xs-8">
+                    <select id="trig_edge" class="form-control">
+                      <option value="0">Rising</option>
+                      <option value="1">Falling</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="trig_level" class="col-xs-4 control-label">Level:</label>
+                  <div class="col-xs-5">
+                    <input type="text" id="trig_level" value="0" class="form-control" autocomplete="off">
+                    <span id="apply_trig_level" class="input-group-btn" style="display: none;">
+                      <button class="btn btn-primary btn-lg" type="button"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                    </span>
+                  </div>
+                  <div id="trig_lev_units" class="col-xs-3" style="padding: 7px 0 0;">V</div>
+                </div>
+              </form>
+              <div class="row">
+                <div class="col-xs-4"> </div>
+                <div class="col-xs-5">
+                  <button id="btn_single" class="btn btn-primary" onclick="singleUpdate()" disabled>
+                    <span class="glyphicon glyphicon-step-forward"></span> Single
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#range">
+                Range
+              </a>
+            </h4>
+          </div>
+          <div id="range" class="panel-collapse collapse">
+            <div class="panel-body">
+              <form class="form-horizontal" role="form" onsubmit="return false;">
+                <div class="form-group">
+                  <label class="col-xs-4 col-sm-3 control-label" style="padding-top: 35px;">Range:</label>
+                  <div class="col-xs-8 col-sm-9">
+                    <div class="row">
+                      <div class="col-xs-6 text-center">
+                        <div class="group-label" style="padding-bottom: 10px;">X axis</div>
+                        <div class="btn-group" style="margin-bottom: -9px;">
+                          <button id="range_x_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
+                            <span class="glyphicon glyphicon-minus"></span>
+                          </button>
+                          <button id="range_x_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
+                            <span class="glyphicon glyphicon-plus"></span>
+                          </button>
+                        </div>
+                        <div>
+                          <span id="range_x" class="badge range-badge">-</span>
+                        </div>
+                      </div>
+                      <div class="col-xs-6 text-center">
+                        <div class="group-label" style="padding-bottom: 10px;">Y axis</div>
+                        <div class="btn-group" style="margin-bottom: -9px;">
+                          <button id="range_y_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
+                            <span class="glyphicon glyphicon-minus"></span>
+                          </button>
+                          <button id="range_y_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
+                            <span class="glyphicon glyphicon-plus"></span>
+                          </button>
+                        </div>
+                        <div>
+                          <span id="range_y" class="badge range-badge">-</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label class="col-xs-4 col-sm-3 control-label">Offset:</label>
+                  <div class="col-xs-8 col-sm-9">
+                    <div class="row">
+                      <div class="col-xs-6 text-center">
+                        <div class="btn-group" style="margin-bottom: -9px;">
+                          <button id="offset_x_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
+                            <span class="glyphicon glyphicon-minus"></span>
+                          </button>
+                          <button id="offset_x_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
+                            <span class="glyphicon glyphicon-plus"></span>
+                          </button>
+                        </div>
+                      </div>
+                      <div class="col-xs-6 text-center">
+                        <div class="btn-group" style="margin-bottom: -9px;">
+                          <button id="offset_y_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
+                            <span class="glyphicon glyphicon-minus"></span>
+                          </button>
+                          <button id="offset_y_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
+                            <span class="glyphicon glyphicon-plus"></span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#measure">
+                Measure
+              </a>
+            </h4>
+          </div>
+          <div id="measure" class="panel-collapse collapse">
+            <div class="panel-body">
+              <div class="row group-label">
+                <div class="col-xs-6" style="text-align: center">Channel 1</div>
+                <div class="col-xs-6" style="text-align: center">Channel 2</div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Min:</div>
+                <div class="col-xs-3"><span id="info_ch1_min">-</span><span class="unit">V</span></div>
+                <div class="col-xs-3 txt-right">Min:</div>
+                <div class="col-xs-3"><span id="info_ch2_min">-</span><span class="unit">V</span></div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Max:</div>
+                <div class="col-xs-3"><span id="info_ch1_max">-</span><span class="unit">V</span></div>
+                <div class="col-xs-3 txt-right">Max:</div>
+                <div class="col-xs-3"><span id="info_ch2_max">-</span><span class="unit">V</span></div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Amp:</div>
+                <div class="col-xs-3"><span id="info_ch1_amp">-</span><span class="unit">Vpp</span></div>
+                <div class="col-xs-3 txt-right">Amp:</div>
+                <div class="col-xs-3"><span id="info_ch2_amp">-</span><span class="unit">Vpp</span></div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Avg:</div>
+                <div class="col-xs-3"><span id="info_ch1_avg">-</span><span class="unit">V</span></div>
+                <div class="col-xs-3 txt-right">Avg:</div>
+                <div class="col-xs-3"><span id="info_ch2_avg">-</span><span class="unit">V</span></div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Freq:</div>
+                <div class="col-xs-3" id="info_ch1_freq">-<span class="unit">Hz</span></div>
+                <div class="col-xs-3 txt-right">Freq:</div>
+                <div class="col-xs-3" id="info_ch2_freq">-<span class="unit">Hz</span></div>
+              </div>
+              <div class="row">
+                <div class="col-xs-3 txt-right">Period:</div>
+                <div class="col-xs-3" id="info_ch1_period">-<span class="unit">s</span></div>
+                <div class="col-xs-3 txt-right">Period:</div>
+                <div class="col-xs-3" id="info_ch2_period">-<span class="unit">s</span></div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#gain">
+                Gain settings
+              </a>
+            </h4>
+          </div>
+          <div id="gain" class="panel-collapse collapse">
+            <div class="panel-body">
+              <form class="form-horizontal" role="form" onsubmit="return false;">
+                <div class="group-label" style="padding-bottom: 10px;">Channel 1</div>
+                <div class="form-group">
+                  <label for="gain_ch1_att" class="col-xs-4 col-sm-6 control-label">Probe attenuation:</label>
+                  <div class="col-xs-4 col-sm-5">
+                    <select class="form-control" id="gain_ch1_att">
+                      <option value="0">1x</option>
+                      <option value="1">10x</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="gain_ch1_sett" class="col-xs-4 col-sm-6 control-label">Gain setting:</label>
+                  <div class="col-xs-4 col-sm-5">
+                    <select class="form-control" id="gain_ch1_sett">
+                      <option value="0">LV</option>
+                      <option value="1">HV</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="group-label" style="padding: 10px 0;">Channel 2</div>
+                <div class="form-group">
+                  <label for="gain_ch2_att" class="col-xs-4 col-sm-6 control-label">Probe attenuation:</label>
+                  <div class="col-xs-4 col-sm-5">
+                    <select class="form-control" id="gain_ch2_att">
+                      <option value="0">1x</option>
+                      <option value="1">10x</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label for="gain_ch2_sett" class="col-xs-4 col-sm-6 control-label">Gain setting:</label>
+                  <div class="col-xs-4 col-sm-5">
+                    <select class="form-control" id="gain_ch2_sett">
+                      <option value="0">LV</option>
+                      <option value="1">HV</option>
+                    </select>
+                  </div>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#monitor">
+                Monitor
+              </a>
+            </h4>
+          </div>
+          <div id="monitor" class="panel-collapse collapse">
+            <div class="panel-body">
+
+              <div class="row text-center">
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <h2><label class="group-label" for="disp_error_mean">error mean [int]</label></h2>
+                  <h2><span class="label label-info" style="display:block;" id="disp_error_mean">Valor</span></h2>
+                  <!--div class="progress" style="height: 5px;">
+                    <  div id="disp_error_mean_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></  div  >
+                  </   div-->
+                </div>
+
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <h2><label class="group-label" for="disp_error_std">error std [int]</label></h2>
+                  <h2><span class="label label-info" style="display:block;" id="disp_error_std">Valor</span></h2>
+                  <!--div class="progress" style="height: 5px;">
+                    <  div id="disp_error_std_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></  div>
+                  </   div-->
+                </div>
+
+                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  1&nbsp;second
+                </div>
+
+              </div>
+
+            </div>
+          </div> <!--  ------------------------------------------------------- -->
+        </div>
+      </div>
+    </div>
+    <div class="footer clearfix">
+      <p class="pull-right" style="margin: 4px 0 0">&copy; 2014 - Red Pitaya</p>
+    </div>
+  </div>
+  <div id="modal_err" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_err_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_err_label">Application error</h4>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default btn-close-modal" id="btn_ignore">Ignore</button>
+          <button type="button" class="btn btn-default" id="btn_retry_get">Retry</button>
+          <button type="button" class="btn btn-primary btn-app-restart">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal_help" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_help_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_help_label">Application HELP</h4>
+        </div>
+        <div class="modal-body"></div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default btn-close-modal" id="btn_close">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="modal_save" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_save_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_save_label">Save plot data</h4>
+        </div>
+        <div class="modal-body">
+          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="save_python">Save Python+Numpy vectors</a></p>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="copy_python" href="">Copy Python+Numpy vectors</a></p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                <p class="text-center">
+                  <a data-toggle="collapse" href="#python_hide" aria-expanded="true" aria-controls="python_hide">
+                    show
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div id="python_hide" class="collapse text-center">
+            <p>
+              <textarea id="text_python_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
+            </p>
+          </div>
+          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="save_matlab">Save Matlab/Octave vectors</a></p>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="copy_matlab" href="">Copy Matlab/Octave vectors</a></p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                <p class="text-center">
+                  <a data-toggle="collapse" href="#matlab_hide" aria-expanded="true" aria-controls="matlab_hide">
+                    show
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div id="matlab_hide" class="collapse text-center">
+            <p>
+              <textarea id="text_matlab_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
+            </p>
+          </div>
+          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="save_csv">Save CSV</a></p>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                <p><a id="copy_csv" href="">Copy CSV</a></p>
+              </div>
+            </div>
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                <p class="text-center">
+                  <a data-toggle="collapse" href="#csv_hide" aria-expanded="true" aria-controls="csv_hide">
+                    show
+                  </a>
+                </p>
+              </div>
+            </div>
+          </div>
+          <div id="csv_hide" class="collapse text-center">
+            <p>
+              <textarea id="text_csv_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
+            </p>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default btn-close-modal" id="btn_close_save">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+
+
+  <div id="modal_config" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_config_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_config_label">Configuration</h4>
+        </div>
+
+        <div class="modal-body">
+          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+
+            <div class="row">
+              <form class="form-horizontal" role="form" onsubmit="return false;">
+                <div class="form-group">
+                  <div class="panel-group col-xs-12 col-sm-4 col-md-4">
+                    <label for="config_name_input" class="col-xs-4 control-label">Config&nbsp;Name:</label>
+                  </div>
+                  <div class="panel-group col-xs-12 col-sm-8 col-md-8">
+                    <input type="text" autocomplete="off" class="form-control" value=" " id="config_name_input">
+                  </div>
+                </div>
+              </form>
+            </div> <!-- row end -->
+
+            <hr>
+
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
+                <button id="btn_config_save_browser" class="btn btn-primary btn-lg" onclick="config_save_storage( $('#config_name_input').val() );config_show_storage();" >Save in browser</button>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
+                <a id="btn_config_save_file" class="btn btn-primary btn-lg" >Save as file</a>
+              </div>
+            </div> <!-- row end -->
+            <br>
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-4 col-md-4 text-center">
+                <label for="btn_config_load_file" class="col-xs-4 control-label">Load&nbsp;file:</label>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-8 col-md-8 text-center">
+                <input id="btn_config_load_file" type="file"  name="files[]" class="btn btn-primary btn-lg" >
+              </div>
+            </div> <!-- row end -->
+            <div class="row">
+              <div class="panel-group col-xs-12"></div>
+              <div class="panel-group col-xs-1"></div>
+              <div class="panel-group col-xs-11">
+                <form class="form-horizontal" role="form" onsubmit="return false;">
+                  <div class="checkbox" style="padding-bottom: 12px;">
+                    <label class="group-label">
+                      <input type="checkbox" id="load_config_block_start" checked>
+                      Don't turn on PIDs and Ramp on config loading
+                    </label>
+                  </div>
+                </form>
+              </div>
+            </div> <!-- row end -->
+            <hr>
+
+            <div class="row">
+              <div id="config_storage_table" class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                <p>container</p>
+              </div>
+            </div> <!-- row end -->
+
+          </div>
+
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default btn-close-modal" id="btn_close_config">Close</button>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+
+
+  <div id="modal_app" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_app_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_app_label">Application stopped</h4>
+        </div>
+        <div class="modal-body">
+          The <strong><span class="app-id"></span></strong> application was stopped. The current started application is <strong><span id="new_app_id"></span></strong>.<br />
+          Do you want to switch to newly started application or to restart <strong><span class="app-id"></span></strong>?
+        </div>
+        <div class="modal-footer">
+          <a href="/index.html" class="btn btn-danger pull-left">Exit app</a>
+          <button type="button" class="btn btn-default" id="btn_switch_app">Switch</button>
+          <button type="button" class="btn btn-primary btn-app-restart">Restart</button>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="modal_upload" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_upload_label" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_upload_label">File upload for channel <span></span></h4>
+        </div>
+        <div class="modal-body">
+          <form id="upload_form" role="form">
+            <div class="form-group">
+              <input type="file" name="file_select" id="uploaded_file">
+              <input type="hidden" name="file_content" id="uploaded_file_content">
+              <p class="help-block">Select the CSV file to upload.</p>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer" style="margin-top: 0;">
+          <button type="button" class="btn btn-default btn-close-modal">Close</button>
+          <button type="button" class="btn btn-primary" onclick="startUpload()">Upload</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

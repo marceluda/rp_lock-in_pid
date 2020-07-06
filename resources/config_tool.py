@@ -14,13 +14,14 @@ import enum
 
 APP='lock_in+pid'
 
-do_verilog = False
-do_main    = False
-do_html    = False
+do_verilog = True
+do_main    = True
+do_html    = True
 do_py      = False
 
 #folder=''
 #folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid'
+folder = 'C:\\Users\\Stefan Putz\\Documents\\fpga\\rp_lock-in_pid\\'
 
 
 #%%
@@ -113,8 +114,8 @@ f.add( name="slow_out4_sw"       , group=grp , val=    0, rw=True ,  nbits= 4, m
 
 # Lock control
 grp='lock_control'
-f.add( name="lock_control"       , group=grp , val= 1148, rw=True ,  nbits=11, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control help" )
-f.add( name="lock_feedback"      , group=grp , val= 1148, rw=False,  nbits=11, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control feedback" )
+f.add( name="lock_control"       , group=grp , val= 1148, rw=True ,  nbits=13, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control help" )
+f.add( name="lock_feedback"      , group=grp , val= 1148, rw=False,  nbits=13, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control feedback" )
 f.add( name="lock_trig_val"      , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="if lock_control ?? , this vals sets the voltage threshold that turns on the lock" )
 f.add( name="lock_trig_time"     , group=grp , val=    0, rw=True ,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=True , signed=False, desc="if lock_control ?? , this vals sets the time threshold that turns on the lock" )
 f.add( name="lock_trig_sw"       , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="selects signal for trigger" )
@@ -696,8 +697,8 @@ m.add( name="lock_slow_out3_sw"  , fpga_reg="slow_out3_sw"  , val=0    , rw=True
 m.add( name="lock_slow_out4_sw"  , fpga_reg="slow_out4_sw"  , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="outputs"        , desc="switch for muxer slow_out4")
 
 # group: lock_control
-m.add( name="lock_lock_control"  , fpga_reg="lock_control"  , val=1148 , rw=True , nbits=11, min_val=0         , max_val=2047      , fpga_update=True , signed=False, group="lock_control"   , desc="lock_control help")
-m.add( name="lock_lock_feedback" , fpga_reg="lock_feedback" , val=1148 , rw=False, nbits=11, min_val=0         , max_val=2047      , fpga_update=False, signed=False, group="lock_control"   , desc="lock_control feedback")
+m.add( name="lock_lock_control"  , fpga_reg="lock_control"  , val=1148 , rw=True , nbits=13, min_val=0         , max_val=2047      , fpga_update=True , signed=False, group="lock_control"   , desc="lock_control help")
+m.add( name="lock_lock_feedback" , fpga_reg="lock_feedback" , val=1148 , rw=False, nbits=13, min_val=0         , max_val=2047      , fpga_update=False, signed=False, group="lock_control"   , desc="lock_control feedback")
 m.add( name="lock_lock_trig_val" , fpga_reg="lock_trig_val" , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="lock_control"   , desc="if lock_control ?? , this vals sets the voltage threshold that turns on the lock")
 m.add( name="lock_lock_trig_time_val", fpga_reg="lock_trig_time", val=0    , rw=True , nbits=32, min_val=0         , max_val=4294967295, fpga_update=True , signed=False, group="lock_control"   , desc="if lock_control ?? , this vals sets the time threshold that turns on the lock")
 r.main_reg='lock_'+r.name
@@ -720,6 +721,7 @@ m.add( name="lock_rl_state"           ,fpga_reg="rl_state"           ,val=0,rw=F
 
 m.add( name="lock_sf_jumpA"            , fpga_reg="sf_jumpA"            , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="lock_control"   , desc="Step function measure jump value for ctrl_A")
 m.add( name="lock_sf_jumpB"            , fpga_reg="sf_jumpB"            , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="lock_control"   , desc="Step function measure jump value for ctrl_B")
+m.add( name="lock_sf_jumpC"            , fpga_reg="sf_jumpC"            , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="lock_control"   , desc="Step function measure jump value for ctrl_C")
 
 #m.add( name="lock_sf_config"          , fpga_reg="sf_config"          , val=0    , rw=True , nbits=5 , min_val=0         , max_val=31        , fpga_update=True , signed=False, group="lock_control"   , desc="Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] ")
 m.add( name="lock_sf_start"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function start ")
@@ -988,7 +990,7 @@ for i,ii in enumerate([ 'lock_ctrl_aux_lock_now',
                         'lock_ctrl_aux_set_ramp_enable',
                         'lock_ctrl_aux_trig_type']):
     f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  + \n'.format(m[ii].cdef,2**i)
-f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  ) '.format(m['lock_ctrl_aux_lock_trig_rise'].cdef,2**10)
+f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  ) '.format(m['lock_ctrl_aux_lock_trig_rise'].cdef,2**12)
 
 
 
