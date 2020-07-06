@@ -105,14 +105,16 @@ int lock_update(rp_app_params_t *params)
     g_lock_reg->lock_control              = (int) (
                                            ((int)params[LOCK_CTRL_AUX_LOCK_NOW        ].value)   *     1  + 
                                            ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value)   *     2  + 
-                                           ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value)   *     4  + 
-                                           ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value)   *     8  + 
-                                           ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value)   *    16  + 
-                                           ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value)   *    32  + 
-                                           ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value)   *    64  + 
-                                           ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value)   *   128  + 
-                                           ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value)   *   256  + 
-                                           ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value)   *  1024  ) ;
+                                           ((int)params[LOCK_CTRL_AUX_PIDC_ENABLE_CTRL].value)   *     4  + 
+                                           ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value)   *     8  + 
+                                           ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value)   *    16  + 
+                                           ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value)   *    32  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_PIDC_ENABLE ].value)   *    64  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value)   *   128  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value)   *   256  + 
+                                           ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value)   *   512  + 
+                                           ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value)   *  1024  + 
+                                           ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value)   *  4096  ) ;
   //g_lock_reg->lock_feedback             = (int)params[LOCK_LOCK_FEEDBACK            ].value;
     g_lock_reg->lock_trig_val             = (int)params[LOCK_LOCK_TRIG_VAL            ].value;
     g_lock_reg->lock_trig_time            = (int)params[LOCK_LOCK_TRIG_TIME_VAL       ].value;
@@ -124,6 +126,7 @@ int lock_update(rp_app_params_t *params)
   //g_lock_reg->rl_state                  = (int)params[LOCK_RL_STATE                 ].value;
     g_lock_reg->sf_jumpA                  = (int)params[LOCK_SF_JUMPA                 ].value;
     g_lock_reg->sf_jumpB                  = (int)params[LOCK_SF_JUMPB                 ].value;
+    g_lock_reg->sf_jumpC                  = (int)params[LOCK_SF_JUMPC                 ].value;
     g_lock_reg->sf_config                 = (((int)params[LOCK_SF_BFRZI].value) << 4 ) +(((int)params[LOCK_SF_BFRZO].value) << 3 ) +(((int)params[LOCK_SF_AFRZI].value) << 2 ) + (((int)params[LOCK_SF_AFRZO].value) << 1 ) + ((int)params[LOCK_SF_START].value);
     g_lock_reg->signal_sw                 = (int)params[LOCK_SIGNAL_SW                ].value;
   //g_lock_reg->signal_i                  = (int)params[LOCK_SIGNAL_I                 ].value;
@@ -211,6 +214,19 @@ int lock_update(rp_app_params_t *params)
   //g_lock_reg->pidB_out                  = (int)params[LOCK_PIDB_OUT                 ].value;
     g_lock_reg->pidB_ctrl                 = (((int)params[LOCK_PIDB_IFREEZE].value)<<2) + (((int)params[LOCK_PIDB_FREEZE].value)<<1) + ((int)params[LOCK_PIDB_IRST].value);
   //g_lock_reg->ctrl_B                    = (int)params[LOCK_CTRL_B                   ].value;
+    g_lock_reg->pidC_sw                   = (int)params[LOCK_PIDC_SW                  ].value;
+    g_lock_reg->pidC_PSR                  = (int)params[LOCK_PIDC_PSR                 ].value;
+    g_lock_reg->pidC_ISR                  = (int)params[LOCK_PIDC_ISR                 ].value;
+    g_lock_reg->pidC_DSR                  = (int)params[LOCK_PIDC_DSR                 ].value;
+    g_lock_reg->pidC_SAT                  = (int)params[LOCK_PIDC_SAT                 ].value;
+    g_lock_reg->pidC_sp                   = (int)params[LOCK_PIDC_SP                  ].value;
+    g_lock_reg->pidC_kp                   = (int)params[LOCK_PIDC_KP                  ].value;
+    g_lock_reg->pidC_ki                   = (int)params[LOCK_PIDC_KI                  ].value;
+    g_lock_reg->pidC_kd                   = (int)params[LOCK_PIDC_KD                  ].value;
+  //g_lock_reg->pidC_in                   = (int)params[LOCK_PIDC_IN                  ].value;
+  //g_lock_reg->pidC_out                  = (int)params[LOCK_PIDC_OUT                 ].value;
+    g_lock_reg->pidC_ctrl                 = (((int)params[LOCK_PIDC_IFREEZE].value)<<2) + (((int)params[LOCK_PIDC_FREEZE].value)<<1) + ((int)params[LOCK_PIDC_IRST].value);
+  //g_lock_reg->ctrl_C                    = (int)params[LOCK_CTRL_C                   ].value;
     g_lock_reg->aux_A                     = (int)params[LOCK_AUX_A                    ].value;
     g_lock_reg->aux_B                     = (int)params[LOCK_AUX_B                    ].value;
   // [FPGAUPDATE DOCK END]
@@ -276,6 +292,7 @@ int lock_update_main(rp_app_params_t *params)
     params[105].value = (float)g_lock_reg->rl_state              ; // lock_rl_state
     params[106].value = (float)g_lock_reg->sf_jumpA              ; // lock_sf_jumpA
     params[107].value = (float)g_lock_reg->sf_jumpB              ; // lock_sf_jumpB
+    params[LOCK_SF_JUMPC].value = (float)g_lock_reg->sf_jumpC    ;
     params[108].value = (float) ((g_lock_reg->sf_config      )& 0x01) ; // lock_sf_start
     params[109].value = (float) ((g_lock_reg->sf_config >> 1 )& 0x01) ; // lock_sf_AfrzO
     params[110].value = (float) ((g_lock_reg->sf_config >> 2 )& 0x01) ; // lock_sf_AfrzI
@@ -378,19 +395,54 @@ int lock_update_main(rp_app_params_t *params)
     params[204].value = (float) ((g_lock_reg->pidB_ctrl            >>1  )& 0x001) ; // lock_pidB_freeze
     params[205].value = (float) ((g_lock_reg->pidB_ctrl            >>2  )& 0x001) ; // lock_pidB_ifreeze
     params[206].value = (float)g_lock_reg->ctrl_B                ; // lock_ctrl_B
+    params[222].value = (float)g_lock_reg->pidC_sw               ; // lock_pidC_sw
+    params[223].value = (float)g_lock_reg->pidC_PSR              ; // lock_pidC_PSR
+    params[224].value = (float)g_lock_reg->pidC_ISR              ; // lock_pidC_ISR
+    params[225].value = (float)g_lock_reg->pidC_DSR              ; // lock_pidC_DSR
+    params[226].value = (float)g_lock_reg->pidC_SAT              ; // lock_pidC_SAT
+    params[227].value = (float)g_lock_reg->pidC_sp               ; // lock_pidC_sp
+    params[228].value = (float)g_lock_reg->pidC_kp               ; // lock_pidC_kp
+    params[229].value = (float)g_lock_reg->pidC_ki               ; // lock_pidC_ki
+    params[230].value = (float)g_lock_reg->pidC_kd               ; // lock_pidC_kd
+    params[231].value = (float)g_lock_reg->pidC_in               ; // lock_pidC_in
+    params[232].value = (float)g_lock_reg->pidC_out              ; // lock_pidC_out
+    params[233].value = (float) ((g_lock_reg->pidC_ctrl                 )& 0x001) ; // lock_pidC_irst
+    params[234].value = (float) ((g_lock_reg->pidC_ctrl            >>1  )& 0x001) ; // lock_pidC_freeze
+    params[235].value = (float) ((g_lock_reg->pidC_ctrl            >>2  )& 0x001) ; // lock_pidC_ifreeze
+    params[236].value = (float)g_lock_reg->ctrl_C                ; // lock_ctrl_C
     params[207].value = (float)g_lock_reg->aux_A                 ; // lock_aux_A
     params[208].value = (float)g_lock_reg->aux_B                 ; // lock_aux_B
     params[209].value = (float) (( g_lock_reg->lock_feedback >> 0 ) & 0x01 ) ; // lock_ctrl_aux_lock_now
     params[210].value = (float) (( g_lock_reg->lock_feedback >> 1 ) & 0x01 ) ; // lock_ctrl_aux_launch_lock_trig
-    params[211].value = (float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 ) ; // lock_ctrl_aux_pidB_enable_ctrl
-    params[212].value = (float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 ) ; // lock_ctrl_aux_pidA_enable_ctrl
-    params[213].value = (float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 ) ; // lock_ctrl_aux_ramp_enable_ctrl
-    params[214].value = (float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 ) ; // lock_ctrl_aux_set_pidB_enable
-    params[215].value = (float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 ) ; // lock_ctrl_aux_set_pidA_enable
-    params[216].value = (float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 ) ; // lock_ctrl_aux_set_ramp_enable
-    params[217].value = (float) (( g_lock_reg->lock_feedback >> 8 ) & 0x03 ) ; // lock_ctrl_aux_trig_type
-    params[218].value = (float) (( g_lock_reg->lock_feedback >>10 ) & 0x01 ) ; // lock_ctrl_aux_lock_trig_rise
+    params[LOCK_CTRL_AUX_PIDC_ENABLE_CTRL].value = (float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 ) ; // lock_ctrl_aux_pidC_enable_ctrl
+    params[211].value = (float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 ) ; // lock_ctrl_aux_pidB_enable_ctrl
+    params[212].value = (float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 ) ; // lock_ctrl_aux_pidA_enable_ctrl
+    params[213].value = (float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 ) ; // lock_ctrl_aux_ramp_enable_ctrl
+    params[LOCK_CTRL_AUX_SET_PIDC_ENABLE].value = (float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 ) ; // lock_ctrl_aux_set_pidC_enable
+    params[214].value = (float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 ) ; // lock_ctrl_aux_set_pidB_enable
+    params[215].value = (float) (( g_lock_reg->lock_feedback >> 8 ) & 0x01 ) ; // lock_ctrl_aux_set_pidA_enable
+    params[216].value = (float) (( g_lock_reg->lock_feedback >> 9 ) & 0x01 ) ; // lock_ctrl_aux_set_ramp_enable
+    params[217].value = (float) (( g_lock_reg->lock_feedback >>10 ) & 0x03 ) ; // lock_ctrl_aux_trig_type
+    params[218].value = (float) (( g_lock_reg->lock_feedback >>12 ) & 0x01 ) ; // lock_ctrl_aux_lock_trig_rise
     // [PARAMSUPDATE DOCK END]
 
     return 0;
 }
+
+    /** lock_ctrl has the following bits :
+     *
+     * lock_ctrl[ 0] --> lock_now         : start the lock rigth now
+     * lock_ctrl[ 1] --> launch_lock      : look for lock trigger condition
+     * lock_ctrl[  => 2] --> pidC_enable_ctrl --|
+     * lock_ctrl[ 2=> 3] --> pidB_enable_ctrl   |
+     * lock_ctrl[ 3=> 4] --> pidA_enable_ctrl   |--> actual state of enable controls
+     * lock_ctrl[ 4=> 5] --> ramp_enable_ctrl --|
+     * lock_ctrl[  => 6] --> set_pidC_enable --|      
+     * lock_ctrl[ 5=> 7] --> set_pidB_enable   |      end state of enable
+     * lock_ctrl[ 6=> 8] --> set_pidA_enable   |----> if lock condition
+     * lock_ctrl[ 7=> 9] --> set_ramp_enable --|      is met
+     * lock_ctrl[ 8=>10] --> trig_time        : fires trigger if time condition is met
+     * lock_ctrl[ 9=>11] --> trig_val         : fires trigger if threshold condition is met
+     * lock_ctrl[10=>12] --> lock_trig_rise   : derivative condition for threshold trigger
+     *
+     **/

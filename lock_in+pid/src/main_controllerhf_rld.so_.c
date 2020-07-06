@@ -426,9 +426,26 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidB_irst"                ,      0, 1, 0,            0,            1 }, /** pidB_irst **/
     { "lock_pidB_freeze"              ,      0, 1, 0,            0,            1 }, /** pidB_freeze **/
     { "lock_pidB_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidB_ifreeze **/
-    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidA_out + ramp_B **/
+    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidB_out + ramp_B **/
     { "lock_aux_A"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_aux_B"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
+    { "lock_sf_jumpC"                 ,      0, 1, 0,        -8192,         8191 }, /** Step function measure jump value for ctrl_C **/
+    { "lock_pidC_sw"                  ,      0, 1, 0,            0,           31 }, /** switch selector for pidC input **/
+    { "lock_pidC_PSR"                 ,      3, 1, 0,            0,            4 }, /** pidC PSR **/
+    { "lock_pidC_ISR"                 ,      8, 1, 0,            0,            9 }, /** pidC ISR **/
+    { "lock_pidC_DSR"                 ,      0, 1, 0,            0,            5 }, /** pidC DSR **/
+    { "lock_pidC_SAT"                 ,     13, 1, 0,            0,           13 }, /** pidC saturation control **/
+    { "lock_pidC_sp"                  ,      0, 1, 0,        -8192,         8191 }, /** pidC set_point **/
+    { "lock_pidC_kp"                  ,      0, 1, 0,        -8192,         8191 }, /** pidC proportional constant **/
+    { "lock_pidC_ki"                  ,      0, 1, 0,        -8192,         8191 }, /** pidC integral constant **/
+    { "lock_pidC_kd"                  ,      0, 1, 0,        -8192,         8191 }, /** pidC derivative constant **/
+    { "lock_pidC_in"                  ,      0, 0, 1,        -8192,         8191 }, /** pidC input **/
+    { "lock_pidC_out"                 ,      0, 0, 1,        -8192,         8191 }, /** pidC output **/
+    { "lock_pidC_irst"                ,      0, 1, 0,            0,            1 }, /** pidC_irst **/
+    { "lock_pidC_freeze"              ,      0, 1, 0,            0,            1 }, /** pidC_freeze **/
+    { "lock_pidC_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidC_ifreeze **/
+    { "lock_ctrl_C"                   ,      0, 0, 1,        -8192,         8191 }, /** control_C: pidC_out + ramp_C **/
+
     { "lock_ctrl_aux_lock_now"        ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_launch_lock_trig",      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_ctrl_aux_pidB_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
@@ -441,6 +458,8 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_ctrl_aux_lock_trig_rise"  ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_sq_on"                ,      0, 0, 0,            0,            1 }, /** todo **/
     { "lock_mod_harmonic_on"          ,      1, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_pidC_enable_ctrl",      1, 0, 0,            0,            1 }, /** todo **/
+    { "lock_ctrl_aux_set_pidC_enable" ,      1, 0, 0,            0,            1 }, /** todo **/
 
     // [MAINDEF DOCK END]
 

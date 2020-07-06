@@ -161,12 +161,13 @@ module gen_ramp #(parameter R=14)
     
     // outputs
     assign outA    = ramp_signal ;
-    
+
     // assign outB_28  = $signed(ramp_signal) * $signed(ramp_B_factor) ;
     
     mult_dsp_14  i_mult_dps_error_pow (.CLK(clk), .A($signed(ramp_signal)) , .B($signed(ramp_B_factor)), .P(outB_28));
     
     assign outB     = $signed(outB_28[26:0]) >>> 12 ;
+
     //assign outB     = relock_hig_lim ;
     //assign outB     = { 8'b0 , ramp_step_changed, trigger, slope , go , direction , enable};
     

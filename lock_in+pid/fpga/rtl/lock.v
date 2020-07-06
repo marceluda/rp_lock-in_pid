@@ -82,12 +82,12 @@ module lock(
     reg         [ 3-1:0] rl_signal_sw,rl_config;
     reg         [ 4-1:0] lock_trig_sw;
     reg         [ 5-1:0] sf_config;
-    reg         [11-1:0] lock_control;
+    reg         [13-1:0] lock_control;
     reg         [13-1:0] rl_error_threshold;
     reg         [32-1:0] lock_trig_time;
-    reg  signed [14-1:0] lock_trig_val,rl_signal_threshold,sf_jumpA,sf_jumpB;
+    reg  signed [14-1:0] lock_trig_val,rl_signal_threshold,sf_jumpA,sf_jumpB,sf_jumpC;
     wire        [ 5-1:0] rl_state;
-    wire        [11-1:0] lock_feedback;
+    wire        [13-1:0] lock_feedback;
 
     // mix --------------------------
     reg  signed [14-1:0] aux_A,aux_B;
@@ -114,6 +114,14 @@ module lock(
     reg         [14-1:0] pidB_SAT;
     reg  signed [14-1:0] pidB_sp,pidB_kp,pidB_ki,pidB_kd;
     wire signed [14-1:0] pidB_in,pidB_out,ctrl_B;
+
+    // pidC --------------------------
+    reg         [ 3-1:0] pidC_PSR,pidC_DSR,pidC_ctrl;
+    reg         [ 4-1:0] pidC_ISR;
+    reg         [ 5-1:0] pidC_sw;
+    reg         [14-1:0] pidC_SAT;
+    reg  signed [14-1:0] pidC_sp,pidC_kp,pidC_ki,pidC_kd;
+    wire signed [14-1:0] pidC_in,pidC_out,ctrl_C;
 
     // product_signals --------------------------
     reg         [ 3-1:0] read_ctrl;
@@ -144,7 +152,7 @@ module lock(
     wire        [32-1:0] test32  ;
 
     //pidA_ctrl: [ pidA_ifreeze: integrator freeze , pidA_freeze: output freeze , pidA_irst:integrator reset]
-    wire                 pidA_irst,pidB_irst,  pidA_freeze,pidB_freeze  , pidA_ifreeze,pidB_ifreeze;
+    wire                 pidA_irst,pidB_irst,pidC_irst,  pidA_freeze,pidB_freeze,pidX_freeze  , pidA_ifreeze,pidB_ifreeze,pidC_ifreeze;
 
     wire                 ramp_floor_trig,ramp_ceil_trig,harmonic_trig,square_trig,param_change,lock_ctrl_trig;
 
@@ -155,6 +163,10 @@ module lock(
     assign    pidB_irst    = pidB_ctrl[0];
     assign    pidB_freeze  = pidB_ctrl[1];
     assign    pidB_ifreeze = pidB_ctrl[2];
+
+    assign    pidC_irst    = pidC_ctrl[0];
+    assign    pidC_freeze  = pidC_ctrl[1];
+    assign    pidC_ifreeze = pidC_ctrl[2];
 
 
     assign    test14 = 14'b0 ;
@@ -180,7 +192,7 @@ module lock(
     // Definition of wires and regs ************************************
 
     wire                 lock_trig_rise ;
-    wire                 trig_val,trig_time,set_ramp_enable,set_pidA_enable,set_pidB_enable,ramp_enable_ctrl,pidA_enable_ctrl,pidB_enable_ctrl,launch_lock_trig,lock_now;
+    wire                 trig_val,trig_time,set_ramp_enable,set_pidA_enable,set_pidB_enable,set_pidC_enable,ramp_enable_ctrl,pidA_enable_ctrl,pidB_enable_ctrl,pidC_enable_ctrl,launch_lock_trig,lock_now;
 
     wire                 trigger_took_effect;
 
@@ -195,16 +207,16 @@ module lock(
     wire        [16-1:0] slow_out1_au,slow_out2_au,slow_out3_au,slow_out4_au ;
     wire        [24-1:0] slow_out1_aux,slow_out2_aux,slow_out3_aux,slow_out4_aux ;
 
-    wire signed [14-1:0] pidA_out_cache,pidB_out_cache ;
+    wire signed [14-1:0] pidA_out_cache,pidB_out_cache,pidC_out_cache ;
 
     wire signed [15-1:0] in1_m_in2,in1_m_in2_aux;
 
-    wire signed [16-1:0] pidA_plus_ramp,pidB_plus_ramp;
+    wire signed [16-1:0] pidA_plus_ramp,pidB_plus_ramp,pidC_plus_ramp;
     wire  jump_started,jump_trigger;
-    wire signed [14-1:0] sf_jumpA_val,sf_jumpB_val;
+    wire signed [14-1:0] sf_jumpA_val,sf_jumpB_val,sf_jumpC_val;
 
     reg  signed [28-1:0] X_28_reg,Y_28_reg,F1_28_reg,F2_28_reg,F3_28_reg,sqX_28_reg,sqY_28_reg,sqF_28_reg;
-    reg  signed [14-1:0] error_reg,ctrl_A_reg,ctrl_B_reg;
+    reg  signed [14-1:0] error_reg,ctrl_A_reg,ctrl_B_reg,ctrl_C_reg;
     reg         [50-1:0] cnt,cnt_reg;
     wire        [50-1:0] cnt_next;
     wire                 freeze ;
@@ -235,12 +247,17 @@ module lock(
 
     assign sf_jumpA_val = jump_started ? sf_jumpA : 14'b0 ;
     assign sf_jumpB_val = jump_started ? sf_jumpB : 14'b0 ;
+    assign sf_jumpC_val = jump_started ? sf_jumpC : 14'b0 ;
+
 
     assign pidA_plus_ramp  = $signed(pidA_out) + $signed(ramp_A) + $signed(sf_jumpA_val) ;
     satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_A  ( .in(pidA_plus_ramp),  .out(ctrl_A) );
 
     assign pidB_plus_ramp = $signed(pidB_out) + $signed(ramp_B)  + $signed(sf_jumpB_val) ;
     satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_B  ( .in(pidB_plus_ramp),  .out(ctrl_B) );
+
+    assign pidC_plus_ramp = $signed(pidC_out) + $signed(ramp_A)  + $signed(sf_jumpC_val) ;
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_ctrl_C  ( .in(pidC_plus_ramp),  .out(ctrl_C) );
 
 
     // ERASE sat14 #(.RES(15)) i_sat15_B_plus_ramp ( .in(pidB_plus_ramp_aux), .lim( 15'd13  ), .out(pidB_plus_ramp) );
@@ -267,8 +284,8 @@ module lock(
         .in22 ( Xo      ),   .in23 ( Yo    ),
         .in24 ( F1o     ),   .in25 ( F2o   ),  .in26 ( F3o   ),
         .in27 ( sqXo    ),   .in28 ( sqYo  ),  .in29 ( sqFo  ),
-        .in30 ( 14'b0 ), // in30
-        .in31 ( 14'b0 ), // in31
+        .in30 ( pidC_out_cache ), // in30
+        .in31 ( pidC_in ), // in31
         // output
         .out ( oscA  )
     );
@@ -280,7 +297,7 @@ module lock(
         .in0  ( 14'b0 ),
         .in1  ( in1     ),   .in2  ( in2     ),
         .in3  ( error  ),
-        .in4  ( ctrl_A  ),   .in5  ( ctrl_B  ),
+        .in4  ( ctrl_A  ),   .in5  ( ctrl_C  ),
         .in6  ( ramp_A  ),   .in7  ( ramp_B  ),
         .in8  ( pidA_in ),   .in9  ( pidB_in ),
         .in10 ( pidA_out_cache ),    .in11 ( pidB_out_cache  ),
@@ -291,8 +308,8 @@ module lock(
         .in22 ( Xo      ),   .in23 ( Yo    ),
         .in24 ( F1o     ),   .in25 ( F2o   ),  .in26 ( F3o    ),
         .in27 ( sqXo    ),   .in28 ( sqYo  ),  .in29 ( sqFo   ),
-        .in30 ( 14'b0 ), // in30
-        .in31 ( 14'b0 ), // in31
+        .in30 ( pidC_out_cache ), // in30
+        .in31 ( pidC_in ), // in31
         // output
         .out ( oscB  )
     );
@@ -342,8 +359,8 @@ module lock(
         .in3  ( in1_m_in2[14-1:0] ), // in3
         .in4  ( sin_ref           ), // in4
         .in5  ( cos_1f            ), // in5
-        .in6  ( cos_2f            ), // in6
-        .in7  ( cos_3f            ), // in7
+        .in6  ( pidC_out          ), // in6
+        .in7  ( ctrl_C            ), // in7
         .in8  ( sq_ref            ), // in8
         .in9  ( sq_quad           ), // in9
         .in10 ( sq_phas           ), // in10
@@ -501,8 +518,8 @@ module lock(
         .in3  ( in1_m_in2[14-1:0] ), // in3
         .in4  ( sin_ref           ), // in4
         .in5  ( cos_1f            ), // in5
-        .in6  ( cos_2f            ), // in6
-        .in7  ( cos_3f            ), // in7
+        .in6  ( pidC_out          ), // in6
+        .in7  ( ctrl_C            ), // in7
         .in8  ( sq_ref            ), // in8
         .in9  ( sq_phas           ), // in9
         .in10 ( ramp_A            ), // in10
@@ -721,7 +738,7 @@ module lock(
     lock_ctrl i_lock_ctrl (
         .clk(clk),  .rst(rst),
         // inputs
-        .lock_ctrl            ( lock_control[9:0]  ),
+        .lock_ctrl            ( lock_control[11:0]  ),
         .signal               ( lock_ctrl_signal   ),
         .ramp_trigger         ( ramp_floor_trig    ),
         .time_threshold       ( lock_trig_time     ),
@@ -731,22 +748,24 @@ module lock(
         .ramp_enable          ( ramp_enable_ctrl   ),
         .pidA_enable          ( pidA_enable_ctrl   ),
         .pidB_enable          ( pidB_enable_ctrl   ),
+        .pidC_enable          ( pidC_enable_ctrl   ),
         .lock_ctrl_trig       ( lock_ctrl_trig     )
     );
 
-    assign lock_trig_rise      =  lock_control[10];
-    assign trigger_took_effect = &{ ~(ramp_enable_ctrl^lock_control[7]) , ~(pidA_enable_ctrl^lock_control[6]) , ~(pidB_enable_ctrl^lock_control[5]) } ;
+    assign lock_trig_rise      =  lock_control[12];
+    assign trigger_took_effect = &{ ~(ramp_enable_ctrl^lock_control[9]) , ~(pidA_enable_ctrl^lock_control[8]) , ~(pidB_enable_ctrl^lock_control[7]) , ~(pidC_enable_ctrl^lock_control[6]) } ;
 
     wire  [2-1:0]  next_lock_cmd;
     assign next_lock_cmd       = trigger_took_effect ? 2'b0 : lock_control[1:0] ;
-    assign lock_feedback =   { lock_control[10:5]  ,
+    assign lock_feedback =   { lock_control[12:6]  ,
                                ramp_enable_ctrl ,
                                pidA_enable_ctrl ,
                                pidB_enable_ctrl ,
+                               pidC_enable_ctrl ,
                                next_lock_cmd
                                };
 
-    assign   trig_time        =   lock_control[8];
+    assign   trig_time        =   lock_control[10];
 
 
     muxer3  #(.RES(14)) muxer3_rl_signal_sw (
@@ -917,6 +936,7 @@ module lock(
             error_reg   <=  14'b0;
             ctrl_A_reg  <=  14'b0;
             ctrl_B_reg  <=  14'b0;
+            ctrl_C_reg  <=  14'b0;
             cnt         <=  50'b0;
             cnt_reg     <=  50'b0;
         end
@@ -933,6 +953,7 @@ module lock(
                 error_reg   <=  error_reg;
                 ctrl_A_reg  <=  ctrl_A_reg;
                 ctrl_B_reg  <=  ctrl_B_reg;
+                ctrl_C_reg  <=  ctrl_C_reg;
                 cnt_reg     <=  cnt_reg;
             end
             else begin
@@ -947,6 +968,7 @@ module lock(
                 error_reg   <=  error;
                 ctrl_A_reg  <=  ctrl_A;
                 ctrl_B_reg  <=  ctrl_B;
+                ctrl_C_reg  <=  ctrl_C;
                 cnt_reg     <=  cnt;
             end
             cnt     <=  cnt_next;
@@ -1103,7 +1125,7 @@ module lock(
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
         .in19  ( aux_A          ),        .in20  ( aux_B          ),        .in21  ( test14         ),
         .in22  ( in1            ),        .in23  ( in2            ),        .in24  ( in1_m_in2[14-1:0] ),
-        .in25  ( 14'b0      ),        .in26  ( 14'b0          ),        .in27  ( 14'b0          ),
+        .in25  ( pidB_out       ),        .in26  ( pidC_out       ),        .in27  ( 14'b0          ),
         .in28  ( 14'b0          ),        .in29  ( 14'b0          ),        .in30  ( 14'b0          ),
         .in31  ( 14'b0          ),
         // output
@@ -1152,7 +1174,7 @@ module lock(
         .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
         .in19  ( aux_A          ),        .in20  ( aux_B          ),        .in21  ( test14         ),
         .in22  ( in1            ),        .in23  ( in2            ),        .in24  ( in1_m_in2[14-1:0] ),
-        .in25  ( 14'b0          ),        .in26  ( 14'b0          ),        .in27  ( 14'b0          ),
+        .in25  ( pidA_out       ),        .in26  ( pidC_out       ),        .in27  ( 14'b0          ),
         .in28  ( 14'b0          ),        .in29  ( 14'b0          ),        .in30  ( 14'b0          ),
         .in31  ( 14'b0          ),
         // output
@@ -1189,6 +1211,57 @@ module lock(
     assign pidB_out = pidB_enable_ctrl ? pidB_out_cache : 14'b0 ;
 
 
+    muxer5  #(.RES(14)) i_muxer5_pidC (
+        // input
+        .sel  ( pidC_sw ), // select cable
+        .in0   ( error          ),
+        .in1   ( Xo             ),        .in2   ( Yo             ),
+        .in3   ( F1o            ),        .in4   ( F2o            ),        .in5   ( F3o            ),
+        .in6   ( sqXo           ),        .in7   ( sqYo           ),        .in8   ( sqFo           ),
+        .in9   ( signal_i       ),        .in10  ( ramp_A         ),
+        .in11  ( sin_ref        ),        .in12  ( cos_ref        ),
+        .in13  ( cos_1f         ),        .in14  ( cos_2f         ),        .in15  ( cos_3f         ),
+        .in16  ( sq_ref         ),        .in17  ( sq_quad        ),        .in18  ( sq_phas        ),
+        .in19  ( aux_A          ),        .in20  ( aux_B          ),        .in21  ( test14         ),
+        .in22  ( in1            ),        .in23  ( in2            ),        .in24  ( in1_m_in2[14-1:0] ),
+        .in25  ( pidA_out       ),        .in26  ( pidB_out       ),        .in27  ( 14'b0          ),
+        .in28  ( 14'b0          ),        .in29  ( 14'b0          ),        .in30  ( 14'b0          ),
+        .in31  ( 14'b0          ),
+        // output
+        .out ( pidC_in  )
+    );
+
+    wire   pidC_freeze_sf,pidC_ifreeze_sf;
+    assign pidC_freeze_sf  = sf_config[3] & jump_started ;
+    assign pidC_ifreeze_sf = sf_config[4] & jump_started ;
+
+    lock_pid_block i_lock_pid_block_C (
+       // data
+      .clk_i        (  clk            ),  // clock
+      .rstn_i       (  rst            ),  // reset
+      .pid_freeze   (  pidC_freeze   | pidC_freeze_sf  ),  // freeze output value
+      .pid_ifreeze  (  pidC_ifreeze  | pidC_ifreeze_sf ),  // freeze integrator memory value
+      .dat_i        (  pidC_in        ),  // input data
+      .sat_i        (  pidC_SAT       ),  // saturacion
+      .dat_o        (  pidC_out_cache       ),  // output data
+
+       // settings
+
+      .PSR          (  pidC_PSR     ),
+      .ISR          (  pidC_ISR     ),
+      .DSR          (  pidC_DSR     ),
+
+      .set_sp_i     (  pidC_sp      ),  // set point
+      .set_kp_i     (  pidC_kp      ),  // Kp
+      .set_ki_i     (  pidC_ki      ),  // Ki
+      .set_kd_i     (  pidC_kd      ),  // Kd
+      .int_rst_i    (  pidC_irst|(~pidC_enable_ctrl)    )   // integrator reset
+    );
+
+    assign pidC_out = pidC_enable_ctrl ? pidC_out_cache : 14'b0 ;
+
+
+
     /* end PIDs Blocks  ***********************************************/
 
 
@@ -1222,6 +1295,7 @@ module lock(
         rl_config              <=   3'd0     ; // Relock enable. [relock_reset,enable_signal_th,enable_error_th]
         sf_jumpA               <=  14'd0     ; // Step function measure jump value for ctrl_A
         sf_jumpB               <=  14'd0     ; // Step function measure jump value for ctrl_B
+        sf_jumpC               <=  14'd0     ; // Step function measure jump value for ctrl_C
         sf_config              <=   5'd0     ; // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start]
         signal_sw              <=   4'd0     ; // Input selector for signal_i
         sg_amp1                <=   4'd0     ; // amplification of Xo, Yo and F1o
@@ -1266,6 +1340,16 @@ module lock(
         pidB_ki                <=  14'd0     ; // pidB integral constant
         pidB_kd                <=  14'd0     ; // pidB derivative constant
         pidB_ctrl              <=   3'd0     ; // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
+        pidC_sw                <=   5'd0     ; // switch selector for pidC input
+        pidC_PSR               <=   3'd3     ; // pidC PSR
+        pidC_ISR               <=   4'd8     ; // pidC ISR
+        pidC_DSR               <=   3'd0     ; // pidC DSR
+        pidC_SAT               <=  14'd13    ; // pidC saturation control
+        pidC_sp                <=  14'd0     ; // pidC set_point
+        pidC_kp                <=  14'd0     ; // pidC proportional constant
+        pidC_ki                <=  14'd0     ; // pidC integral constant
+        pidC_kd                <=  14'd0     ; // pidC derivative constant
+        pidC_ctrl              <=   3'd0     ; // pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]
         aux_A                  <=  14'd0     ; // auxiliar value of 14 bits
         aux_B                  <=  14'd0     ; // auxiliar value of 14 bits
     end else begin
@@ -1281,7 +1365,7 @@ module lock(
             if (sys_addr[19:0]==20'h00020)  slow_out3_sw          <=  sys_wdata[ 4-1: 0] ; // switch for muxer slow_out3
             if (sys_addr[19:0]==20'h00024)  slow_out4_sw          <=  sys_wdata[ 4-1: 0] ; // switch for muxer slow_out4
             if (sys_addr[19:0]==20'h00028)  lock_control          <=  sys_wdata[11-1: 0] ; // lock_control help
-          //if (sys_addr[19:0]==20'h0002C)  lock_feedback         <=  sys_wdata[11-1: 0] ; // lock_control feedback
+          //if (sys_addr[19:0]==20'h0002C)  lock_feedback         <=  sys_wdata[13-1: 0] ; // lock_control feedback
             if (sys_addr[19:0]==20'h00030)  lock_trig_val         <=  sys_wdata[14-1: 0] ; // if lock_control ?? , this vals sets the voltage threshold that turns on the lock
             if (sys_addr[19:0]==20'h00034)  lock_trig_time        <=  sys_wdata[32-1: 0] ; // if lock_control ?? , this vals sets the time threshold that turns on the lock
             if (sys_addr[19:0]==20'h00038)  lock_trig_sw          <=  sys_wdata[ 4-1: 0] ; // selects signal for trigger
@@ -1292,6 +1376,7 @@ module lock(
           //if (sys_addr[19:0]==20'h0004C)  rl_state              <=  sys_wdata[ 5-1: 0] ; // Relock state: [state:idle|searching|failed,signal_fail,error_fail,locked]
             if (sys_addr[19:0]==20'h00050)  sf_jumpA              <=  sys_wdata[14-1: 0] ; // Step function measure jump value for ctrl_A
             if (sys_addr[19:0]==20'h00054)  sf_jumpB              <=  sys_wdata[14-1: 0] ; // Step function measure jump value for ctrl_B
+            if (sys_addr[19:0]==20'h001BC)  sf_jumpC              <=  sys_wdata[14-1: 0] ; // Step function measure jump value for ctrl_C
             if (sys_addr[19:0]==20'h00058)  sf_config             <=  sys_wdata[ 5-1: 0] ; // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start]
             if (sys_addr[19:0]==20'h0005C)  signal_sw             <=  sys_wdata[ 4-1: 0] ; // Input selector for signal_i
           //if (sys_addr[19:0]==20'h00060)  signal_i              <=  sys_wdata[14-1: 0] ; // signal for demodulation
@@ -1378,7 +1463,20 @@ module lock(
           //if (sys_addr[19:0]==20'h001A4)  pidB_in               <=  sys_wdata[14-1: 0] ; // pidB input
           //if (sys_addr[19:0]==20'h001A8)  pidB_out              <=  sys_wdata[14-1: 0] ; // pidB output
             if (sys_addr[19:0]==20'h001AC)  pidB_ctrl             <=  sys_wdata[ 3-1: 0] ; // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidA_out + ramp_B
+          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidB_out + ramp_B
+            if (sys_addr[19:0]==20'h001C0)  pidC_sw               <=  sys_wdata[ 5-1: 0] ; // switch selector for pidC input
+            if (sys_addr[19:0]==20'h001C4)  pidC_PSR              <=  sys_wdata[ 3-1: 0] ; // pidC PSR
+            if (sys_addr[19:0]==20'h001C8)  pidC_ISR              <=  sys_wdata[ 4-1: 0] ; // pidC ISR
+            if (sys_addr[19:0]==20'h001CC)  pidC_DSR              <=  sys_wdata[ 3-1: 0] ; // pidC DSR
+            if (sys_addr[19:0]==20'h001D0)  pidC_SAT              <=  sys_wdata[14-1: 0] ; // pidC saturation control
+            if (sys_addr[19:0]==20'h001D4)  pidC_sp               <=  sys_wdata[14-1: 0] ; // pidC set_point
+            if (sys_addr[19:0]==20'h001D8)  pidC_kp               <=  sys_wdata[14-1: 0] ; // pidC proportional constant
+            if (sys_addr[19:0]==20'h001DC)  pidC_ki               <=  sys_wdata[14-1: 0] ; // pidC integral constant
+            if (sys_addr[19:0]==20'h001E0)  pidC_kd               <=  sys_wdata[14-1: 0] ; // pidC derivative constant
+          //if (sys_addr[19:0]==20'h001E4)  pidC_in               <=  sys_wdata[14-1: 0] ; // pidC input
+          //if (sys_addr[19:0]==20'h001E8)  pidC_out              <=  sys_wdata[14-1: 0] ; // pidC output
+            if (sys_addr[19:0]==20'h001EC)  pidC_ctrl             <=  sys_wdata[ 3-1: 0] ; // pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]
+          //if (sys_addr[19:0]==20'h001F0)  ctrl_C                <=  sys_wdata[14-1: 0] ; // control_C: pidC_out + ramp_C
             if (sys_addr[19:0]==20'h001B4)  aux_A                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
             if (sys_addr[19:0]==20'h001B8)  aux_B                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
         end
@@ -1407,7 +1505,7 @@ module lock(
             20'h00020 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,     slow_out3_sw  }; end // switch for muxer slow_out3
             20'h00024 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,     slow_out4_sw  }; end // switch for muxer slow_out4
             20'h00028 : begin sys_ack <= sys_en;  sys_rdata <= {  21'b0                   ,     lock_control  }; end // lock_control help
-            20'h0002C : begin sys_ack <= sys_en;  sys_rdata <= {  21'b0                   ,    lock_feedback  }; end // lock_control feedback
+            20'h0002C : begin sys_ack <= sys_en;  sys_rdata <= {  19'b0                   ,    lock_feedback  }; end // lock_control feedback
             20'h00030 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{lock_trig_val[13]}} ,    lock_trig_val  }; end // if lock_control ?? , this vals sets the voltage threshold that turns on the lock
             20'h00034 : begin sys_ack <= sys_en;  sys_rdata <=                                lock_trig_time   ; end // if lock_control ?? , this vals sets the time threshold that turns on the lock
             20'h00038 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,     lock_trig_sw  }; end // selects signal for trigger
@@ -1418,6 +1516,7 @@ module lock(
             20'h0004C : begin sys_ack <= sys_en;  sys_rdata <= {  27'b0                   ,         rl_state  }; end // Relock state: [state:idle|searching|failed,signal_fail,error_fail,locked]
             20'h00050 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sf_jumpA[13]}}      ,         sf_jumpA  }; end // Step function measure jump value for ctrl_A
             20'h00054 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sf_jumpB[13]}}      ,         sf_jumpB  }; end // Step function measure jump value for ctrl_B
+            20'h001BC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{sf_jumpC[13]}}      ,         sf_jumpC  }; end // Step function measure jump value for ctrl_C
             20'h00058 : begin sys_ack <= sys_en;  sys_rdata <= {  27'b0                   ,        sf_config  }; end // Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start]
             20'h0005C : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,        signal_sw  }; end // Input selector for signal_i
             20'h00060 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{signal_i[13]}}      ,         signal_i  }; end // signal for demodulation
@@ -1504,7 +1603,20 @@ module lock(
             20'h001A4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidB_in[13]}}       ,          pidB_in  }; end // pidB input
             20'h001A8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidB_out[13]}}      ,         pidB_out  }; end // pidB output
             20'h001AC : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,        pidB_ctrl  }; end // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-            20'h001B0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; end // control_B: pidA_out + ramp_B
+            20'h001B0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; end // control_B: pidB_out + ramp_B
+            20'h001C0 : begin sys_ack <= sys_en;  sys_rdata <= {  27'b0                   ,          pidC_sw  }; end // switch selector for pidC input
+            20'h001C4 : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,         pidC_PSR  }; end // pidC PSR
+            20'h001C8 : begin sys_ack <= sys_en;  sys_rdata <= {  28'b0                   ,         pidC_ISR  }; end // pidC ISR
+            20'h001CC : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,         pidC_DSR  }; end // pidC DSR
+            20'h001D0 : begin sys_ack <= sys_en;  sys_rdata <= {  18'b0                   ,         pidC_SAT  }; end // pidC saturation control
+            20'h001D4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_sp[13]}}       ,          pidC_sp  }; end // pidC set_point
+            20'h001D8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_kp[13]}}       ,          pidC_kp  }; end // pidC proportional constant
+            20'h001DC : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_ki[13]}}       ,          pidC_ki  }; end // pidC integral constant
+            20'h001E0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_kd[13]}}       ,          pidC_kd  }; end // pidC derivative constant
+            20'h001E4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_in[13]}}       ,          pidC_in  }; end // pidC input
+            20'h001E8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{pidC_out[13]}}      ,         pidC_out  }; end // pidC output
+            20'h001EC : begin sys_ack <= sys_en;  sys_rdata <= {  29'b0                   ,        pidC_ctrl  }; end // pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]
+            20'h001F0 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{ctrl_C_reg[13]}}    ,       ctrl_C_reg  }; end // control_C: pidC_out + ramp_C
             20'h001B4 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{aux_A[13]}}         ,            aux_A  }; end // auxiliar value of 14 bits
             20'h001B8 : begin sys_ack <= sys_en;  sys_rdata <= {  {18{aux_B[13]}}         ,            aux_B  }; end // auxiliar value of 14 bits
             default   : begin sys_ack <= sys_en;  sys_rdata <=  32'h0        ; end

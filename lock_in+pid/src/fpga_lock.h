@@ -208,6 +208,14 @@ typedef struct lock_reg_t {
       */
     int32_t  sf_jumpB;
     
+    /** @brief Offset 20'h001BC - sf_jumpC
+      *  Step function measure jump value for ctrl_C
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  sf_jumpC;
+    
     /** @brief Offset 20'h00058 - sf_config
       *  Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] 
       *
@@ -897,6 +905,110 @@ typedef struct lock_reg_t {
       *  bits [13: 0] - Data
       */
     int32_t  ctrl_B;
+    
+    /** @brief Offset 20'h001C0 - pidC_sw
+      *  switch selector for pidC input
+      *
+      *  bits [31: 5] - Reserved
+      *  bits [ 4: 0] - Data
+      */
+    uint32_t pidC_sw;
+    
+    /** @brief Offset 20'h001C4 - pidC_PSR
+      *  pidC PSR
+      *
+      *  bits [31: 3] - Reserved
+      *  bits [ 2: 0] - Data
+      */
+    uint32_t pidC_PSR;
+    
+    /** @brief Offset 20'h001C8 - pidC_ISR
+      *  pidC ISR
+      *
+      *  bits [31: 4] - Reserved
+      *  bits [ 3: 0] - Data
+      */
+    uint32_t pidC_ISR;
+    
+    /** @brief Offset 20'h001CC - pidC_DSR
+      *  pidC DSR
+      *
+      *  bits [31: 3] - Reserved
+      *  bits [ 2: 0] - Data
+      */
+    uint32_t pidC_DSR;
+    
+    /** @brief Offset 20'h001D0 - pidC_SAT
+      *  pidC saturation control
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    uint32_t pidC_SAT;
+    
+    /** @brief Offset 20'h001D4 - pidC_sp
+      *  pidC set_point
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_sp;
+    
+    /** @brief Offset 20'h001D8 - pidC_kp
+      *  pidC proportional constant
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_kp;
+    
+    /** @brief Offset 20'h001DC - pidC_ki
+      *  pidC integral constant
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_ki;
+    
+    /** @brief Offset 20'h001E0 - pidC_kd
+      *  pidC derivative constant
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_kd;
+    
+    /** @brief Offset 20'h001E4 - pidC_in
+      *  pidC input
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_in;
+    
+    /** @brief Offset 20'h001E8 - pidC_out
+      *  pidC output
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  pidC_out;
+    
+    /** @brief Offset 20'h001EC - pidC_ctrl
+      *  pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]
+      *
+      *  bits [31: 3] - Reserved
+      *  bits [ 2: 0] - Data
+      */
+    uint32_t pidC_ctrl;
+    
+    /** @brief Offset 20'h001F0 - ctrl_C
+      *  control_C: pidC_out + ramp_C
+      *
+      *  bits [31:14] - Reserved
+      *  bits [13: 0] - Data
+      */
+    int32_t  ctrl_C;
     
     /** @brief Offset 20'h001B4 - aux_A
       *  auxiliar value of 14 bits

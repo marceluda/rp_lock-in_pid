@@ -24,7 +24,7 @@ module lock_ctrl
     (
     input clk,rst,
     // inputs
-    input         [10-1:0] lock_ctrl,
+    input         [12-1:0] lock_ctrl,
     input  signed [14-1:0] signal,
     input                  ramp_trigger,
     input         [32-1:0] time_threshold,
@@ -34,6 +34,7 @@ module lock_ctrl
     output                 ramp_enable,
     output                 pidA_enable,
     output                 pidB_enable,
+    output                 pidC_enable,
     output                 lock_ctrl_trig
     );
 
@@ -41,15 +42,17 @@ module lock_ctrl
      *
      * lock_ctrl[ 0] --> lock_now         : start the lock rigth now
      * lock_ctrl[ 1] --> launch_lock      : look for lock trigger condition
-     * lock_ctrl[ 2] --> pidB_enable_ctrl --|
-     * lock_ctrl[ 3] --> pidA_enable_ctrl   |--> actual state of enable controls
-     * lock_ctrl[ 4] --> ramp_enable_ctrl --|
-     * lock_ctrl[ 5] --> set_pidB_enable --|      end state of enable
-     * lock_ctrl[ 6] --> set_pidA_enable   |----> if lock condition
-     * lock_ctrl[ 7] --> set_ramp_enable --|      is met
-     * lock_ctrl[ 8] --> trig_time        : fires trigger if time condition is met
-     * lock_ctrl[ 9] --> trig_val         : fires trigger if threshold condition is met
-     * lock_ctrl[10] --> lock_trig_rise   : derivative condition for threshold trigger
+     * lock_ctrl[  => 2] --> pidC_enable_ctrl --|
+     * lock_ctrl[ 2=> 3] --> pidB_enable_ctrl   |
+     * lock_ctrl[ 3=> 4] --> pidA_enable_ctrl   |--> actual state of enable controls
+     * lock_ctrl[ 4=> 5] --> ramp_enable_ctrl --|
+     * lock_ctrl[  => 6] --> set_pidC_enable --|      
+     * lock_ctrl[ 5=> 7] --> set_pidB_enable   |      end state of enable
+     * lock_ctrl[ 6=> 8] --> set_pidA_enable   |----> if lock condition
+     * lock_ctrl[ 7=> 9] --> set_ramp_enable --|      is met
+     * lock_ctrl[ 8=>10] --> trig_time        : fires trigger if time condition is met
+     * lock_ctrl[ 9=>11] --> trig_val         : fires trigger if threshold condition is met
+     * lock_ctrl[10=>12] --> lock_trig_rise   : derivative condition for threshold trigger
      *
      **/
 
@@ -59,11 +62,11 @@ module lock_ctrl
     // set_lock wire tells if you must close the feedbak loop
 
     wire   trigger_took_effect;  // helper to see if the end state condition is already set
-    assign trigger_took_effect = (lock_ctrl[4]==lock_ctrl[7])&(lock_ctrl[3]==lock_ctrl[6])&(lock_ctrl[2]==lock_ctrl[5]);
+    assign trigger_took_effect = (lock_ctrl[5]==lock_ctrl[9])&(lock_ctrl[4]==lock_ctrl[8])&(lock_ctrl[3]==lock_ctrl[7])&(lock_ctrl[2]==lock_ctrl[6]);
 
     assign seek_trig_on    = (|lock_ctrl[1:0]) ;   // if lock_now or launch_lock, we want to start a lock
-    assign seek_time_trig  = lock_ctrl[8] & seek_trig_on; // time trigger seek
-    assign seek_level_trig = lock_ctrl[9] & seek_trig_on; // level trigger seek
+    assign seek_time_trig  = lock_ctrl[10] & seek_trig_on; // time trigger seek
+    assign seek_level_trig = lock_ctrl[11] & seek_trig_on; // level trigger seek
 
 
 
@@ -154,9 +157,10 @@ module lock_ctrl
     assign set_lock         = (seek_trig_on&trigger_found);
 
     // Outputs
-    assign ramp_enable      = set_lock ?  lock_ctrl[7] :  lock_ctrl[4]   ;
-    assign pidA_enable      = set_lock ?  lock_ctrl[6] :  lock_ctrl[3]   ;
-    assign pidB_enable      = set_lock ?  lock_ctrl[5] :  lock_ctrl[2]   ;
+    assign ramp_enable      = set_lock ?  lock_ctrl[9] :  lock_ctrl[5]   ;
+    assign pidA_enable      = set_lock ?  lock_ctrl[8] :  lock_ctrl[4]   ;
+    assign pidB_enable      = set_lock ?  lock_ctrl[7] :  lock_ctrl[3]   ;
+    assign pidC_enable      = set_lock ?  lock_ctrl[6] :  lock_ctrl[2]   ;
 
 
 endmodule

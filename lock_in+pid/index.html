@@ -129,7 +129,7 @@
                        'lock_pidB_DSR,lock_pidB_SAT,lock_pidB_sp,lock_pidB_kp,lock_pidB_ki,lock_pidB_kd,lock_pidB_irst,lock_pidB_freeze,'+
                        'lock_pidB_ifreeze,lock_aux_A,lock_aux_B,lock_ctrl_aux_lock_now,lock_ctrl_aux_launch_lock_trig,lock_ctrl_aux_pidB_enable_ctrl,'+
                        'lock_ctrl_aux_pidA_enable_ctrl,lock_ctrl_aux_ramp_enable_ctrl,lock_ctrl_aux_set_pidB_enable,lock_ctrl_aux_set_pidA_enable,'+
-                       'lock_ctrl_aux_set_ramp_enable,lock_ctrl_aux_trig_type,lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on';
+                       'lock_ctrl_aux_set_ramp_enable,lock_ctrl_aux_trig_type,lock_ctrl_aux_lock_trig_rise,lock_mod_sq_on,lock_mod_harmonic_on,lock_pidA_ofs,lock_pidB_ofs';
 
   config_params_keys = config_params_txts.split(",");
 
@@ -1164,7 +1164,7 @@
     var input_number=['lock_lock_trig_val','lock_lock_trig_time_val','lock_rl_error_threshold','lock_rl_signal_threshold','lock_sf_jumpA',
                       'lock_sf_jumpB','lock_error_offset','lock_gen_mod_phase','lock_gen_mod_phase_sq','lock_gen_mod_hp','lock_gen_mod_sqp',
                       'lock_ramp_step','lock_ramp_low_lim','lock_ramp_hig_lim','lock_ramp_B_factor','lock_pidA_sp','lock_pidA_kp','lock_pidA_ki',
-                      'lock_pidA_kd','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_aux_A','lock_aux_B'];
+                      'lock_pidA_kd','lock_pidA_ofs','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_pidB_ofs','lock_aux_A','lock_aux_B'];
 
     for(ii in input_number){
       $('#'+input_number[ii])
@@ -1312,11 +1312,11 @@
         //$(this).blur();
     });
 
-    $('#lock_pidA_sp,#lock_pidA_kp,#lock_pidA_ki,#lock_pidA_kd').on('input', function() {
+    $('#lock_pidA_sp,#lock_pidA_kp,#lock_pidA_ki,#lock_pidA_kd,#lock_pidA_ofs').on('input', function() {
         lock_pidA_update();
         //$(this).blur();
     });
-    $('#lock_pidB_sp,#lock_pidB_kp,#lock_pidB_ki,#lock_pidB_kd').on('input', function() {
+    $('#lock_pidB_sp,#lock_pidB_kp,#lock_pidB_ki,#lock_pidB_kd,#lock_pidB_ofs').on('input', function() {
         lock_pidB_update();
         //$(this).blur();
     });
@@ -1709,12 +1709,14 @@
     lock_pidA_kp_arr = $("#lock_pidA_kp" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
     lock_pidA_ki_arr = $("#lock_pidA_ki" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
     lock_pidA_kd_arr = $("#lock_pidA_kd" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    lock_pidA_ofs_arr = $("#lock_pidA_ofs" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
 
     // Check if inputs are numbers
     if( !$.isNumeric(lock_pidA_sp_arr[0]) ||
         !$.isNumeric(lock_pidA_kp_arr[0]) ||
         !$.isNumeric(lock_pidA_ki_arr[0]) ||
-        !$.isNumeric(lock_pidA_kd_arr[0])    ) return -1 ;
+        !$.isNumeric(lock_pidA_kd_arr[0]) ||
+        !$.isNumeric(lock_pidA_ofs_arr[0])   ) return -1 ;
 
     // Check if values changed from last execution. We don't want to update DIVs constantly but only
     // when there are changes (to save processor time / resources)
@@ -1723,6 +1725,7 @@
         parseInt(lock_pidA_kp_arr[0])         == pidA_kp &&
         parseInt(lock_pidA_ki_arr[0])         == pidA_ki &&
         parseInt(lock_pidA_kd_arr[0])         == pidA_kd &&
+        parseInt(lock_pidA_ofs_arr[0])        == pidA_ofs &&
         parseInt(params.local.lock_pidA_PSR ) == parseInt($("#lock_pidA_PSR" ).val()) &&
         parseInt(params.local.lock_pidA_ISR ) == parseInt($("#lock_pidA_ISR" ).val()) &&
         parseInt(params.local.lock_pidA_DSR ) == parseInt($("#lock_pidA_DSR" ).val()) &&
@@ -1734,6 +1737,7 @@
     pidA_kp = parseInt( lock_pidA_kp_arr[0] ) ;
     pidA_ki = parseInt( lock_pidA_ki_arr[0] ) ;
     pidA_kd = parseInt( lock_pidA_kd_arr[0] ) ;
+    pidA_ofs = parseInt( lock_pidA_ofs_arr[0] ) ;
 
     // If there is a text that sets units, process the correct unit and number value
     if( lock_pidA_sp_arr.length === 2) {
@@ -1744,6 +1748,15 @@
       pidA_sp = Math.min(  8191 , pidA_sp  ) ;
       pidA_sp = Math.max( -8192 , pidA_sp  ) ;
       $("#lock_pidA_sp").val(""+pidA_sp);
+    }
+    if( lock_pidA_ofs_arr.length === 2) {
+      if ( lock_pidA_ofs_arr[1].toLowerCase()=="v" )
+        pidA_ofs = Math.round( pidA_ofs * 8192 );
+      if ( lock_pidA_ofs_arr[1].toLowerCase()=="mv" )
+        pidA_ofs = Math.round( pidA_ofs * 8192 /1000 );
+      pidA_ofs = Math.min(  8191 , pidA_ofs  ) ;
+      pidA_ofs = Math.max( -8192 , pidA_ofs  ) ;
+      $("#lock_pidA_ofs").val(""+pidA_ofs);
     }
 
     // Update text labels with correct info values
@@ -1806,6 +1819,10 @@
     setpoint=Math.round(pidA_sp / 8191*1000*100 )/100 ;
     $('#lock_pidA_sp_text').html( "<small><b>"+setpoint.toFixed(2)+"&nbsp;mV</b></small>"   );
 
+    // offset
+    offset=Math.round(pidA_ofs / 8191*1000*100 )/100 ;
+    $('#lock_pidA_ofs_text').html( "<small><b>"+offset.toFixed(2)+"&nbsp;mV</b></small>"   );
+
   }
 
   function lock_pidB_update(){
@@ -1814,12 +1831,14 @@
     lock_pidB_kp_arr = $("#lock_pidB_kp" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
     lock_pidB_ki_arr = $("#lock_pidB_ki" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
     lock_pidB_kd_arr = $("#lock_pidB_kd" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    lock_pidB_ofs_arr = $("#lock_pidB_ofs" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
 
     // Check if inputs are numbers
     if( !$.isNumeric(lock_pidB_sp_arr[0]) ||
         !$.isNumeric(lock_pidB_kp_arr[0]) ||
         !$.isNumeric(lock_pidB_ki_arr[0]) ||
-        !$.isNumeric(lock_pidB_kd_arr[0])    ) return -1 ;
+        !$.isNumeric(lock_pidB_kd_arr[0]) ||
+        !$.isNumeric(lock_pidB_ofs_arr[0])    ) return -1 ;
 
     // Check if values changed from last execution. We don't want to update DIVs constantly but only
     // when there are changes (to save processor time / resources)
@@ -1828,6 +1847,7 @@
         parseInt(lock_pidB_kp_arr[0])         == pidB_kp &&
         parseInt(lock_pidB_ki_arr[0])         == pidB_ki &&
         parseInt(lock_pidB_kd_arr[0])         == pidB_kd &&
+        parseInt(lock_pidB_ofs_arr[0])        == pidB_ofs &&
         parseInt(params.local.lock_pidB_PSR ) == parseInt($("#lock_pidB_PSR" ).val()) &&
         parseInt(params.local.lock_pidB_ISR ) == parseInt($("#lock_pidB_ISR" ).val()) &&
         parseInt(params.local.lock_pidB_DSR ) == parseInt($("#lock_pidB_DSR" ).val()) &&
@@ -1839,6 +1859,7 @@
     pidB_kp = parseInt( lock_pidB_kp_arr[0] ) ;
     pidB_ki = parseInt( lock_pidB_ki_arr[0] ) ;
     pidB_kd = parseInt( lock_pidB_kd_arr[0] ) ;
+    pidB_ofs = parseInt( lock_pidB_ofs_arr[0] ) ;
 
     // If there is a text that sets units, process the correct unit and number value
     if( lock_pidB_sp_arr.length === 2) {
@@ -1849,6 +1870,15 @@
       pidB_sp = Math.min(  8191 , pidB_sp  ) ;
       pidB_sp = Math.max( -8192 , pidB_sp  ) ;
       $("#lock_pidB_sp").val(""+pidB_sp);
+    }
+    if( lock_pidB_ofs_arr.length === 2) {
+      if ( lock_pidB_ofs_arr[1].toLowerCase()=="v" )
+        pidB_ofs = Math.round( pidB_ofs * 8192 );
+      if ( lock_pidB_ofs_arr[1].toLowerCase()=="mv" )
+        pidB_ofs = Math.round( pidB_ofs * 8192 /1000 );
+      pidB_ofs = Math.min(  8191 , pidB_ofs  ) ;
+      pidB_ofs = Math.max( -8192 , pidB_ofs  ) ;
+      $("#lock_pidB_ofs").val(""+pidB_ofs);
     }
 
     // Update text labels with correct info values
@@ -1910,6 +1940,10 @@
     // set - point
     setpoint=Math.round(pidB_sp / 8191*1000*100 )/100 ;
     $('#lock_pidB_sp_text').html( "<small><b>"+setpoint.toFixed(2)+"&nbsp;mV</b></small>"   );
+
+    // offset
+    offset=Math.round(pidB_ofs / 8191*1000*100 )/100 ;
+    $('#lock_pidB_ofs_text').html( "<small><b>"+offset.toFixed(2)+"&nbsp;mV</b></small>"   );
 
   }
 
@@ -2953,10 +2987,12 @@
     $('#lock_pidA_kp'            ).val(params.original.lock_pidA_kp               );
     $('#lock_pidA_ki'            ).val(params.original.lock_pidA_ki               );
     $('#lock_pidA_kd'            ).val(params.original.lock_pidA_kd               );
+    $('#lock_pidA_ofs'           ).val(params.original.lock_pidA_ofs              );
     $('#lock_pidB_sp'            ).val(params.original.lock_pidB_sp               );
     $('#lock_pidB_kp'            ).val(params.original.lock_pidB_kp               );
     $('#lock_pidB_ki'            ).val(params.original.lock_pidB_ki               );
     $('#lock_pidB_kd'            ).val(params.original.lock_pidB_kd               );
+    $('#lock_pidB_ofs'           ).val(params.original.lock_pidB_ofs              );
     $('#lock_aux_A'              ).val(params.original.lock_aux_A                 );
     $('#lock_aux_B'              ).val(params.original.lock_aux_B                 );
 
@@ -5309,7 +5345,8 @@
                               <option  value="22">in1</option>
                               <option  value="23">in2</option>
                               <option  value="24">in1-in2</option>
-                              <!--option value="25">0</option-->
+                              <option value="25">PID B out</option>
+                              <option value="26">PID C out</option>
                               <!--option value="26">0</option-->
                               <!--option value="27">0</option-->
                               <!--option value="28">0</option-->
@@ -5374,6 +5411,28 @@
                         <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidA_sp_text">lock_pidA_sp</div>
                       </div>
                     </div>
+
+                      <div class="row collapse"  data-tag="PidAOptions"> <!-- offset control -->
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_ofs" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidA_ofs_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+  
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2">
+                          <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>ofs:</b></small></div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
+                          <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidA_ofs_text">lock_pidA_ofs</div>
+                        </div>
+                      </div>
 
                     <!--hr style="margin: 7px 7px"-->
 
@@ -5592,7 +5651,8 @@
                               <option  value="22">in1</option>
                               <option  value="23">in2</option>
                               <option  value="24">in1-in2</option>
-                              <!--option value="25">0</option-->
+                              <option value="25">PID A out</option>
+                              <option value="26">PID C out</option>
                               <!--option value="26">0</option-->
                               <!--option value="27">0</option-->
                               <!--option value="28">0</option-->
@@ -5656,6 +5716,28 @@
                         <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidB_sp_text">lock_pidB_sp</div>
                       </div>
                     </div>
+
+                      <div class="row collapse"  data-tag="PidBOptions"> <!-- offset control -->
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5">
+                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                            <div class="form-group">
+                              <div class="col-xs-12 col-sm-12">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidB_ofs" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_pidB_ofs_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+  
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-2 col-md-2">
+                          <div style="padding: 7px 0 0;" class="col-xs-12"><small><b>ofs:</b></small></div>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-5 col-md-5 text-center">
+                          <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_pidB_ofs_text">lock_pidB_ofs</div>
+                        </div>
+                      </div>
 
                     <!--hr style="margin: 7px 7px"-->
 
@@ -6128,793 +6210,3 @@
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable"checked>PID B enable
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_ctrl_aux_trig_type" class="form-control">
-                              <option  value="0" selected="selected">OFF</option>
-                              <option  value="1">Time trigger</option>
-                              <option  value="2">Level Trigger</option>
-                              <option  value="3">Level+time Trigger</option>
-                            </select>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_sw">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_lock_trig_sw" class="form-control">
-                              <option  value="0" selected="selected">error</option>
-                              <option  value="1">Xo</option>
-                              <option  value="2">Yo</option>
-                              <option  value="3">F1o</option>
-                              <option  value="4">F2o</option>
-                              <option  value="5">F3o</option>
-                              <option  value="6">sqXo</option>
-                              <option  value="7">sqYo</option>
-                              <option  value="8">sqFo</option>
-                              <option  value="9">signal_i</option>
-                              <option  value="10">Ramp A</option>
-                              <option  value="11">aux_A</option>
-                              <option  value="12">in1</option>
-                              <option  value="13">in2</option>
-                              <option  value="14">in1-in2</option>
-                              <option  value="15">PID A out</option>
-                            </select>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_time_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295">
-                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_time_val_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_time_val_text">lock_lock_trig_time_val</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group">
-                          <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191">
-                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_val_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_val_text">lock_lock_trig_val</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_ctrl_aux_lock_trig_rise">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="checkbox" style="padding-bottom: 12px;">
-                          <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_lock_trig_rise">trig upward?
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_btn_set_trig">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
-                        <div class="form-group text-center">
-                          <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
-                          <br>
-                          <input type="checkbox" id="btn_set_trig_auto_zoom" checked>Auto-zoom
-                        </div>
-                      </form>
-                    </div>
-
-
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <!-- END left panel -->
-      </div>
-      <!-- Central column -->
-      <div class="col-xs-12 col-sm-6 col-md-6">
-        <!-- Plot holder -->
-        <div class="row">
-          <div class="graph-holder well well-small">
-            <div id="ytitle">Voltage [ V ]</div>
-            <div id="trigger_cnv_holder">
-              <canvas id="trigger_canvas" width="25" height="460"></canvas>
-              <div id="trigger_tooltip"></div>
-            </div>
-            <div id="plot_holder"></div>
-            <div id="xtitle"></div>
-          </div>
-        </div>
-        <!-- Mouse position -->
-        <div class="row">
-          <div class="panel-body">
-            <div id='mousepos'><p><label>Mouse position</label> <span id='hoverdata'></span></p></div>
-          </div>
-        </div>
-        <!-- Bottom panel group -->
-        <div class="row">
-          <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="bottom_panel">
-            <!-- Display panel -->
-            <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
-                  <a data-toggle="collapse" href="#slow_lock_in_display">
-                    Harmonic Lock-in
-                  </a>
-                </h4>
-              </div>
-              <div id="slow_lock_in_display" class="panel-collapse collapse">
-                <div class="panel-body">
-                  <!-- div class="panel-group col-xs-12 col-sm-12 col-md-12" -->
-
-                  <div class="row text-center">
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_x">X</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_x">Valor</span></h2>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_x_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;" ></div>
-                      </div>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_y">Y</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_y">Valor</span></h2>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_y_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="row text-center">
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_r">R</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_r">Valor</span></h2>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_fi">ϕ</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_fi">Valor</span></h2>
-                    </div>
-                  </div>
-
-                  <div class="row text-center">
-                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <h3><label class="group-label" for="disp_F1">F1</label></h3>
-                      <h3><span class="label label-info" style="display:block;" id="disp_F1">Valor</span></h3>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_F1_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
-                      </div>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <h3><label class="group-label" for="disp_F2">F2</label></h3>
-                      <h3><span class="label label-info" style="display:block;" id="disp_F2">Valor</span></h3>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_F2_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
-                      </div>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <h3><label class="group-label" for="disp_F3">F3</label></h3>
-                      <h3><span class="label label-info" style="display:block;" id="disp_F3">Valor</span></h3>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_F3_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-
-              </div>
-            </div>
-            <div class="panel panel-default">
-              <div class="panel-heading">
-                <h4 class="panel-title">
-                  <a data-toggle="collapse" href="#fast_lock_in_display">
-                    Square Lock-in
-                  </a>
-                </h4>
-              </div>
-              <div id="fast_lock_in_display" class="panel-collapse collapse">
-                <div class="panel-body">
-                  <div class="row text-center">
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_sqx">X</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_sqx">Valor</span></h2>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_sqx_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;" ></div>
-                      </div>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_sqy">Y</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_sqy">Valor</span></h2>
-                      <div class="progress" style="height: 5px;">
-                        <div id="disp_sqy_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="row text-center">
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_sqr">R</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_sqr">Valor</span></h2>
-                    </div>
-                    <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                      <h2><label class="group-label" for="disp_sqfi">ϕ</label></h2>
-                      <h2><span class="label label-info" style="display:block;" id="disp_sqfi">Valor</span></h2>
-                    </div>
-                  </div>
-                </div>
-
-
-              </div>
-            </div>
-          </div>
-
-        </div>
-
-
-      </div>
-      <!-- END OF Bottom panel group -->
-      <!--/  div  LOLO ERASE -->
-      <div class="panel-group col-xs-12 col-sm-3 col-md-3" id="accordion">
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#trigger">
-                Trigger
-              </a>
-            </h4>
-          </div>
-          <div id="trigger" class="panel-collapse collapse in">
-            <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label for="trig_source" class="col-xs-4 control-label">Source:</label>
-                  <div class="col-xs-8">
-                    <select id="trig_source" class="form-control">
-                      <option value="0">Channel 1</option>
-                      <option value="1">Channel 2</option>
-                      <option value="2">External</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="trig_mode" class="col-xs-4 control-label">Mode:</label>
-                  <div class="col-xs-8">
-                    <select id="trig_mode" class="form-control">
-                      <option value="0">Auto</option>
-                      <option value="1">Normal</option>
-                      <option value="2">Single</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="trig_edge" class="col-xs-4 control-label">Edge:</label>
-                  <div class="col-xs-8">
-                    <select id="trig_edge" class="form-control">
-                      <option value="0">Rising</option>
-                      <option value="1">Falling</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="trig_level" class="col-xs-4 control-label">Level:</label>
-                  <div class="col-xs-5">
-                    <input type="text" id="trig_level" value="0" class="form-control" autocomplete="off">
-                    <span id="apply_trig_level" class="input-group-btn" style="display: none;">
-                      <button class="btn btn-primary btn-lg" type="button"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                    </span>
-                  </div>
-                  <div id="trig_lev_units" class="col-xs-3" style="padding: 7px 0 0;">V</div>
-                </div>
-              </form>
-              <div class="row">
-                <div class="col-xs-4"> </div>
-                <div class="col-xs-5">
-                  <button id="btn_single" class="btn btn-primary" onclick="singleUpdate()" disabled>
-                    <span class="glyphicon glyphicon-step-forward"></span> Single
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#range">
-                Range
-              </a>
-            </h4>
-          </div>
-          <div id="range" class="panel-collapse collapse">
-            <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <label class="col-xs-4 col-sm-3 control-label" style="padding-top: 35px;">Range:</label>
-                  <div class="col-xs-8 col-sm-9">
-                    <div class="row">
-                      <div class="col-xs-6 text-center">
-                        <div class="group-label" style="padding-bottom: 10px;">X axis</div>
-                        <div class="btn-group" style="margin-bottom: -9px;">
-                          <button id="range_x_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
-                            <span class="glyphicon glyphicon-minus"></span>
-                          </button>
-                          <button id="range_x_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
-                            <span class="glyphicon glyphicon-plus"></span>
-                          </button>
-                        </div>
-                        <div>
-                          <span id="range_x" class="badge range-badge">-</span>
-                        </div>
-                      </div>
-                      <div class="col-xs-6 text-center">
-                        <div class="group-label" style="padding-bottom: 10px;">Y axis</div>
-                        <div class="btn-group" style="margin-bottom: -9px;">
-                          <button id="range_y_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
-                            <span class="glyphicon glyphicon-minus"></span>
-                          </button>
-                          <button id="range_y_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
-                            <span class="glyphicon glyphicon-plus"></span>
-                          </button>
-                        </div>
-                        <div>
-                          <span id="range_y" class="badge range-badge">-</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label class="col-xs-4 col-sm-3 control-label">Offset:</label>
-                  <div class="col-xs-8 col-sm-9">
-                    <div class="row">
-                      <div class="col-xs-6 text-center">
-                        <div class="btn-group" style="margin-bottom: -9px;">
-                          <button id="offset_x_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
-                            <span class="glyphicon glyphicon-minus"></span>
-                          </button>
-                          <button id="offset_x_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
-                            <span class="glyphicon glyphicon-plus"></span>
-                          </button>
-                        </div>
-                      </div>
-                      <div class="col-xs-6 text-center">
-                        <div class="btn-group" style="margin-bottom: -9px;">
-                          <button id="offset_y_minus" type="button" class="btn btn-primary btn-lg range-btn-left">
-                            <span class="glyphicon glyphicon-minus"></span>
-                          </button>
-                          <button id="offset_y_plus" type="button" class="btn btn-primary btn-lg range-btn-right">
-                            <span class="glyphicon glyphicon-plus"></span>
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#measure">
-                Measure
-              </a>
-            </h4>
-          </div>
-          <div id="measure" class="panel-collapse collapse">
-            <div class="panel-body">
-              <div class="row group-label">
-                <div class="col-xs-6" style="text-align: center">Channel 1</div>
-                <div class="col-xs-6" style="text-align: center">Channel 2</div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Min:</div>
-                <div class="col-xs-3"><span id="info_ch1_min">-</span><span class="unit">V</span></div>
-                <div class="col-xs-3 txt-right">Min:</div>
-                <div class="col-xs-3"><span id="info_ch2_min">-</span><span class="unit">V</span></div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Max:</div>
-                <div class="col-xs-3"><span id="info_ch1_max">-</span><span class="unit">V</span></div>
-                <div class="col-xs-3 txt-right">Max:</div>
-                <div class="col-xs-3"><span id="info_ch2_max">-</span><span class="unit">V</span></div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Amp:</div>
-                <div class="col-xs-3"><span id="info_ch1_amp">-</span><span class="unit">Vpp</span></div>
-                <div class="col-xs-3 txt-right">Amp:</div>
-                <div class="col-xs-3"><span id="info_ch2_amp">-</span><span class="unit">Vpp</span></div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Avg:</div>
-                <div class="col-xs-3"><span id="info_ch1_avg">-</span><span class="unit">V</span></div>
-                <div class="col-xs-3 txt-right">Avg:</div>
-                <div class="col-xs-3"><span id="info_ch2_avg">-</span><span class="unit">V</span></div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Freq:</div>
-                <div class="col-xs-3" id="info_ch1_freq">-<span class="unit">Hz</span></div>
-                <div class="col-xs-3 txt-right">Freq:</div>
-                <div class="col-xs-3" id="info_ch2_freq">-<span class="unit">Hz</span></div>
-              </div>
-              <div class="row">
-                <div class="col-xs-3 txt-right">Period:</div>
-                <div class="col-xs-3" id="info_ch1_period">-<span class="unit">s</span></div>
-                <div class="col-xs-3 txt-right">Period:</div>
-                <div class="col-xs-3" id="info_ch2_period">-<span class="unit">s</span></div>
-              </div>
-            </div>
-          </div>
-        </div>
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#gain">
-                Gain settings
-              </a>
-            </h4>
-          </div>
-          <div id="gain" class="panel-collapse collapse">
-            <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="group-label" style="padding-bottom: 10px;">Channel 1</div>
-                <div class="form-group">
-                  <label for="gain_ch1_att" class="col-xs-4 col-sm-6 control-label">Probe attenuation:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <select class="form-control" id="gain_ch1_att">
-                      <option value="0">1x</option>
-                      <option value="1">10x</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="gain_ch1_sett" class="col-xs-4 col-sm-6 control-label">Gain setting:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <select class="form-control" id="gain_ch1_sett">
-                      <option value="0">LV</option>
-                      <option value="1">HV</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="group-label" style="padding: 10px 0;">Channel 2</div>
-                <div class="form-group">
-                  <label for="gain_ch2_att" class="col-xs-4 col-sm-6 control-label">Probe attenuation:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <select class="form-control" id="gain_ch2_att">
-                      <option value="0">1x</option>
-                      <option value="1">10x</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="form-group">
-                  <label for="gain_ch2_sett" class="col-xs-4 col-sm-6 control-label">Gain setting:</label>
-                  <div class="col-xs-4 col-sm-5">
-                    <select class="form-control" id="gain_ch2_sett">
-                      <option value="0">LV</option>
-                      <option value="1">HV</option>
-                    </select>
-                  </div>
-                </div>
-              </form>
-            </div>
-          </div>
-        </div>
-
-
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#monitor">
-                Monitor
-              </a>
-            </h4>
-          </div>
-          <div id="monitor" class="panel-collapse collapse">
-            <div class="panel-body">
-
-              <div class="row text-center">
-                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  <h2><label class="group-label" for="disp_error_mean">error mean [int]</label></h2>
-                  <h2><span class="label label-info" style="display:block;" id="disp_error_mean">Valor</span></h2>
-                  <!--div class="progress" style="height: 5px;">
-                    <  div id="disp_error_mean_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></  div  >
-                  </   div-->
-                </div>
-
-                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  <h2><label class="group-label" for="disp_error_std">error std [int]</label></h2>
-                  <h2><span class="label label-info" style="display:block;" id="disp_error_std">Valor</span></h2>
-                  <!--div class="progress" style="height: 5px;">
-                    <  div id="disp_error_std_bar" class="progress-bar progress-bar-success" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width:0%; height: 5px;"></  div>
-                  </   div-->
-                </div>
-
-                <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  1&nbsp;second
-                </div>
-
-              </div>
-
-            </div>
-          </div> <!--  ------------------------------------------------------- -->
-        </div>
-      </div>
-    </div>
-    <div class="footer clearfix">
-      <p class="pull-right" style="margin: 4px 0 0">&copy; 2014 - Red Pitaya</p>
-    </div>
-  </div>
-  <div id="modal_err" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_err_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_err_label">Application error</h4>
-        </div>
-        <div class="modal-body"></div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default btn-close-modal" id="btn_ignore">Ignore</button>
-          <button type="button" class="btn btn-default" id="btn_retry_get">Retry</button>
-          <button type="button" class="btn btn-primary btn-app-restart">Restart</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="modal_help" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_help_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_help_label">Application HELP</h4>
-        </div>
-        <div class="modal-body"></div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default btn-close-modal" id="btn_close">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <div id="modal_save" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_save_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_save_label">Save plot data</h4>
-        </div>
-        <div class="modal-body">
-          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="save_python">Save Python+Numpy vectors</a></p>
-              </div>
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="copy_python" href="">Copy Python+Numpy vectors</a></p>
-              </div>
-            </div>
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                <p class="text-center">
-                  <a data-toggle="collapse" href="#python_hide" aria-expanded="true" aria-controls="python_hide">
-                    show
-                  </a>
-                </p>
-              </div>
-            </div>
-          </div>
-          <div id="python_hide" class="collapse text-center">
-            <p>
-              <textarea id="text_python_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
-            </p>
-          </div>
-          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="save_matlab">Save Matlab/Octave vectors</a></p>
-              </div>
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="copy_matlab" href="">Copy Matlab/Octave vectors</a></p>
-              </div>
-            </div>
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                <p class="text-center">
-                  <a data-toggle="collapse" href="#matlab_hide" aria-expanded="true" aria-controls="matlab_hide">
-                    show
-                  </a>
-                </p>
-              </div>
-            </div>
-          </div>
-          <div id="matlab_hide" class="collapse text-center">
-            <p>
-              <textarea id="text_matlab_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
-            </p>
-          </div>
-          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="save_csv">Save CSV</a></p>
-              </div>
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                <p><a id="copy_csv" href="">Copy CSV</a></p>
-              </div>
-            </div>
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                <p class="text-center">
-                  <a data-toggle="collapse" href="#csv_hide" aria-expanded="true" aria-controls="csv_hide">
-                    show
-                  </a>
-                </p>
-              </div>
-            </div>
-          </div>
-          <div id="csv_hide" class="collapse text-center">
-            <p>
-              <textarea id="text_csv_data" class="js-test-textarea" cols="50" rows="20" style="white-space: nowrap; font-family:Consolas,Monaco,Lucida Console,Liberation Mono,DejaVu Sans Mono,Bitstream Vera Sans Mono,Courier New, monospace;"></textarea>
-            </p>
-          </div>
-        </div>
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default btn-close-modal" id="btn_close_save">Close</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-
-  <div id="modal_config" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_config_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_config_label">Configuration</h4>
-        </div>
-
-        <div class="modal-body">
-          <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-            <div class="row">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
-                <div class="form-group">
-                  <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                    <label for="config_name_input" class="col-xs-4 control-label">Config&nbsp;Name:</label>
-                  </div>
-                  <div class="panel-group col-xs-12 col-sm-8 col-md-8">
-                    <input type="text" autocomplete="off" class="form-control" value=" " id="config_name_input">
-                  </div>
-                </div>
-              </form>
-            </div> <!-- row end -->
-
-            <hr>
-
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
-                <button id="btn_config_save_browser" class="btn btn-primary btn-lg" onclick="config_save_storage( $('#config_name_input').val() );config_show_storage();" >Save in browser</button>
-              </div>
-              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
-                <a id="btn_config_save_file" class="btn btn-primary btn-lg" >Save as file</a>
-              </div>
-            </div> <!-- row end -->
-            <br>
-            <div class="row">
-              <div class="panel-group col-xs-12 col-sm-4 col-md-4 text-center">
-                <label for="btn_config_load_file" class="col-xs-4 control-label">Load&nbsp;file:</label>
-              </div>
-              <div class="panel-group col-xs-12 col-sm-8 col-md-8 text-center">
-                <input id="btn_config_load_file" type="file"  name="files[]" class="btn btn-primary btn-lg" >
-              </div>
-            </div> <!-- row end -->
-            <div class="row">
-              <div class="panel-group col-xs-12"></div>
-              <div class="panel-group col-xs-1"></div>
-              <div class="panel-group col-xs-11">
-                <form class="form-horizontal" role="form" onsubmit="return false;">
-                  <div class="checkbox" style="padding-bottom: 12px;">
-                    <label class="group-label">
-                      <input type="checkbox" id="load_config_block_start" checked>
-                      Don't turn on PIDs and Ramp on config loading
-                    </label>
-                  </div>
-                </form>
-              </div>
-            </div> <!-- row end -->
-            <hr>
-
-            <div class="row">
-              <div id="config_storage_table" class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
-                <p>container</p>
-              </div>
-            </div> <!-- row end -->
-
-          </div>
-
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-default btn-close-modal" id="btn_close_config">Close</button>
-        </div>
-
-      </div>
-    </div>
-  </div>
-
-
-
-  <div id="modal_app" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_app_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_app_label">Application stopped</h4>
-        </div>
-        <div class="modal-body">
-          The <strong><span class="app-id"></span></strong> application was stopped. The current started application is <strong><span id="new_app_id"></span></strong>.<br />
-          Do you want to switch to newly started application or to restart <strong><span class="app-id"></span></strong>?
-        </div>
-        <div class="modal-footer">
-          <a href="/index.html" class="btn btn-danger pull-left">Exit app</a>
-          <button type="button" class="btn btn-default" id="btn_switch_app">Switch</button>
-          <button type="button" class="btn btn-primary btn-app-restart">Restart</button>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div id="modal_upload" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_upload_label" aria-hidden="true">
-    <div class="modal-dialog">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h4 class="modal-title" id="modal_upload_label">File upload for channel <span></span></h4>
-        </div>
-        <div class="modal-body">
-          <form id="upload_form" role="form">
-            <div class="form-group">
-              <input type="file" name="file_select" id="uploaded_file">
-              <input type="hidden" name="file_content" id="uploaded_file_content">
-              <p class="help-block">Select the CSV file to upload.</p>
-            </div>
-          </form>
-        </div>
-        <div class="modal-footer" style="margin-top: 0;">
-          <button type="button" class="btn btn-default btn-close-modal">Close</button>
-          <button type="button" class="btn btn-primary" onclick="startUpload()">Upload</button>
-        </div>
-      </div>
-    </div>
-  </div>
-</body>
-</html>

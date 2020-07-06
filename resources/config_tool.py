@@ -127,6 +127,7 @@ f.add( name="rl_state"           , group=grp , val=    0, rw=False,  nbits= 5, m
 
 f.add( name="sf_jumpA"           , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="Step function measure jump value for ctrl_A" )
 f.add( name="sf_jumpB"           , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="Step function measure jump value for ctrl_B" )
+f.add( name="sf_jumpC"           , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="Step function measure jump value for ctrl_C" )
 #f.add( name="sf_jump"            , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="Step function measure jump value" )
 f.add( name="sf_config"          , group=grp , val=    0, rw=True ,  nbits= 5, min_val=          0, max_val=         31, fpga_update=True , signed=False, desc="Step function configuration. [pidB_ifreeze,pidB_freeze,pidA_ifreeze,pidA_freeze,start] " )
 
@@ -242,7 +243,22 @@ f.add( name="pidB_kd"            , group=grp , val=    0, rw=True ,  nbits=14, m
 f.add( name="pidB_in"            , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB input" )
 f.add( name="pidB_out"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB output" )
 f.add( name="pidB_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]" )
-f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidA_out + ramp_B" )
+f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidB_out + ramp_B" )
+
+grp='pidC'
+f.add( name="pidC_sw"            , group=grp , val=    0, rw=True ,  nbits= 5, min_val=          0, max_val=         31, fpga_update=True , signed=False, desc="switch selector for pidC input" )
+f.add( name="pidC_PSR"           , group=grp , val=    3, rw=True ,  nbits= 3, min_val=          0, max_val=          4, fpga_update=True , signed=False, desc="pidC PSR" )
+f.add( name="pidC_ISR"           , group=grp , val=    8, rw=True ,  nbits= 4, min_val=          0, max_val=          9, fpga_update=True , signed=False, desc="pidC ISR" )
+f.add( name="pidC_DSR"           , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          5, fpga_update=True , signed=False, desc="pidC DSR" )
+f.add( name="pidC_SAT"           , group=grp , val=   13, rw=True ,  nbits=14, min_val=          0, max_val=         13, fpga_update=True , signed=False, desc="pidC saturation control" )
+f.add( name="pidC_sp"            , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC set_point" )
+f.add( name="pidC_kp"            , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC proportional constant" )
+f.add( name="pidC_ki"            , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC integral constant" )
+f.add( name="pidC_kd"            , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC derivative constant" )
+f.add( name="pidC_in"            , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC input" )
+f.add( name="pidC_out"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidC output" )
+f.add( name="pidC_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]" )
+f.add( name="ctrl_C"             , group=grp,  val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_C: pidC_out + ramp_A")
 
 # aux
 grp='mix'
@@ -265,7 +281,7 @@ for i in ['osc_ctrl','in1','in2','out1','out2']:
     f[i].write_def=False
 
 
-for i in ['X_28', 'Y_28', 'F1_28', 'F2_28', 'F3_28', 'sqX_28', 'sqY_28', 'sqF_28', 'error', 'ctrl_A', 'ctrl_B']:
+for i in ['X_28', 'Y_28', 'F1_28', 'F2_28', 'F3_28', 'sqX_28', 'sqY_28', 'sqF_28', 'error', 'ctrl_A', 'ctrl_B', 'ctrl_C']:
     f[i].reg_read=True
 
 
@@ -711,6 +727,8 @@ m.add( name="lock_sf_AfrzO"           , fpga_reg="sf_config"          , val=0   
 m.add( name="lock_sf_AfrzI"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function pidA_ifreeze ")
 m.add( name="lock_sf_BfrzO"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function pidB_freeze ")
 m.add( name="lock_sf_BfrzI"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function pidB_ifreeze ")
+m.add( name="lock_sf_CfrzO"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function pidC_freeze ")
+m.add( name="lock_sf_CfrzI"           , fpga_reg="sf_config"          , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="lock_control"   , desc="Step function pidC_ifreeze ")
 
 r=m["lock_sf_start"        ]; r.c_update='(float) ((g_lock_reg->{:s}      )& 0x01)'.format(r.fpga_reg)
 r=m["lock_sf_AfrzO"        ]; r.c_update='(float) ((g_lock_reg->{:s} >> 1 )& 0x01)'.format(r.fpga_reg)
@@ -874,7 +892,32 @@ if True:
     r=f["pidB_ctrl"]; r.c_update='(((int)params[{:s}].value)<<2) + (((int)params[{:s}].value)<<1) + ((int)params[{:s}].value)'.format( m["lock_pidB_ifreeze"].cdef, m["lock_pidB_freeze"].cdef, m["lock_pidB_irst"].cdef)
 else:
     m.add( name="lock_pidB_ctrl"     , fpga_reg="pidB_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0         , max_val=7         , fpga_update=True , signed=False, group="pidB"           , desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]")
-m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidA_out + ramp_B")
+m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidB_out + ramp_B")
+
+# group: pidC
+m.add( name="lock_pidC_sw"       , fpga_reg="pidC_sw"       , val=0    , rw=True , nbits=5 , min_val=0         , max_val=31        , fpga_update=True , signed=False, group="pidC"           , desc="switch selector for pidC input")
+m.add( name="lock_pidC_PSR"      , fpga_reg="pidC_PSR"      , val=3    , rw=True , nbits=3 , min_val=0         , max_val=4         , fpga_update=True , signed=False, group="pidC"           , desc="pidC PSR")
+m.add( name="lock_pidC_ISR"      , fpga_reg="pidC_ISR"      , val=8    , rw=True , nbits=4 , min_val=0         , max_val=9         , fpga_update=True , signed=False, group="pidC"           , desc="pidC ISR")
+m.add( name="lock_pidC_DSR"      , fpga_reg="pidC_DSR"      , val=0    , rw=True , nbits=3 , min_val=0         , max_val=5         , fpga_update=True , signed=False, group="pidC"           , desc="pidC DSR")
+m.add( name="lock_pidC_SAT"      , fpga_reg="pidC_SAT"      , val=13   , rw=True , nbits=14, min_val=0         , max_val=13        , fpga_update=True , signed=False, group="pidC"           , desc="pidC saturation control")
+m.add( name="lock_pidC_sp"       , fpga_reg="pidC_sp"       , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="pidC"           , desc="pidC set_point")
+m.add( name="lock_pidC_kp"       , fpga_reg="pidC_kp"       , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="pidC"           , desc="pidC proportional constant")
+m.add( name="lock_pidC_ki"       , fpga_reg="pidC_ki"       , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="pidC"           , desc="pidC integral constant")
+m.add( name="lock_pidC_kd"       , fpga_reg="pidC_kd"       , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="pidC"           , desc="pidC derivative constant")
+m.add( name="lock_pidC_in"       , fpga_reg="pidC_in"       , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidC"           , desc="pidC input")
+m.add( name="lock_pidC_out"      , fpga_reg="pidC_out"      , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidC"           , desc="pidC output")
+
+if True:
+    m.add( name="lock_pidC_irst"     , fpga_reg="pidC_ctrl"     , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="pidA"           , desc="pidC_irst")
+    m.add( name="lock_pidC_freeze"   , fpga_reg="pidC_ctrl"     , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="pidA"           , desc="pidC_freeze")
+    m.add( name="lock_pidC_ifreeze"  , fpga_reg="pidC_ctrl"     , val=0    , rw=True , nbits=1 , min_val=0         , max_val=1         , fpga_update=True , signed=False, group="pidA"           , desc="pidC_ifreeze")
+    r=m["lock_pidC_irst"   ]; r.c_update='(float) ((g_lock_reg->{:20s}      )& 0x001)'.format(r.fpga_reg)
+    r=m["lock_pidC_freeze" ]; r.c_update='(float) ((g_lock_reg->{:20s} >>1  )& 0x001)'.format(r.fpga_reg)
+    r=m["lock_pidC_ifreeze"]; r.c_update='(float) ((g_lock_reg->{:20s} >>2  )& 0x001)'.format(r.fpga_reg)
+    r=f["pidC_ctrl"]; r.c_update='(((int)params[{:s}].value)<<2) + (((int)params[{:s}].value)<<1) + ((int)params[{:s}].value)'.format( m["lock_pidC_ifreeze"].cdef, m["lock_pidC_freeze"].cdef, m["lock_pidC_irst"].cdef)
+else:
+    m.add( name="lock_pidC_ctrl"     , fpga_reg="pidC_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0         , max_val=7         , fpga_update=True , signed=False, group="pidC"           , desc="pidC control: [ pidC_ifreeze: integrator freeze , pidC_freeze: output freeze , pidC_irst:integrator reset]")
+m.add( name="lock_ctrl_C"        , fpga_reg="ctrl_C"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidC"           , desc="control_B: pidC_out + ramp_A")
 
 # group: mix
 m.add( name="lock_aux_A"         , fpga_reg="aux_A"         , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="mix"            , desc="auxiliar value of 14 bits")
@@ -886,9 +929,11 @@ m.add( name="lock_aux_B"         , fpga_reg="aux_B"         , val=0    , rw=True
 
 m.add(name="lock_ctrl_aux_lock_now"         , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_launch_lock_trig" , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
+m.add(name="lock_ctrl_aux_pidC_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_pidB_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_pidA_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_ramp_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
+m.add(name="lock_ctrl_aux_set_pidC_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_set_pidB_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_set_pidA_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
 m.add(name="lock_ctrl_aux_set_ramp_enable"  , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
@@ -897,14 +942,16 @@ m.add(name="lock_ctrl_aux_lock_trig_rise"   , val=0 , max_val=1 , fpga_update=Fa
 
 m['lock_ctrl_aux_lock_now'        ].c_update='(float) (( g_lock_reg->lock_feedback >> 0 ) & 0x01 )'
 m['lock_ctrl_aux_launch_lock_trig'].c_update='(float) (( g_lock_reg->lock_feedback >> 1 ) & 0x01 )'
-m['lock_ctrl_aux_pidB_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 )'
-m['lock_ctrl_aux_pidA_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 )'
-m['lock_ctrl_aux_ramp_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 )'
-m['lock_ctrl_aux_set_pidB_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 )'
-m['lock_ctrl_aux_set_pidA_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 )'
-m['lock_ctrl_aux_set_ramp_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 )'
-m['lock_ctrl_aux_trig_type'       ].c_update='(float) (( g_lock_reg->lock_feedback >> 8 ) & 0x03 )'
-m['lock_ctrl_aux_lock_trig_rise'  ].c_update='(float) (( g_lock_reg->lock_feedback >>10 ) & 0x01 )'
+m['lock_ctrl_aux_pidC_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 )'
+m['lock_ctrl_aux_pidB_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 )'
+m['lock_ctrl_aux_pidA_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 )'
+m['lock_ctrl_aux_ramp_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 )'
+m['lock_ctrl_aux_set_pidC_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 )'
+m['lock_ctrl_aux_set_pidB_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 )'
+m['lock_ctrl_aux_set_pidA_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 8 ) & 0x01 )'
+m['lock_ctrl_aux_set_ramp_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 9 ) & 0x01 )'
+m['lock_ctrl_aux_trig_type'       ].c_update='(float) (( g_lock_reg->lock_feedback >>10 ) & 0x03 )'
+m['lock_ctrl_aux_lock_trig_rise'  ].c_update='(float) (( g_lock_reg->lock_feedback >>12 ) & 0x01 )'
 
 
 m.add(name="lock_mod_sq_on"       , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
@@ -931,9 +978,11 @@ for r in f:
 f['lock_control'].c_update='(int) (\n'
 for i,ii in enumerate([ 'lock_ctrl_aux_lock_now',
                         'lock_ctrl_aux_launch_lock_trig',
+                        'lock_ctrl_aux_pidC_enable_ctrl',
                         'lock_ctrl_aux_pidB_enable_ctrl',
                         'lock_ctrl_aux_pidA_enable_ctrl',
                         'lock_ctrl_aux_ramp_enable_ctrl',
+                        'lock_ctrl_aux_set_pidC_enable',
                         'lock_ctrl_aux_set_pidB_enable',
                         'lock_ctrl_aux_set_pidA_enable',
                         'lock_ctrl_aux_set_ramp_enable',
@@ -1360,14 +1409,30 @@ if True:
     h['lock_pidB_freeze'              ].type = 'checkbox'
     h['lock_pidB_ifreeze'             ].type = 'checkbox'
 
+h['lock_pidC_sw'                  ].type = 'select'
+h['lock_pidC_PSR'                 ].type = 'select'
+h['lock_pidC_ISR'                 ].type = 'select'
+h['lock_pidC_DSR'                 ].type = 'select'
+h['lock_pidC_SAT'                 ].type = 'select'
+h['lock_pidC_sp'                  ].type = 'number'
+h['lock_pidC_kp'                  ].type = 'number'
+h['lock_pidC_ki'                  ].type = 'number'
+h['lock_pidC_kd'                  ].type = 'number'
+if True:
+    h['lock_pidC_irst'                ].type = 'checkbox'
+    h['lock_pidC_freeze'              ].type = 'checkbox'
+    h['lock_pidC_ifreeze'             ].type = 'checkbox'
+
 h['lock_aux_A'                    ].type = 'number'
 h['lock_aux_B'                    ].type = 'number'
 
 h['lock_ctrl_aux_lock_now'        ].type = 'button'
 h['lock_ctrl_aux_launch_lock_trig'].type = 'button'
+h['lock_ctrl_aux_pidC_enable_ctrl'].type = 'button'
 h['lock_ctrl_aux_pidB_enable_ctrl'].type = 'button'
 h['lock_ctrl_aux_pidA_enable_ctrl'].type = 'button'
 h['lock_ctrl_aux_ramp_enable_ctrl'].type = 'button'
+h['lock_ctrl_aux_set_pidC_enable' ].type = 'checkbox'
 h['lock_ctrl_aux_set_pidB_enable' ].type = 'checkbox'
 h['lock_ctrl_aux_set_pidA_enable' ].type = 'checkbox'
 h['lock_ctrl_aux_set_ramp_enable' ].type = 'checkbox'
@@ -1540,6 +1605,7 @@ h['lock_ramp_enable'].control.text='Scan enable'
 h['lock_ramp_direction'].control.text='Scan direction'
 h['lock_pidA_irst'].control.text='reset integral'
 h['lock_pidB_irst'].control.text='reset integral'
+h['lock_pidC_irst'].control.text='reset integral'
 
 
 h['lock_rl_error_threshold'       ].control.text = 'Error Thr'
@@ -1550,12 +1616,15 @@ h['lock_rl_reset'                 ].control.text = 'RL reset'
 
 h['lock_pidA_ifreeze'].control.text='freeze integral'
 h['lock_pidB_ifreeze'].control.text='freeze integral'
+h['lock_pidC_ifreeze'].control.text='freeze integral'
 h['lock_pidA_freeze'].control.text ='freeze out'
 h['lock_pidB_freeze'].control.text ='freeze out'
+h['lock_pidC_freeze'].control.text ='freeze out'
 
 h['lock_ctrl_aux_set_ramp_enable'].control.text='Scan enable'
 h['lock_ctrl_aux_set_pidA_enable'].control.text='PID A enable'
 h['lock_ctrl_aux_set_pidB_enable'].control.text='PID B enable'
+h['lock_ctrl_aux_set_pidC_enable'].control.text='PID C enable'
 h['lock_ctrl_aux_lock_trig_rise'].control.text='trig upward?'
 
 # load controls for button inputs
@@ -1565,6 +1634,7 @@ for i in [ y.name for y in filter( lambda x: x.type=='button' , h) ]:
 h['lock_ctrl_aux_ramp_enable_ctrl'].control.text='Scan enable'
 h['lock_ctrl_aux_pidA_enable_ctrl'].control.text='PID&nbsp;A enable'
 h['lock_ctrl_aux_pidB_enable_ctrl'].control.text='PID&nbsp;B enable'
+h['lock_ctrl_aux_pidC_enable_ctrl'].control.text='PID&nbsp;B enable'
 h['lock_ctrl_aux_launch_lock_trig'].control.text='Trigger<br>Lock'
 h['lock_ctrl_aux_lock_now'        ].control.text='Lock<br>Now'
 
@@ -1759,28 +1829,30 @@ if False:
     # get_muxer(filename,"oscA_sw")
     h["lock_oscA_sw"].control = select(idd="lock_oscA_sw",
                  items=["14'b0","in1","in2","sin_ref","cos_ref","sin_1f","sin_2f","sin_3f",
-                        "sq_ref","sq_quad","sq_phas","ramp_A","signal_i","signal_i","Xo","Yo","F1o","F2o","F3o","sqXo","sqYo","sqFo","pidA_in","pidB_in","pidA_out_cache","pidB_out_cache","{1'b0, sq_ref_b  , 12'b0  }","test14","ctrl_A","ctrl_B","14'b0","14'b0"])
+                        "sq_ref","sq_quad","sq_phas","ramp_A","signal_i","signal_i","Xo","Yo","F1o","F2o","F3o","sqXo","sqYo","sqFo","pidA_in","pidB_in","pidA_out_cache","pidB_out_cache","{1'b0, sq_ref_b  , 12'b0  }","test14","ctrl_A","ctrl_B","pidC_out_cache","pidC_in"])
 
     # get_muxer(filename,"oscB_sw")
     h["lock_oscB_sw"].control = select(idd="lock_oscB_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
                         'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
-                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp'])
+                        'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp', 'PID C out', 'pidC_in'])
 
-
+    # get_muxer(filename,"oscB_sw")
     h["lock_out1_sw"].control = select(idd="lock_out1_sw",
-                 items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
+                 items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','pidC_out','ctrl_C',
                         'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a',
                         'Xo','Yo','F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in',
                         'pidA_out','pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp','Aux A'])
-
+    
+    # get_muxer(filename,"out2_sw")
     h["lock_out2_sw"].control = select(idd="lock_out2_sw",
-                 items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f','sq_ref',
+                 items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','pidC_out','ctrl_C','sq_ref',
                         'sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a','Xo','Yo',
                         'F1','F2','F3','sqx','sqy','sqf','pidA_in','pidB_in','pidA_out',
                         'pidB_out','sq_ref_b','test14','PID A + ramp','PID B + ramp','Aux B'])
-
+    
+    # get_muxer(filename,"out2_sw")
     h["lock_slow_out1_sw"].control = select(idd="lock_slow_out1_sw",
                  items=['0','in1','in2','sin_ref','cos_ref','sin_1f ','sin_2f','sin_3f',
                         'sq_ref','sq_quad','sq_fase','ramp_signal','Lock-in input','signal_a'
@@ -1819,7 +1891,7 @@ if False:
     h["lock_pidA_sw"].control = select(idd="lock_pidA_sw",
                  items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','ramp_signal',
                         'sin_ref','cos_ref','sin_1f','sin_2f','sin_3f','sq_ref','sq_quad',
-                        'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
+                        'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2', 'PID B out', 'PID C out'])
 
     h["lock_pidA_PSR"].control = select(idd="lock_pidA_PSR",items=['/1','/8','/64','/1024','/4096'])
     h["lock_pidA_ISR"].control = select(idd="lock_pidA_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
@@ -1829,12 +1901,22 @@ if False:
     h["lock_pidB_sw"].control = select(idd="lock_pidB_sw",
                  items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','ramp_signal',
                         'sin_ref','cos_ref','sin_1f','sin_2f','sin_3f','sq_ref','sq_quad',
-                        'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
+                        'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2', 'PID A out', 'PID C out'])
 
     h["lock_pidB_PSR"].control = select(idd="lock_pidB_PSR",items=['/1','/8','/64','/1024','/4096'])
     h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
     h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=[' 0',' 3',' 6','10','13','16'])
     h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
+
+    h["lock_pidC_sw"].control = select(idd="lock_pidC_sw",
+                 items=['0','Xo','Yo','F1','F2','F3','sqx','sqy','sqf','signal_a','ramp_signal',
+                        'sin_ref','cos_ref','sin_1f','sin_2f','sin_3f','sq_ref','sq_quad',
+                        'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2', 'PID A out', 'PID B out'])
+
+    h["lock_pidC_PSR"].control = select(idd="lock_pidC_PSR",items=['/1','/8','/64','/1024','/4096'])
+    h["lock_pidC_ISR"].control = select(idd="lock_pidC_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+    h["lock_pidC_DSR"].control = select(idd="lock_pidC_DSR",items=[' 0',' 3',' 6','10','13','16'])
+    h["lock_pidC_SAT"].control = select(idd="lock_pidC_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
     h["lock_LPF_A_sw"].control = select(idd="lock_LPF_A_sw",items=['in1','in2','in1_m_in2','sin_ref','sin_2f','sq_ref','ramp_signal','sq_ref_b','aux_A','Xo','pidA_out','pidB_out'])
     h["lock_LPF_B_sw"].control = select(idd="lock_LPF_B_sw",items=['in1','in2','in1_m_in2','sin_1f','sin_3f','sq_fase','ramp_signal','sq_quad_b','aux_B','F1','pidA_out','pidB_out'])
@@ -1891,6 +1973,11 @@ h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','5
 h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=[' 0',' 3',' 6','10','13','16'])
 h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
+h["lock_pidC_PSR"].control = select(idd="lock_pidC_PSR",items=['/1','/8','/64','/1024','/4096'])
+h["lock_pidC_ISR"].control = select(idd="lock_pidC_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+h["lock_pidC_DSR"].control = select(idd="lock_pidC_DSR",items=[' 0',' 3',' 6','10','13','16'])
+h["lock_pidC_SAT"].control = select(idd="lock_pidC_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
+
 h["lock_ctrl_aux_trig_type"].control = select(idd="lock_ctrl_aux_trig_type",items=['OFF','Time trigger','Level Trigger','Level+time Trigger'])
 
 
@@ -1906,13 +1993,16 @@ h['lock_oscB_sw'].control.enable = [True]*30 + [False]*2
 
 h['lock_pidA_sw'].control.enable = [True]*25 + [False]*7
 h['lock_pidB_sw'].control.enable = [True]*25 + [False]*7
+h['lock_pidC_sw'].control.enable = [True]*25 + [False]*7
 
 h['lock_pidA_sw'].control.hide = list(range(1,9))+list(range(10,22))
 h['lock_pidB_sw'].control.hide = list(range(1,9))+list(range(10,22))
+h['lock_pidC_sw'].control.hide = list(range(1,9))+list(range(10,22))
 
 
 h['lock_pidA_sw'].control.hide_group = 'pidA_more'
 h['lock_pidB_sw'].control.hide_group = 'pidB_more'
+h['lock_pidC_sw'].control.hide_group = 'pidB_more'
 
 
 h["lock_signal_sw"].control.enable = [True]*12+[False]*4

@@ -49,7 +49,7 @@ typedef struct rp_osc_meas_res_s {
 /* Parameters indexes - these defines should be in the same order as
  * rp_app_params_t structure defined in main.c */
 //define PARAMS_NUM        81
-#define PARAMS_NUM        221
+#define PARAMS_NUM        239
 #define MIN_GUI_PARAM     0
 #define MAX_GUI_PARAM     1
 #define TRIG_MODE_PARAM   2
@@ -163,6 +163,7 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_RL_STATE                   105
 #define LOCK_SF_JUMPA                   106
 #define LOCK_SF_JUMPB                   107
+#define LOCK_SF_JUMPC                   221
 #define LOCK_SF_START                   108
 #define LOCK_SF_AFRZO                   109
 #define LOCK_SF_AFRZI                   110
@@ -262,13 +263,30 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_PIDB_FREEZE                204
 #define LOCK_PIDB_IFREEZE               205
 #define LOCK_CTRL_B                     206
+#define LOCK_PIDC_SW                    222
+#define LOCK_PIDC_PSR                   223
+#define LOCK_PIDC_ISR                   224
+#define LOCK_PIDC_DSR                   225
+#define LOCK_PIDC_SAT                   226
+#define LOCK_PIDC_SP                    227
+#define LOCK_PIDC_KP                    228
+#define LOCK_PIDC_KI                    229
+#define LOCK_PIDC_KD                    230
+#define LOCK_PIDC_IN                    231
+#define LOCK_PIDC_OUT                   232
+#define LOCK_PIDC_IRST                  233
+#define LOCK_PIDC_FREEZE                234
+#define LOCK_PIDC_IFREEZE               235
+#define LOCK_CTRL_C                     236
 #define LOCK_AUX_A                      207
 #define LOCK_AUX_B                      208
 #define LOCK_CTRL_AUX_LOCK_NOW          209
 #define LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG  210
+#define LOCK_CTRL_AUX_PIDC_ENABLE_CTRL  237
 #define LOCK_CTRL_AUX_PIDB_ENABLE_CTRL  211
 #define LOCK_CTRL_AUX_PIDA_ENABLE_CTRL  212
 #define LOCK_CTRL_AUX_RAMP_ENABLE_CTRL  213
+#define LOCK_CTRL_AUX_SET_PIDC_ENABLE   238
 #define LOCK_CTRL_AUX_SET_PIDB_ENABLE   214
 #define LOCK_CTRL_AUX_SET_PIDA_ENABLE   215
 #define LOCK_CTRL_AUX_SET_RAMP_ENABLE   216
