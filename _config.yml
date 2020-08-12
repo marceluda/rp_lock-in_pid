@@ -65,7 +65,7 @@ navbar-links:
 #    - FPGA doc: app/lala
   Help:
     - FAQ: help/FAQ
-    - Contact: contact
+    - Contact: help/contact
 #    - Troubleshoot: app/lala
 
 
