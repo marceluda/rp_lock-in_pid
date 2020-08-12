@@ -15,6 +15,20 @@ of the RedPitaya project.
 The aim of this application is to provide a toolkit for labs measurements and system control uses.
 The functionalities are organized in ["instruments"](TheApp/instruments/instruments_01_intro/).
 
+## Publication
+A rigorous description of the App design and applications can be find in this article on scientific journal:
+*Compact embedded device for lock-in measurements and experiment active control*.
+
+<center>
+<p> <a href="https://arxiv.org/abs/1811.01901" class="btn btn-primary btn-lg" role="button">
+Pre-print Arxiv (open)
+</a>
+<a href="https://aip.scitation.org/doi/10.1063/1.5080345" class="btn btn-primary btn-lg" role="button">
+Review of Scientific Instruments
+</a>
+</p>
+</center>
+
 
 ## Features
 

@@ -52,21 +52,21 @@ navbar-links:
 #    - App Schema: app/lala
     - The Red Pitaya Board: TheApp/RedPitaya_board
     - Remote control: TheApp/remote_control
-  Tutorials:
-    - Locking PDH: app/lala
-    - PID params tuning: app/lala
-    - Using the Lock-in: app/lala
-    - Using the Ramp scan: app/lala
+  Tutorials: Tutorials/todo
+#    - Locking PDH: app/lala
+#    - PID params tuning: app/lala
+#    - Using the Lock-in: app/lala
+#    - Using the Ramp scan: app/lala
   Dev:
     - Source code: https://github.com/marceluda/rp_lock-in_pid
-    - Dev Documentation: app/lala
-    - HTML+JS doc: app/lala
-    - C++ web server doc: app/lala
-    - FPGA doc: app/lala
+#    - Dev Documentation: app/lala
+#    - HTML+JS doc: app/lala
+#    - C++ web server doc: app/lala
+#    - FPGA doc: app/lala
   Help:
     - FAQ: help/FAQ
-    - Contact: app/lala
-    - Troubleshoot: app/lala
+    - Contact: contact
+#    - Troubleshoot: app/lala
 
 
 # --- Navigation bar options  for instruments--- #
