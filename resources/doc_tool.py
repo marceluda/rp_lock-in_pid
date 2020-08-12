@@ -5,8 +5,21 @@ Created on Wed Sep 13 10:56:26 2017
 @author: lolo
 """
 
-from numpy import *
-import matplotlib.pyplot as plt
+try:
+    from numpy import *
+except ModuleNotFoundError:
+    print('You need to install `numpy` module for python. Try one of these:')
+    print('  - apt install python3-numpy')
+    print('  - pip3 search numpy')
+    exit(0)
+
+try:
+    import matplotlib.pyplot as plt
+except ModuleNotFoundError:
+    print('You need to install `matplotlib` module for python. Try one of these:')
+    print('  - apt install python3-matplotlib')
+    print('  - pip3 search matplotlib')
+    exit(0)
 
 
 import re
@@ -16,8 +29,6 @@ import os
 import enum
 
 APP='lock_in+pid'
-
-#os.chdir(folder)
 
 #%%
 
