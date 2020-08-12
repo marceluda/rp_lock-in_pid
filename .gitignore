@@ -11,7 +11,9 @@ lock_in+pid/target_dbg/
 lock_in+pid/target_rld/
 lock_in+pid/fpga/out/
 lock_in+pid/fpga/.srcs/
-
+archive/
+lock_in+pid/fpga/.Xil
+lock_in+pid/fpga/sdk
 
 # Compiled source #
 ###################
