@@ -61,3 +61,6 @@ Replace `rp-XXXXXX.local` by your RP localname or IP address
 
 Also, you can use your own SSH client and upload the lock_in+pid folder the the
 RedPiaya folder: `/opt/redpitaya/www/apps`
+
+# Derivated works
+ - An improved version with another PID added was developed by [stefanputz](https://github.com/stefanputz)  in https://github.com/stefanputz/rp_lock-in_pid
