@@ -6,7 +6,7 @@ subtitle: author contact
 
 The first version of this App was made by:
 
-<center>
+<center markdown="1" >
 **Marcelo Alejandro Luda**
 
 [Deilap-Citedef](https://unidef.conicet.gov.ar/deilap/) &#124; [DF-FCEN-UBA](https://www.df.uba.ar/es/staff/docentes-auxiliares/jefes-de-trabajos-practicos)
