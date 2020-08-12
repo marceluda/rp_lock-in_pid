@@ -1,9 +1,20 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Created on Wed Sep 13 10:56:26 2017
+The purpose of this script is to keep traking of the comunication between
+layers in the APP.
 
-@author: lolo
+The circuit physical layer in the FPGA has registers whose values are
+related with OS memory addresses, used by C controller variables.
+The C controller variables are updated by HTML form fields.
+
+So, to ease the HTML form fields <--> C variables <--> FPGA registers
+consistensy whe making changes on the APP, this script stores all the logic
+and print it avery time you run it.
+
+To understan changes made, on each run the script moves the modified files to
+filename.ext ---> filename_YYYYMMDD_HHmmss.ext (date format)
+
 """
 
 try:
@@ -14,13 +25,7 @@ except ModuleNotFoundError:
     print('  - pip3 search numpy')
     exit(0)
 
-try:
-    import matplotlib.pyplot as plt
-except ModuleNotFoundError:
-    print('You need to install `matplotlib` module for python. Try one of these:')
-    print('  - apt install python3-matplotlib')
-    print('  - pip3 search matplotlib')
-    exit(0)
+
 
 import os
 import enum
@@ -32,10 +37,10 @@ if PWD.find('rp_lock-in_pid')>0:
 
 APP='lock_in+pid'
 
-do_verilog = False
-do_main    = False
-do_html    = False
-do_py      = False
+do_verilog = True
+do_main    = True
+do_html    = True
+do_py      = True
 
 #folder=''
 #folder='/home/lolo/Dropbox/Doctorado/github/rp_lock-in_pid'
@@ -2366,4 +2371,4 @@ if __name__ == '__main__' and do_py:
     #update_py('resources/rp_cmds/py/ver_mem.py',py_global_config)
     #update_py('resources/rp_cmds/py/set.py',py_global_config)
     #update_py('lresources/rp_cmds/py/data_dump.py',py_global_config)
-    update_py('resources/rp_cmds/py/hugo.py',py_global_config)
+    update_py(f'{APP}/py/hugo.py',py_global_config)
