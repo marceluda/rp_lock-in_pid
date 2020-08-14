@@ -64,3 +64,4 @@ RedPiaya folder: `/opt/redpitaya/www/apps`
 
 # Derivated works
  - An improved version with another PID added was developed by [stefanputz](https://github.com/stefanputz)  in https://github.com/stefanputz/rp_lock-in_pid
+ - A version without square lock-in and with modulation added on output signals can be found in [rp_lock-in_pid_h](https://github.com/marceluda/rp_lock-in_pid_h). The App and description is available on [the project web page](https://marceluda.github.io/rp_lock-in_pid/Derivated/).
