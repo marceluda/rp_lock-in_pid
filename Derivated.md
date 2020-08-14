@@ -51,3 +51,8 @@ The first realese version (v0.3):
 
 </div>
 </div>
+
+
+## Harmonic Lock-in+PID with 3 PIDs
+
+Some improvements made by [stefanputz](https://github.com/stefanputz), accesible in [github repo](https://github.com/stefanputz/rp_lock-in_pid).
