@@ -48,6 +48,7 @@ description: Lock-in amplifier and PIDs filters for RedPitaya
 navbar-links:
   The App:
     - Donwload and install: TheApp/install
+    - Derivated Apps: Derivated
     - The instruments: TheApp/instruments/instruments_01_intro
 #    - App Schema: app/lala
     - The Red Pitaya Board: TheApp/RedPitaya_board

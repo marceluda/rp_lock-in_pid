@@ -57,6 +57,7 @@ Review of Scientific Instruments
   - Graphic tool for lock start-point selection
   - Auto-lock / relock system
 
+
 ## Where to start
 
 If you want to know more about how to use this app you should read the
@@ -144,3 +145,9 @@ scheme whose output will be used as the *error* signal for PID input.
   - Stabilization of laser wavelength to atomic transition
   - Stabilization of laser wavelength to Fabry-Perot interferometer (Pound-Drever-Hall)
   - Stabilization of VCO frequency to an electronic reference (Crystal or RCL circuit)
+
+
+## Derivated works
+Same versions of the same App witho minor changes where made for specific features and applications.
+The known works are listed in:
+[TheApp > Derivated works](Derivated) menu.
