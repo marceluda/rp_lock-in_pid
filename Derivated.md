@@ -53,6 +53,25 @@ The first realese version (v0.3):
 </div>
 
 
+
+## Dummy Simulaotr(v0.1): A peak function simulator for testing purposes
+
+This App simulate a peak-response from a system scanned through a control signal. You can use ir to test locking
+procedures for Lock-in+PID or Harmonic Lock-in+PID App.
+
+  * In one RedPitaya device (RP1) you use Lock-in+PID
+  * In other one (RP2) you load the simulator
+  * Connect RP1 `in1` to RP2 `out1` and RP1 `out1` to RP2 `in1`
+  * Now you can make a Ramp-Scan from RP1. RP2 will response on `out1` as you where scaning
+    an spectrum with one peak.
+  * On the simulator you can see de actual input, the response of the system, and the also a copy of the peak signal
+  * The App lets you configure the peak height, width, position over the ramp-scan, add white gaussian noise and a linear baseline.
+
+The source code can be found in  [github rp_dummy_simulator repository](https://github.com/marceluda/rp_dummy_simulator).
+
+Download v0.1 from: [dummy_simulator-0.1.0-1](dummy_simulator-0.1.0-1-devbuild.tar.gz)
+
+
 ## Harmonic Lock-in+PID with 3 PIDs
 
 Some improvements made by [stefanputz](https://github.com/stefanputz), accesible in [github repo](https://github.com/stefanputz/rp_lock-in_pid).
