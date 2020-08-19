@@ -29,6 +29,13 @@ Review of Scientific Instruments
 </p>
 </center>
 
+<div class="alert alert-info" role="alert" markdown="1" >
+**News:** There is a new section on this web page about ["derivated works"](Derivated), including applications
+for Red Pitaya that are similar in design to `Lock-in+PID` or that are useful complements:
+  - Harmonic (only) Lock-in, with some extra features
+  - Peak simulator App, to simulate the spectral response of a system under scan/locking
+  - Third-party projects inspired in `Lock-in+PID`
+</div>
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
