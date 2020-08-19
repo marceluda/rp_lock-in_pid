@@ -130,7 +130,7 @@ have information of non-linear behavior of the physical system.
 You have a physical variable that you want to stabilize against environment changes.
 You can measure it and convert it in an electrical signal you take from RP input 1.
 With Lock-in+PID you can stabilize it to a desired offset voltage value using an *error*
-signal ( $error = input1 - offset$ ) that feeds a PID filter. The PID output is a
+signal ( `error = input1 - offset` ) that feeds a PID filter. The PID output is a
 *correction* signals that can be added to the *control* signal that actually
 controls the physical system.
 
