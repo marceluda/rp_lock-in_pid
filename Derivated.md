@@ -54,7 +54,7 @@ The first realese version (v0.3):
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
-## Dummy Simulaotr(v0.1): A peak function simulator for testing purposes
+## Dummy Simulator(v0.1): A peak function simulator for testing purposes
 
 This App simulate a peak-response from a system scanned through a control signal. You can use ir to test locking
 procedures for Lock-in+PID or Harmonic Lock-in+PID App.
