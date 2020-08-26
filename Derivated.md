@@ -38,16 +38,16 @@ The first realese version (v0.3):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-|  **Default**  |  [lock_in+pid_harmonic-0.3.1-3-devbuild.zip](lock_in+pid_harmonic-0.3.0-2-devbuild.zip)               |
-|  **Debug**    |  [lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.zip](lock_in+pid_harmonic-0.3.0-2-devbuild_DEBUG.zip)   |
-|  **Reload**   |  [lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.zip](lock_in+pid_harmonic-0.3.0-2-devbuild_RELOAD.zip) |
+|  **Default**  |  [lock_in+pid_harmonic-0.3.1-3-devbuild.zip](lock_in+pid_harmonic-0.3.1-3-devbuild.zip)               |
+|  **Debug**    |  [lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.zip](lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.zip)   |
+|  **Reload**   |  [lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.zip](lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.zip) |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-|  **Default**  |  [lock_in+pid_harmonic-0.3.1-3-devbuild.tar.gz](lock_in+pid_harmonic-0.3.0-2-devbuild.tar.gz)               |
-|  **Debug**    |  [lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.tar.gz](lock_in+pid_harmonic-0.3.0-2-devbuild_DEBUG.tar.gz)   |
-|  **Reload**   |  [lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.tar.gz](lock_in+pid_harmonic-0.3.0-2-devbuild_RELOAD.tar.gz) |
+|  **Default**  |  [lock_in+pid_harmonic-0.3.1-3-devbuild.tar.gz](lock_in+pid_harmonic-0.3.1-3-devbuild.tar.gz)               |
+|  **Debug**    |  [lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.tar.gz](lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.tar.gz)   |
+|  **Reload**   |  [lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.tar.gz](lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.tar.gz) |
 
 </div>
 </div>
