@@ -23,16 +23,16 @@ Download last release (beta):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-|  **Default**  |  [lock-in+pid-0.1.1-3-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.zip)                |
-|  **Debug**    |  [lock-in+pid-0.1.1-3-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_DEBUG.zip)    |
-|  **Reload**   |  [lock-in+pid-0.1.1-3-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_RELOAD.zip)  |
+|  **Default**  |  [lock_in+pid-0.2.1-1-devbuild.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.zip)                |
+|  **Debug**    |  [lock_in+pid-0.2.1-1-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_DEBUG.zip)    |
+|  **Reload**   |  [lock_in+pid-0.2.1-1-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_RELOAD.zip)  |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-|  **Default**  |  [lock-in+pid-0.1.1-3-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.tar.gz)                |
-|  **Debug**    |  [lock-in+pid-0.1.1-3-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_DEBUG.tar.gz)    |
-|  **Reload**   |  [lock-in+pid-0.1.1-3-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_RELOAD.tar.gz)  |
+|  **Default**  |  [lock_in+pid-0.2.1-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.tar.gz)                |
+|  **Debug**    |  [lock_in+pid-0.2.1-1-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_DEBUG.tar.gz)    |
+|  **Reload**   |  [lock_in+pid-0.2.1-1-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild_RELOAD.tar.gz)  |
 
 </div>
 </div>
