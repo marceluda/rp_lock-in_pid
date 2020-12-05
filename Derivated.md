@@ -26,9 +26,9 @@ The lower physical surface load may correct some cross-talking problems between 
 in the Lock-in+PID App.
 
 
-The source code can be found in  [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/releases/tag/v0.3).
+The source code can be found in  [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/releases/tag/v0.3.3).
 
-The first realese version (v0.3):
+The first realese version (v0.3.3):
 
 <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
