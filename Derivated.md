@@ -9,7 +9,7 @@ Here you can find other works and versions related with this App. Most of them a
 just the same application but with slight modifications.
 
 
-## Harmonic Lock-in+PID (v0.3)
+## Harmonic Lock-in+PID (v0.3.3)
 
 This version of the App doesn't include the square Lock-in. Thats enable some free
 "physical surfece" of the FPGA to implement other features.
