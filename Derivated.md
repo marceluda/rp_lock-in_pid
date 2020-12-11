@@ -9,7 +9,7 @@ Here you can find other works and versions related with this App. Most of them a
 just the same application but with slight modifications.
 
 
-## Harmonic Lock-in+PID (v0.3.3)
+## Harmonic Lock-in+PID (v0.3.4)
 
 This version of the App doesn't include the square Lock-in. Thats enable some free
 "physical surfece" of the FPGA to implement other features.
@@ -28,7 +28,7 @@ in the Lock-in+PID App.
 
 The source code can be found in  [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/releases/tag/v0.3.3).
 
-The first realese version (v0.3.3):
+The last realese version (v0.3.4):
 
 <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
@@ -38,19 +38,22 @@ The first realese version (v0.3.3):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-|  **Default**  |  [lock_in+pid_harmonic-0.3.3-4-devbuild.zip](lock_in+pid_harmonic-0.3.3-4-devbuild.zip)               |
-|  **Debug**    |  [lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.zip](lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.zip)   |
-|  **Reload**   |  [lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.zip](lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.zip) |
+|  **Default**  |  [lock_in+pid_harmonic-0.3.4-1-devbuild.zip](lock_in+pid_harmonic-0.3.4-1-devbuild.zip)               |
+|  **Debug**    |  [lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.zip](lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.zip)   |
+|  **Reload**   |  [lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.zip](lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.zip) |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-|  **Default**  |  [lock_in+pid_harmonic-0.3.3-4-devbuild.tar.gz](lock_in+pid_harmonic-0.3.3-4-devbuild.tar.gz)               |
-|  **Debug**    |  [lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.tar.gz](lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.tar.gz)   |
-|  **Reload**   |  [lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.tar.gz](lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.tar.gz) |
+|  **Default**  |  [lock_in+pid_harmonic-0.3.4-1-devbuild.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild.tar.gz)               |
+|  **Debug**    |  [lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.tar.gz)   |
+|  **Reload**   |  [lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.tar.gz) |
 
 </div>
 </div>
+
+  - old releases in [github](https://github.com/marceluda/rp_lock-in_pid/tree/gh-pages/Derivated)
+  - [ChangeLog](https://github.com/marceluda/rp_lock-in_pid_h/blob/master/CHANGELOG.md) in the [project page](https://github.com/marceluda/rp_lock-in_pid_h)
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
