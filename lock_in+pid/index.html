@@ -4186,7 +4186,7 @@
     var dd = dd || new Date().toJSON() ;
     var date = new Date(dd);
     var date_str= ('0'+date.getFullYear()).substr(-4,4)+
-                  ('0'+date.getMonth()+1 ).substr(-2,2)+
+                  ('0'+(date.getMonth()+1) ).substr(-2,2)+
                   ('0'+date.getDate()    ).substr(-2,2)+
                   '_'+
                   ('0'+date.getHours()   ).substr(-2,2)+
