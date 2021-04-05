@@ -31,20 +31,28 @@ The source code can be found in  [github rp_lock-in_pid_h repository](https://gi
 The last realese version (v0.3.4):
 
 <ul class="nav nav-tabs">
-  <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
-  <li>               <a data-toggle="tab" href="#targz"> .tar.gz </a></li>
+  <li class="active"><a data-toggle="tab" href="#now"  > LAST VERSION    </a></li>
+  <li>               <a data-toggle="tab" href="#old"> Old versions</a></li>
 </ul>
 
-<div class="tab-content">
-<div id="zip" class="tab-pane fade in active" markdown="1">
 
+<div class="tab-content">
+<div id="now" class="tab-pane fade in active" markdown="1">
+
+  * [lock_in+pid_harmonic-0.3.7-1-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-1-devbuild.tar.gz)
+  * [lock_in+pid_harmonic-0.3.7-1-devbuild.zip](lock_in+pid_harmonic-0.3.7-1-devbuild.zip)
+
+</div>
+<div id="old" class="tab-pane fade" markdown="1">
+
+Old releases:
+
+Tar version
 |  **Default**  |  [lock_in+pid_harmonic-0.3.4-1-devbuild.zip](lock_in+pid_harmonic-0.3.4-1-devbuild.zip)               |
 |  **Debug**    |  [lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.zip](lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.zip)   |
 |  **Reload**   |  [lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.zip](lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.zip) |
 
-</div>
-<div id="targz" class="tab-pane fade" markdown="1">
-
+ZIP version
 |  **Default**  |  [lock_in+pid_harmonic-0.3.4-1-devbuild.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild.tar.gz)               |
 |  **Debug**    |  [lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.tar.gz)   |
 |  **Reload**   |  [lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.tar.gz](lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.tar.gz) |
@@ -52,7 +60,7 @@ The last realese version (v0.3.4):
 </div>
 </div>
 
-  - old releases in [github](https://github.com/marceluda/rp_lock-in_pid/tree/gh-pages/Derivated)
+  - older releases in [github](https://github.com/marceluda/rp_lock-in_pid/tree/gh-pages/Derivated)
   - [ChangeLog](https://github.com/marceluda/rp_lock-in_pid_h/blob/master/CHANGELOG.md) in the [project page](https://github.com/marceluda/rp_lock-in_pid_h)
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
