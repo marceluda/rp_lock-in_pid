@@ -35,12 +35,11 @@ The last realese version (v0.3.4):
   <li>               <a data-toggle="tab" href="#old"> Old versions</a></li>
 </ul>
 
-
 <div class="tab-content">
 <div id="now" class="tab-pane fade in active" markdown="1">
 
-  * [lock_in+pid_harmonic-0.3.7-1-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-1-devbuild.tar.gz)
-  * [lock_in+pid_harmonic-0.3.7-1-devbuild.zip](lock_in+pid_harmonic-0.3.7-1-devbuild.zip)
+  * [lock_in+pid_harmonic-0.3.7-8-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-8-devbuild.tar.gz)
+  * [lock_in+pid_harmonic-0.3.7-8-devbuild.zip](lock_in+pid_harmonic-0.3.7-8-devbuild.zip)
 
 </div>
 <div id="old" class="tab-pane fade" markdown="1">
