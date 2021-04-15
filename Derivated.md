@@ -38,8 +38,9 @@ The last realese version (v0.3.4):
 <div class="tab-content">
 <div id="now" class="tab-pane fade in active" markdown="1">
 
-  * [lock_in+pid_harmonic-0.3.7-8-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-8-devbuild.tar.gz)
-  * [lock_in+pid_harmonic-0.3.7-8-devbuild.zip](lock_in+pid_harmonic-0.3.7-8-devbuild.zip)
+  * [lock_in+pid_harmonic-0.3.7-10-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-10-devbuild.tar.gz)
+  * [lock_in+pid_harmonic-0.3.7-10-devbuild.zip](lock_in+pid_harmonic-0.3.7-10-devbuild.zip)
+
 
 </div>
 <div id="old" class="tab-pane fade" markdown="1">
