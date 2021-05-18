@@ -9,7 +9,7 @@ Here you can find other works and versions related with this App. Most of them a
 just the same application but with slight modifications.
 
 
-## Harmonic Lock-in+PID (v0.3.4)
+## Harmonic Lock-in+PID (v0.3.21)
 
 This version of the App doesn't include the square Lock-in. Thats enable some free
 "physical surfece" of the FPGA to implement other features.
@@ -26,9 +26,9 @@ The lower physical surface load may correct some cross-talking problems between 
 in the Lock-in+PID App.
 
 
-The source code can be found in  [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/releases/tag/v0.3.3).
+The source code can be found in  [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/releases/tag/v0.3.7).
 
-The last realese version (v0.3.4):
+The last realese version (v0.3.7):
 
 <ul class="nav nav-tabs">
   <li class="active"><a data-toggle="tab" href="#now"  > LAST VERSION    </a></li>
@@ -38,8 +38,8 @@ The last realese version (v0.3.4):
 <div class="tab-content">
 <div id="now" class="tab-pane fade in active" markdown="1">
 
-  * [lock_in+pid_harmonic-0.3.7-20-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-20-devbuild.tar.gz)
-  * [lock_in+pid_harmonic-0.3.7-20-devbuild.zip](lock_in+pid_harmonic-0.3.7-20-devbuild.zip)
+  * [lock_in+pid_harmonic-0.3.7-21-devbuild.tar.gz](lock_in+pid_harmonic-0.3.7-21-devbuild.tar.gz)
+  * [lock_in+pid_harmonic-0.3.7-21-devbuild.zip](lock_in+pid_harmonic-0.3.7-21-devbuild.zip)
 
 </div>
 <div id="old" class="tab-pane fade" markdown="1">
