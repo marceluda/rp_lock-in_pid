@@ -1,17 +1,17 @@
 # YAML 1.2
 ---
-authors: 
+authors:
   -
     family-names: Luda
     given-names: "Marcelo Alejandro"
     orcid: "https://orcid.org/0000-0002-1850-2282"
 cff-version: "1.1.0"
 doi: "10.1063/1.5080345"
-keywords: 
+keywords:
   - FPGA
   - "Pound-Drever-Hall"
   - Spectroscopy
-license: "GNU General Public License v3.0"
+license: "GPL-3.0-only"
 message: "If you use this software, please cite it using these metadata."
 repository-code: "https://github.com/marceluda/rp_lock-in_pid"
 ...
