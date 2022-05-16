@@ -181,7 +181,8 @@ share-links-active:
 #google_analytics: ""
 google_analytics: true
 #gtag: "UA-117190854-1"
-gtag: "UA-117190854-2"
+#gtag: "UA-117190854-2"
+gtag: "G-P4FS703Q7F"
 # Google Tag Manager ID
 #gtm: ""
 
