@@ -29,6 +29,8 @@ Review of Scientific Instruments
 </p>
 </center>
 
+
+
 <div class="alert alert-info" role="alert" markdown="1" >
 **News:** There is a new section on this web page about ["derivated works"](Derivated), including applications
 for Red Pitaya that are similar in design to `Lock-in+PID` or that are useful complements:
@@ -38,6 +40,22 @@ for Red Pitaya that are similar in design to `Lock-in+PID` or that are useful co
 </div>
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+##PhD Thesis
+
+This work was done in the context of a Physics PhD career in the Universidad de Buenos Aires. The thesis and the defense are published on-line **in spanish language** and can accessed here:
+
+<center>
+<p> <a href="https://www.dropbox.com/s/x8yrkmaaxbmbrhy/tesis_doctorado_marcelo_luda_%28para_publicaci%C3%B3n%29.pdf?dl=0" class="btn btn-primary btn-lg" role="button">
+Thesis work (PDF)
+</a>
+<a href="https://www.youtube.com/watch?v=gfvatGLzwYs" class="btn btn-primary btn-lg" role="button">
+Video of the defense (YouTube)
+</a>
+</p>
+</center>
+
 
 ## Features
 
