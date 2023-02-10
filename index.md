@@ -42,7 +42,7 @@ for Red Pitaya that are similar in design to `Lock-in+PID` or that are useful co
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 
-##PhD Thesis
+## PhD Thesis
 
 This work was done in the context of a Physics PhD career in the Universidad de Buenos Aires. The thesis and the defense are published on-line **in spanish language** and can accessed here:
 
