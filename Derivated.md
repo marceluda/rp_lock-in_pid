@@ -67,7 +67,7 @@ ZIP version
 
 ## Harmonic Lock-in+PID HF (for High Frequency)
 
-This is a copy of the project avove but with a oscillator than goes from 60 Hz to 1 MHz.
+This is a copy of the project above but with an oscillator then goes from 60 Hz to 1 MHz.
 
 [https://github.com/marceluda/rp_lock-in_pid_h_hf|github code]
 
