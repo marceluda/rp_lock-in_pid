@@ -64,6 +64,14 @@ ZIP version
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
+
+## Harmonic Lock-in+PID HF (for High Frequency)
+
+This is a copy of the project avove but with a oscillator than goes from 60 Hz to 1 MHz.
+
+[https://github.com/marceluda/rp_lock-in_pid_h_hf|github code]
+
+
 ## Dummy Simulator(v0.1): A peak function simulator for testing purposes
 
 This App simulate a peak-response from a system scanned through a control signal. You can use ir to test locking
