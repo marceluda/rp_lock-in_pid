@@ -6,9 +6,10 @@ layout: page
 
 # Download application
 
-The application comes in 3 flavors (**Default**, **Debug** and **Reload**) and packed in two formats
+~~The application comes in 3 flavors (**Default**, **Debug** and **Reload**) and packed in two formats
 (**.zip** for windows users and **.tar.gz** for Linux users). If you don't know what to download, just use
-the Default App in the zip package.
+the Default App in the zip package.~~
+The application has been designed in 3 flavours, but the only one useful in modern Red Pitaya ecosystems is the **Default** one.
 
 ![three_flavors]({{ site.baseurl }}/img/three_flavors.png "three_flavors")
 
@@ -23,17 +24,12 @@ Download last release (beta):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-|  **Default**  |  [lock_in+pid-0.2.1-1-devbuild.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.zip)                |
-|  **Debug**    |  [lock_in+pid-0.2.1-1-devbuild_DEBUG.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.zip)    |
-|  **Reload**   |  [lock_in+pid-0.2.1-1-devbuild_RELOAD.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_RELOAD.zip)  |
+|  **Default**  |  [lock_in+pid-0.2.2-1-devbuild.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.2-1-devbuild.zip)                |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-|  **Default**  |  [lock_in+pid-0.2.1-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.tar.gz)                |
-|  **Debug**    |  [lock_in+pid-0.2.1-1-devbuild_DEBUG.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.tar.gz)    |
-|  **Reload**   |  [lock_in+pid-0.2.1-1-devbuild_RELOAD.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_RELOAD.tar.gz)  |
-
+|  **Default**  |  [lock_in+pid-0.2.2-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.2-1-devbuild.tar.gz)                |
 </div>
 </div>
 
@@ -42,6 +38,10 @@ Download last release (beta):
 <a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">Older releases<span class="caret"></span></a>
 
 <div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
+- **lock-in+pid-0.2.1**:
+  - lock_in+pid-0.2.1-1-devbuild [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.tar.gz)]
+  - lock_in+pid-0.2.1-1-devbuild_DEBUG [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.tar.gz)]
+  - lock_in+pid-0.2.1-1-devbuild_RELOAD [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_RELOAD.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_RELOAD.tar.gz)]
 
 - **lock-in+pid-0.1.1-3**:
   - lock-in+pid-0.1.1-3-devbuild [[zip]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock-in+pid-0.1.1-3-devbuild.tar.gz)]
@@ -62,13 +62,14 @@ Download last release (beta):
 ## The difference between flavors
 
 The application itself is the **Default** flavor.
-The **Debug** flavor is just the same application but with a more debugging
+
+~~The **Debug** flavor is just the same application but with a more debugging
 info printed all the time in the internal Red Pitaya log files (`/var/log/redpitaya_nginx/*.log`) and is provided
 for testing and development purposes.
 The **Reload flavor** has only one difference with the Default: it doesn't loads the FPGA circuit on App loading
 nor reset any memory reg value. This flavor is useful if you already made an FPGA configuration
 through the Default App, closed the browser and then you want to get control again of that FPGA without resetting
-all the register values.
+all the register values.~~
 
 
 # Install App in RedPitaya
