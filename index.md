@@ -6,6 +6,11 @@ mathjax: true
 ---
 
 
+<div class="alert alert-info" role="alert" markdown="1" >
+**Version UPDATE**: The `Lock-in+PID v0.2.2-1` update now supports the Red Pitaya ecosystem 2.0
+</div>
+
+
 
 **Lock-in+PID** is an application for the [RedPitaya](https://redpitaya.com/) enviroment / STEMlab 125-14 board
 that implements an Oscilloscope application and a Lock-in amplifier. It's based on
