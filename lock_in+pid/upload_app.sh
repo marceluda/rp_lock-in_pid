@@ -124,7 +124,7 @@ else
  
     ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP} ; mkdir -p /opt/redpitaya/www/apps/${APP} "
     echo -e "\n\n---------------------\n\n"
-    scp  ${RPSCP} -r controllerhf.so css js fpga.conf index.html info py red_pitaya.bit  root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
+    scp  ${RPSCP} -r controllerhf.so css js fpga.conf fpga.sh fpga.bit.bin index.html info py red_pitaya.bit  root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
 
 fi
 
