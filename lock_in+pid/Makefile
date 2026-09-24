@@ -138,8 +138,8 @@ clean_fpga:
 	-$(RM) target -rf
 	-$(RM) target_dbg -rf
 	-$(RM) target_rld -rf
-	rm red_pitaya.bit
-	echo "BUILD_NUMBER=$$(( $BUILD_NUMBER + 1 ))" > ../_build_number
+	-$(RM) red_pitaya.bit
+	echo "BUILD_NUMBER=$$(( $(BUILD_NUMBER) + 1 ))" > ../_build_number
 
 clean: clean_app clean_fpga clean_target
 
