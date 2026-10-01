@@ -74,7 +74,7 @@ $(FPGA_BIN): red_pitaya.bit
 
 target/$(APP): red_pitaya.bit $(FPGA_BIN) $(CONTROLLERHF) index.html
 	mkdir -p target/$(APP)
-	cp -r $(CONTROLLERHF) fpga.conf fpga.sh $(FPGA_BIN) info css js py red_pitaya.bit index.html target/$(APP)
+	cp -r $(CONTROLLERHF) nginx.conf fpga.conf fpga.sh $(FPGA_BIN) info css js py red_pitaya.bit index.html target/$(APP)
 	rm target/$(APP)/info/icon_*.png
 	cp -r upload_app.sh target/
 	cp -r ../resources target/
@@ -86,7 +86,7 @@ target/$(APP): red_pitaya.bit $(FPGA_BIN) $(CONTROLLERHF) index.html
 
 target_dbg/$(APP)_DEBUG: red_pitaya.bit $(FPGA_BIN) $(CONTROLLER_DBG) index.html
 	mkdir -p target_dbg/$(APP)_DEBUG
-	cp -r $(CONTROLLER_DBG) fpga.conf fpga.sh $(FPGA_BIN) info css js py red_pitaya.bit index.html target_dbg/$(APP)_DEBUG
+	cp -r $(CONTROLLER_DBG) nginx.conf fpga.conf fpga.sh $(FPGA_BIN) info css js py red_pitaya.bit index.html target_dbg/$(APP)_DEBUG
 	cat target_dbg/$(APP)_DEBUG/info/icon_DEBUG.png > target_dbg/$(APP)_DEBUG/info/icon.png
 	rm  target_dbg/$(APP)_DEBUG/info/icon_*.png
 	mv  target_dbg/$(APP)_DEBUG/$(CONTROLLER_DBG) target_dbg/$(APP)_DEBUG/$(CONTROLLERHF)
@@ -100,10 +100,12 @@ target_dbg/$(APP)_DEBUG: red_pitaya.bit $(FPGA_BIN) $(CONTROLLER_DBG) index.html
 	sed -i target_dbg/$(APP)_DEBUG/index.html -e "s/\(\\s*\)var\\s*app_id\\s*=\\s*'$(APP)'\\s*;\\s*/\\1var app_id = '$(APP)_DEBUG';/"
 	sed -i target_dbg/$(APP)_DEBUG/fpga.conf -e "s/$(APP)/$(APP)_DEBUG/"
 	sed -i target_dbg/$(APP)_DEBUG/fpga.sh   -e "s?/apps/$(APP)/?/apps/$(APP)_DEBUG/?"
+	sed -i target_dbg/$(APP)_DEBUG/nginx.conf -e 's?pid/(?pid_DEBUG/(?'
 
 target_rld/$(APP)_RELOAD: red_pitaya.bit $(CONTROLLER_DBG) index.html
 	mkdir -p target_rld/$(APP)_RELOAD
-	cp -r $(CONTROLLER_RLD) info css js py index.html target_rld/$(APP)_RELOAD
+	cp -r $(CONTROLLER_RLD) nginx.conf info css js py index.html target_rld/$(APP)_RELOAD
+	sed -i target_rld/$(APP)_RELOAD/nginx.conf -e 's?pid/(?pid_RELOAD/(?'
 	touch target_rld/$(APP)_RELOAD/fpga.conf
 	cat   target_rld/$(APP)_RELOAD/info/icon_RELOAD.png > target_rld/$(APP)_RELOAD/info/icon.png
 	rm    target_rld/$(APP)_RELOAD/info/icon_*.png
@@ -167,11 +169,11 @@ upload_bit:
 
 upload: target/$(APP) target_dbg/$(APP)_DEBUG target_rld/$(APP)_RELOAD
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP) ; mkdir -p /opt/redpitaya/www/apps/$(APP)"
-	cd target/$(APP) ; scp  $(RPSCP) -r controllerhf.so css js py fpga.conf fpga.sh $(FPGA_BIN) index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
+	cd target/$(APP) ; scp  $(RPSCP) -r controllerhf.so css js py nginx.conf fpga.conf fpga.sh $(FPGA_BIN) index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)/
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)_DEBUG ; mkdir -p /opt/redpitaya/www/apps/$(APP)_DEBUG"
-	cd target_dbg/$(APP)_DEBUG; scp $(RPSCP) -r controllerhf.so css js py fpga.conf fpga.sh $(FPGA_BIN) index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_DEBUG/
+	cd target_dbg/$(APP)_DEBUG; scp $(RPSCP) -r controllerhf.so css js py nginx.conf fpga.conf fpga.sh $(FPGA_BIN) index.html info red_pitaya.bit  root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_DEBUG/
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)_RELOAD ; mkdir -p /opt/redpitaya/www/apps/$(APP)_RELOAD"
-	cd target_rld/$(APP)_RELOAD; scp $(RPSCP) -r controllerhf.so css js py fpga.conf index.html info root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_RELOAD/
+	cd target_rld/$(APP)_RELOAD; scp $(RPSCP) -r controllerhf.so css js py nginx.conf fpga.conf index.html info root@$(RPIP):/opt/redpitaya/www/apps/$(APP)_RELOAD/
 
 upload_html: target/$(APP) target_dbg/$(APP)_DEBUG target_rld/$(APP)_RELOAD
 	ssh $(RPIP) $(RPOPTS) "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/$(APP)/{index.html,js,css}"
