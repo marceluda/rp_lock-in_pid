@@ -862,8 +862,9 @@ int rp_set_params(rp_app_params_t *p, int len)
 
         pthread_mutex_lock(&rp_main_params_mutex);
         /* Xmin & Xmax public copy to be served to clients */
-        rp_main_params[GUI_XMIN].value = p[MIN_GUI_PARAM].value;
-        rp_main_params[GUI_XMAX].value = p[MAX_GUI_PARAM].value;
+        /* p may be a partial list (split POSTs): use the values already copied by name in the loop above */
+        rp_main_params[GUI_XMIN].value = rp_main_params[MIN_GUI_PARAM].value;
+        rp_main_params[GUI_XMAX].value = rp_main_params[MAX_GUI_PARAM].value;
         transform_acq_params(rp_main_params);
         pthread_mutex_unlock(&rp_main_params_mutex);
 

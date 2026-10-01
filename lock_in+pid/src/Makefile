@@ -4,7 +4,7 @@ RM=rm
 OBJECTS=main.o fpga.o worker.o calib.o fpga_awg.o generate.o fpga_pid.o pid.o fpga_lock.o lock.o
 
 CFLAGS+= -Wall -Werror -g -fPIC $(INCLUDE)
-LDFLAGS=-shared
+LDFLAGS=-shared -lm -lpthread
 
 CONTROLLER     = ../controllerhf.so
 

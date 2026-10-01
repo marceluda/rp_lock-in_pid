@@ -56,8 +56,17 @@
 
   var update_interval = 50;              // Update interval for PC, milliseconds
   var update_interval_mobdev = 500;      // Update interval for mobile devices, milliseconds
-  var request_timeout = 3000;            // Milliseconds
+  var request_timeout = 10000;           // Milliseconds. Was 3000; raised for Ecosystem 2.0, where POSTs
+                                         // can take longer and 3 s gave spurious "Error while sending data (E3)"
   var long_timeout = 20000;              // Milliseconds
+  var post_max_bytes = 600;              // Max size of each POST /data body. Ecosystem 2.0 nginx 1.19.10 + rp_module
+                                         // stop reading the body if it does not arrive in the first read; Chrome sends
+                                         // headers and body in one write only if both fit in ~1400 B (headers ~500-800 B)
+  var post_chunk_timeout = 2000;         // Milliseconds, per POST chunk. A healthy POST answers in ~10 ms; a hung one never
+  var post_chunk_retries = 2;            // Retries of a chunk that timed out (values are absolute, so it is safe)
+  var always_send_params = ['single_btn', 'xmin', 'xmax', 'lock_lock_control'];  // Sent in every POST, even if
+                                         // unchanged: loadParams() overrides them locally, so server may differ
+  var last_send_params = ['single_btn', 'auto_flag'];  // Go in the last POST when params are split
   var meas_panel_dec = 5;                // Decimation for numerical measure panel to make it human readable
   var meas_panel_dec_mobdev = 1;         // Decimation for numerical measure panel for mobile devices
   var points_per_px = 5;                 // How many points per pixel should be drawn. Set null for unlimited (will disable client side decimation).
@@ -95,6 +104,15 @@
   var touch_last_y = 0;
   var user_editing = false;
   var app_started = false;
+  var control_lost = false;              // Another client (main menu, another tab...) claimed the board
+  var auto_restarts = 0;                 // Automatic restarts since the last good GET /data
+  var claim_check_period = 250;          // Milliseconds, min time between /get_client_id checks
+  var last_claim_check = 0;
+  var claim_supported = true;            // false in 0.9x (no /set_client_id endpoint)
+  var claim_unknown_count = 0;           // Consecutive /get_client_id checks without answer
+  var start_retries = 3;                 // bazaar?start attempts (2.0: the worker may die during the start)
+  var state_key = 'lockin_state_' + app_id;  // sessionStorage key of the last server-confirmed settings
+  var last_state_save = 0;
   var last_get_failed = false;
   var refresh_counter = 0;
   var autorun = 1;
@@ -139,6 +157,14 @@
   var def_params = {
     en_avg_at_dec: 0
   };
+
+  // Ecosystem 2.0: claim the board like the factory Apps do (spectrumpro/js/scope.js), so that a tab
+  // with the main menu open does not relaunch main_menu and unload this App. In 0.9x it just fails.
+  // Global: checkClaim() compares it with /get_client_id before each GET /data.
+  var client_id = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+    var r = Math.random() * 16 | 0, v = (c == 'x' ? r : (r & 0x3 | 0x8));
+    return v.toString(16);
+  });
 
   // On page loaded
 
@@ -1059,7 +1085,7 @@
 
     $('#btn_retry_get').on('click', function() {
       $('#modal_err').modal('hide');
-      updateGraphData();
+      resumeApp();  // Probe first: GET /data with another 2.0 App loaded crashes the nginx worker
     });
 
     $('#btn_close').on('click', function() {
@@ -1575,7 +1601,7 @@
 
     // Load first data
     if(window.location.href[0]!='f'){
-      updateGraphData();
+      claimBoard().always(resumeApp);  // Claim, then probe which App is loaded before any GET /data
     } else{
       $('#bottom_panel').find('select').prop('disabled', false); // LOLO lock panel
       $('#leftpanel').find('select').prop('disabled', false); // LOLO left panel
@@ -2472,31 +2498,137 @@
   }
 
 
-  function startApp() {
-    $.get(
-      start_app_url
-    )
-    .done(function(dresult) {
-      if(dresult.status == 'ERROR') {
-        showModalError((dresult.reason ? dresult.reason : 'Could not start the application.'), true);
+  // Ecosystem 2.0: POST /set_client_id (Lua) writes our id; the factory Apps check it before relaunching
+  // themselves. Returns the jqXHR. In 0.9x the endpoint does not exist: checkClaim() is then disabled.
+  function claimBoard() {
+    return $.ajax({ url: root_url + '/set_client_id', type: 'POST', data: client_id, timeout: 2000,
+                    cache: false, contentType: false, processData: false })
+    .done(function() { claim_supported = true; last_claim_check = 0; })
+    .fail(function(xhr) {
+      if(xhr.status == 404 || xhr.status == 405) claim_supported = false;
+      console.log('set_client_id not available (Ecosystem < 2.0?)');
+    });
+  }
+
+  // Ecosystem 2.0: GET /data with another 2.0 App loaded (main_menu, scopegenpro...) crashes the nginx worker
+  // (rp_sig_len uninitialized in rp_data_get_signals + stub rp_get_signals). POST /data with no params is safe
+  // (stubs rp_set_params/rp_get_params) and returns app.id. Resolves with the loaded app id, '' if no App is
+  // loaded, or null if there was no (usable) answer.
+  function probeApp() {
+    var dfd = $.Deferred();
+    $.ajax({ type: 'POST', url: post_url, data: JSON.stringify({ datasets: { params: {} } }),
+             timeout: post_chunk_timeout, cache: false })
+    .done(function(d) { dfd.resolve(d && d.app ? (d.app.id || '') : null); })   // '' = no App loaded
+    .fail(function() { dfd.resolve(null); });
+    return dfd.promise();
+  }
+
+  // Page load and Retry button: GET /data only if our App is the loaded one, otherwise start it
+  function resumeApp() {
+    probeApp().done(function(id) {
+      if(id === app_id) { app_started = true; control_lost = false; updateGraphData(); }  // already running: keep its state
+      else { startApp(1, id); }
+    });
+  }
+
+  // 'own' | 'lost' | 'unknown' (timeout: nginx busy, e.g. during /bazaar?apps=). 0.9x has no endpoint -> 'own'.
+  function checkClaim() {
+    var dfd = $.Deferred();
+    if(!claim_supported || Date.now() - last_claim_check < claim_check_period) return dfd.resolve('own').promise();
+    $.ajax({ url: root_url + '/get_client_id', timeout: 2000, cache: false, dataType: 'text' })
+    .done(function(msg) { last_claim_check = Date.now(); dfd.resolve(String(msg).trim() === client_id ? 'own' : 'lost'); })
+    .fail(function(xhr) { dfd.resolve((xhr.status == 404 || xhr.status == 405) ? 'own' : 'unknown'); });
+    return dfd.promise();
+  }
+
+  // Stop polling and do not restart by ourselves (avoids the main_menu <-> App ping-pong)
+  function onControlLost() {
+    control_lost = true;
+    app_started = false;
+    if(update_timer) {
+      clearTimeout(update_timer);
+      update_timer = null;
+    }
+    showModalError('Another client (main menu or another App) took control of the Red Pitaya.<br>' +
+                   'Press Restart to take it back: your last settings will be restored.', false, true);
+  }
+
+  // Last server-confirmed user settings (same keys as Config save). sessionStorage: per tab, survives
+  // location.reload() (Restart), is not shared with other tabs and is cleared when the tab is closed.
+  function saveState(srv, force) {
+    if(!srv || (force !== true && Date.now() - last_state_save < 2000)) return;
+    var s = {};
+    for(var i in config_params_keys) {
+      var k = config_params_keys[i];
+      if(srv[k] !== null && srv[k] !== undefined && isFinite(srv[k])) s[k] = Number(srv[k]);
+    }
+    try { sessionStorage.setItem(state_key, JSON.stringify(s)); last_state_save = Date.now(); } catch(e) {}
+  }
+
+  // After each start: send def_params + the saved state (the server side App starts with its static defaults)
+  function restoreState() {
+    var p = $.extend({}, def_params), saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(state_key)); } catch(e) {}
+    if(saved) {
+      $.extend(p, saved);
+      /* LOLO load_config_block_start */
+      // Same safety rule as Config -> load: an unexpected restart should not close the loops by itself
+      if(load_config_block_start == 1) {
+        p.lock_ctrl_aux_ramp_enable_ctrl = 0;
+        p.lock_ctrl_aux_pidA_enable_ctrl = 0;
+        p.lock_ctrl_aux_pidB_enable_ctrl = 0;
+        p.lock_ramp_enable               = 0;   // "Scan enable" of the Ramp panel (0x406000c0)
+        p.lock_ctrl_aux_lock_now         = 0;   // lock_control[0]: would start a lock right away
+        p.lock_ctrl_aux_launch_lock_trig = 0;   // lock_control[1]: would arm the lock trigger
       }
-      else {
-        $.post(
-          post_url,
-          JSON.stringify({ datasets: { params: def_params } })
-        )
-        .done(function(dresult) {
-          app_started = true;
-          updateGraphData();
-        })
-        .fail(function() {
-          showModalError('Could not initialize the application with default parameters.', false, true);
-        });
-      }
+    }
+    // Split in several sequential POSTs if needed (Ecosystem 2.0 hangs with big POST bodies)
+    postParamsChunks(splitParams(p), post_chunk_timeout, post_chunk_retries)
+    .done(function() {
+      app_started = true;
+      control_lost = false;
+      auto_restarts = 0;
+      updateGraphData();
     })
     .fail(function() {
-      showModalError('Could not start the application.', true);
+      showModalError('Could not restore the application parameters.', false, true);
     });
+  }
+
+  // prev_id: App loaded before ('' none, null unknown, other id). If it is another App, stop it first and wait
+  // for the worker to die (2.0 ws_server stop() -> exit(-1) 1 s later): our start then runs once, in a clean worker.
+  // bazaar?stop ignores its argument (0.9x and 2.0), the id is only informative.
+  function startApp(attempt, prev_id) {
+    attempt = attempt || 1;
+    var pre = $.Deferred();
+    if(prev_id && prev_id !== app_id) {
+      console.info('startApp: ' + prev_id + ' is loaded, stopping it before start (attempt ' + attempt + ')');
+      $.ajax({ url: stop_app_url + prev_id, timeout: long_timeout, cache: false })
+      .always(function() { setTimeout(function() { pre.resolve(); }, 1500); });
+    }
+    else { pre.resolve(); }
+    pre.done(function() {
+      $.ajax({ url: start_app_url, timeout: long_timeout, cache: false })
+      .always(function(d) {
+        // 2.0: unloading a websocket App (main_menu...) kills the worker ~1 s later (ws_server exit(-1)),
+        // possibly during our start. Confirm with the safe probe and retry.
+        setTimeout(function() {
+          probeApp().done(function(id) {
+            if(id === app_id) {
+              restoreState();
+            }
+            else if(attempt < start_retries) {
+              console.info('startApp: attempt ' + attempt + ' failed (loaded app: ' +
+                           (id === null ? 'no answer' : (id === '' ? 'none' : id)) + '), retrying');
+              startApp(attempt + 1, id);
+            }
+            else {
+              showModalError((d && d.reason) ? d.reason : 'Could not start the application.', true);
+            }
+          });
+        }, 1500);
+      });
+    });   // pre.done
   }
 
   function showModalError(err_msg, retry_btn, restart_btn, ignore_btn) {
@@ -2510,7 +2642,7 @@
   }
 
   function updateGraphData() {
-    if(downloading||scope_stop) {
+    if(downloading||scope_stop||control_lost) {
       return;
     }
     if(update_timer) {
@@ -2519,6 +2651,30 @@
     }
     downloading = true;
 
+    // Ecosystem 2.0: check we still own the board before GET /data (another App loaded -> worker crash)
+    checkClaim().done(function(st) {
+      if(st === 'lost') {
+        downloading = false;
+        onControlLost();
+        return;
+      }
+      if(st === 'unknown') {
+        downloading = false;
+        if(++claim_unknown_count > 5) {
+          claim_unknown_count = 0;
+          showModalError('The Red Pitaya does not answer (/get_client_id).', true, true);
+        }
+        else {
+          update_timer = setTimeout(updateGraphData, 500);
+        }
+        return;
+      }
+      claim_unknown_count = 0;
+      doGetData();
+    });
+  }
+
+  function doGetData() {
     // Send params if there are any unsent changes
     sendParams();
 
@@ -2534,27 +2690,45 @@
       last_get_failed = false;
 
       if(dresult.status === 'ERROR') {
-        if(! app_started) {
-          startApp();
-        }
-        else {
-          showModalError((dresult.reason ? dresult.reason : 'Application error.'), true, true);
-        }
+        // "Application not loaded": restart only if we still own the board (no ping-pong with main_menu)
+        last_claim_check = 0;  // force a fresh check
+        checkClaim().done(function(st) {
+          if(st === 'lost') {
+            onControlLost();
+          }
+          else if(!app_started || auto_restarts++ < 2) {  // our own board: the worker died or the App was unloaded
+            app_started = false;
+            startApp();
+          }
+          else {
+            showModalError((dresult.reason ? dresult.reason : 'Application error.'), true, true);
+          }
+        });
       }
       else if(dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
         // Check if the application started on the server is the same as on client
         if(app_id !== dresult.app.id) {
-          if(! app_started) {
-            startApp();
-          }
-          else {
-            $('#new_app_id').text(dresult.app.id);
-            $('#modal_app').modal('show');
-          }
+          var other_app_id = dresult.app.id;
+          last_claim_check = 0;  // force a fresh check
+          checkClaim().done(function(st) {
+            if(st === 'lost') {
+              onControlLost();
+            }
+            else if(!app_started || auto_restarts++ < 2) {
+              app_started = false;
+              startApp(1, other_app_id);
+            }
+            else {
+              $('#new_app_id').text(other_app_id);
+              $('#modal_app').modal('show');
+            }
+          });
           return;
         }
 
         app_started = true;
+        auto_restarts = 0;
+        saveState(dresult.datasets.params);
 
         // Check if trigger mode (which may switch autorun) was changed during ajax request
         var arun_after_ajax = autorun;
@@ -3110,8 +3284,99 @@
     return false;
   }
 
-  function sendParams(refresh_data, force_send, single_btn, user_editing_update) {
-    if(sending || (force_send !== true && !isParamChanged())) {
+  // Split a params object in several objects, so that the JSON body of each POST
+  // is smaller than post_max_bytes. Keys in last_send_params go in the last one.
+  // Only finite numeric values are sent: null/bool/strings crash (2.0) or hang (0.9x) the nginx worker.
+  function splitParams(p) {
+    var chunks = [];
+    var chunk = {};
+    var chunk_len = 0;
+    var base_len = JSON.stringify({ datasets: { params: {} } }).length;
+    var keys = [];
+    var last_keys = [];
+
+    for(var key in p) {
+      if(last_send_params.indexOf(key) >= 0) {
+        last_keys.push(key);
+      }
+      else {
+        keys.push(key);
+      }
+    }
+    keys = keys.concat(last_keys);
+
+    for(var i = 0; i < keys.length; i++) {
+      var raw = p[keys[i]];
+      var v = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')) ? Number(raw) : NaN;
+      if(!isFinite(v)) {
+        console.warn('splitParams: skipping non-numeric param', keys[i], raw);
+        continue;
+      }
+      var item_len = JSON.stringify(keys[i]).length + JSON.stringify(v).length + 2;  // "key":value,
+      if(chunk_len > 0 && base_len + chunk_len + item_len > post_max_bytes) {
+        chunks.push(chunk);
+        chunk = {};
+        chunk_len = 0;
+      }
+      chunk[keys[i]] = v;
+      chunk_len += item_len;
+    }
+    chunks.push(chunk);
+
+    return chunks;
+  }
+
+  // POST a list of params objects one after the other (each POST waits for the previous one).
+  // Returns a promise: resolved with the response of the last POST (or of the first one that
+  // is not a valid params response, so the caller can handle it), rejected if any POST fails.
+  // A chunk that times out is sent again up to `retries` times (Ecosystem 2.0 may never answer a
+  // POST whose body was split by TCP; values are absolute, so resending is safe).
+  function postParamsChunks(chunks, timeout, retries) {
+    var dfd = $.Deferred();
+    var i = 0;
+    var max_retries = (retries === undefined ? post_chunk_retries : retries);
+    var tries_left = max_retries;
+
+    function postNext() {
+      $.ajax({
+        type: 'POST',
+        url: post_url,
+        data: JSON.stringify({ datasets: { params: chunks[i] } }),
+        timeout: timeout,
+        cache: false
+      })
+      .done(function(dresult) {
+        i++;
+        tries_left = max_retries;
+        if(i < chunks.length && dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
+          postNext();
+        }
+        else {
+          dfd.resolve(dresult);
+        }
+      })
+      .fail(function(xhr, status) {
+        if(status === 'timeout' && tries_left > 0) {
+          tries_left--;
+          console.warn('postParamsChunks: chunk ' + (i+1) + '/' + chunks.length + ' timed out, retrying (' +
+                       (max_retries - tries_left) + '/' + max_retries + ')');
+          postNext();  // same chunk again
+        }
+        else {
+          dfd.reject();
+        }
+      });
+    }
+
+    postNext();
+    return dfd.promise();
+  }
+
+  function sendParams(refresh_data, force_send, single_btn, user_editing_update, send_all) {
+    if(control_lost) {
+      return;  // Another client owns the board: do not change its settings
+    }
+    if(sending ||(force_send !== true && !isParamChanged())) {
       send_que = sending;
       return;
     }
@@ -3121,13 +3386,17 @@
     params.local.single_btn = (single_btn === true ? 1 : 0);
     use_long_timeout = !!auto_flag;
 
-    $.ajax({
-      type: 'POST',
-      url: post_url,
-      data: JSON.stringify({ datasets: { params: params.local } }),
-      timeout: (use_long_timeout ? long_timeout : request_timeout),
-      cache: false
-    })
+    // Send only the params that changed (same comparison as isParamChanged()), plus always_send_params.
+    // Ecosystem 2.0 hangs with big POST bodies (E3), so all the ~220 params can not be sent every time.
+    var send_params = {};
+    for(var key in params.local) {
+      if(send_all === true || !params.original || params.original[key] != params.local[key] ||
+         always_send_params.indexOf(key) >= 0) {
+        send_params[key] = params.local[key];
+      }
+    }
+
+    postParamsChunks(splitParams(send_params), (use_long_timeout ? long_timeout : post_chunk_timeout), post_chunk_retries)
     .done(function(dresult) {
       // OK: Load the params received as POST result
       if(dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
@@ -3164,6 +3433,7 @@
           plot.draw();
         }
 
+        if(dresult.app && dresult.app.id === app_id) saveState(dresult.datasets.params, true);
         if(!user_editing) loadParams(dresult.datasets.params);
         //console.log('lock_error_offset: '+dresult.datasets.params["lock_error_offset"]);
         updateTriggerSlider();
@@ -4029,6 +4299,9 @@
       params.storage[num].data['lock_ctrl_aux_ramp_enable_ctrl']   = 0 ;
       params.storage[num].data['lock_ctrl_aux_pidA_enable_ctrl']   = 0 ;
       params.storage[num].data['lock_ctrl_aux_pidB_enable_ctrl']   = 0 ;
+      params.storage[num].data['lock_ramp_enable']                 = 0 ;  // "Scan enable" of the Ramp panel
+      params.storage[num].data['lock_ctrl_aux_lock_now']           = 0 ;  // would start a lock right away
+      params.storage[num].data['lock_ctrl_aux_launch_lock_trig']   = 0 ;  // would arm the lock trigger
     }
     // */
     user_editing = true;
@@ -4038,7 +4311,8 @@
     loadParams(params.storage[num].data);
 
     // update params to server
-    sendParams(true, true);
+    // send_all: loadParams() overwrote params.original, so all params must be sent, not only changed ones
+    sendParams(true, true, false, false, true);
 
   }
 
@@ -4199,7 +4473,7 @@
     var dd = dd || new Date().toJSON() ;
     var date = new Date(dd);
     var date_str= ('0'+date.getFullYear()).substr(-4,4)+'-'+
-                  ('0'+date.getMonth()+1 ).substr(-2,2)+'-'+
+                  ('0'+(date.getMonth()+1) ).substr(-2,2)+'-'+
                   ('0'+date.getDate()    ).substr(-2,2)+
                   ' '+
                   ('0'+date.getHours()   ).substr(-2,2)+':'+
