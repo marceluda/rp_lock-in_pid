@@ -24,12 +24,12 @@ Download last release (beta):
 <div class="tab-content">
 <div id="zip" class="tab-pane fade in active" markdown="1">
 
-|  **Default**  |  [lock_in+pid-0.2.2-1-devbuild.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.2-1-devbuild.zip)                |
+|  **Default**  |  [lock_in+pid-0.2.3-7-devbuild.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.zip)                |
 
 </div>
 <div id="targz" class="tab-pane fade" markdown="1">
 
-|  **Default**  |  [lock_in+pid-0.2.2-1-devbuild.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.2-1-devbuild.tar.gz)                |
+|  **Default**  |  [lock_in+pid-0.2.3-7-devbuild.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.tar.gz)                |
 </div>
 </div>
 
