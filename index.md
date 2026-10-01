@@ -7,7 +7,7 @@ mathjax: true
 
 
 <div class="alert alert-info" role="alert" markdown="1" >
-**Version UPDATE**: The `Lock-in+PID v0.2.2-1` update now supports the Red Pitaya ecosystem 2.0
+**Version UPDATE**: The `Lock-in+PID v0.2.3-7` update now supports the Red Pitaya ecosystem 2.0 and fixed some UI bugs
 </div>
 
 
