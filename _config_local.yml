@@ -1,0 +1,20 @@
+# Override para compilar localmente en /var/www/html/rp_lock-in_pid
+# Uso: ./build-local.sh   (se combina con _config.yml)
+url: "http://localhost/rp_lock-in_pid"
+baseurl: "/rp_lock-in_pid"
+# Carpetas locales que no están en el branch gh-pages (restos de master)
+exclude:
+  - CHANGELOG.md
+  - CNAME
+  - Dockerfile
+  - Gemfile
+  - Gemfile.lock
+  - LICENSE
+  - LICENSE-Theme
+  - README.md
+  - Vagrantfile
+  - build-local.sh
+  - _config_local.yml
+  - lock_in+pid
+  - archive
+  - _build_number

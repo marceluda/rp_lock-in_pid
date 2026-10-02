@@ -1,0 +1,25 @@
+{% comment %}
+  Cuadrícula de tarjetas. Uso:
+    {% include card-grid.html items=site.data.redpitaya %}
+  Cada item: nombre, descripcion, imagen, url (externa https://... o interna /...)
+  Con logo=true las imágenes se muestran como logo (contenidas, sin recortar).
+{% endcomment %}
+<div class="card-grid{% if include.logo %} card-grid-logo{% endif %}">
+  {% for item in include.items %}
+    {% assign primero = item.url | slice: 0 %}
+    {% if primero == "/" %}
+      {% assign href = item.url | prepend: site.baseurl %}
+    {% else %}
+      {% assign href = item.url %}
+    {% endif %}
+    <a class="card-item" href="{{ href }}">
+      <div class="card-img">
+        <img src="{{ item.imagen | prepend: site.baseurl }}" alt="{{ item.nombre }}" loading="lazy" />
+      </div>
+      <div class="card-body">
+        <h4 class="card-title">{{ item.nombre }}</h4>
+        <p class="card-desc">{{ item.descripcion }}</p>
+      </div>
+    </a>
+  {% endfor %}
+</div>

@@ -1,0 +1,14 @@
+{% comment %}
+  Badges de shields.io para un repo de GitHub. Uso:
+    {% include repo-badges.html repo="marceluda/rp_lock-in_pid_h" %}
+  Con version=false se omite el badge de versión (repos sin tags).
+{% endcomment %}
+{% assign repo_name = include.repo | split: "/" | last %}
+{% assign repo_esc = repo_name | replace: "-", "--" | replace: "_", "__" %}
+{% assign repo_url = "https://github.com/" | append: include.repo %}
+<p class="repo-badges">
+  <a href="{{ repo_url }}"><img alt="GitHub repo" src="https://img.shields.io/badge/GitHub-{{ repo_esc }}-181717?logo=github" /></a>
+  {% unless include.version == false %}<a href="{{ repo_url }}/tags"><img alt="Version" src="https://img.shields.io/github/v/tag/{{ include.repo }}?label=version" /></a>{% endunless %}
+  <a href="{{ repo_url }}/commits"><img alt="Last commit" src="https://img.shields.io/github/last-commit/{{ include.repo }}" /></a>
+  <a href="{{ repo_url }}/stargazers"><img alt="Stars" src="https://img.shields.io/github/stars/{{ include.repo }}?style=flat" /></a>
+</p>

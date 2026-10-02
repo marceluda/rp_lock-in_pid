@@ -1,0 +1,5 @@
+{% comment %}
+  Subtítulo h2 con anchor fijo y link 🔗 al pasar el mouse. Uso:
+    {% include section-title.html id="lock-in-pid-h" title="Lock-in+PID H" %}
+{% endcomment %}
+<h2 id="{{ include.id }}" class="anchored">{{ include.title }} <a class="anchor-link" href="#{{ include.id }}" aria-label="Link to this section" title="Link to this section"><i class="fa fa-link"></i></a></h2>

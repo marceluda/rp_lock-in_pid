@@ -1,0 +1,12 @@
+{%- comment -%}
+  Badge de descarga. Uso:
+    {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.zip" label="v0.3.10-4" %}
+  La parte gris muestra la versión (label) y la coloreada el formato (tar.gz / zip).
+  Genera una sola línea para poder usarse dentro de tablas Markdown.
+{%- endcomment -%}
+{%- if include.file contains ".tar.gz" -%}
+  {%- assign fmt = "tar.gz" -%}{%- assign color = "blue" -%}
+{%- else -%}
+  {%- assign fmt = "zip" -%}{%- assign color = "orange" -%}
+{%- endif -%}
+<a class="download-badge" href="{{ include.file }}"><img alt="{{ include.label }} {{ fmt }}" src="https://img.shields.io/static/v1?label={{ include.label | url_encode }}&message={{ fmt }}&color={{ color }}&logo=files" /></a>

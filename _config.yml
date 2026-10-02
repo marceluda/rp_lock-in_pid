@@ -240,6 +240,8 @@ exclude:
   - LICENSE-Theme
   - README.md
   - Vagrantfile
+  - build-local.sh
+  - _config_local.yml
 
 # prose.io config
 prose:
