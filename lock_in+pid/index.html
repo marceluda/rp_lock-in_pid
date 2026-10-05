@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v0.2.3)</title>
+  <title>Oscilloscope+lock-in+PID (v0.2.4)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -99,6 +99,7 @@
   var scope_stop = false;
   var sending = false;
   var send_que = false;
+  var send_que_all = false;              // The queued sendParams() must use send_all (config load during a POST)
   var use_long_timeout = false;
   var trig_dragging = false;
   var touch_last_y = 0;
@@ -109,9 +110,73 @@
   var claim_check_period = 250;          // Milliseconds, min time between /get_client_id checks
   var last_claim_check = 0;
   var claim_supported = true;            // false in 0.9x (no /set_client_id endpoint)
-  var claim_unknown_count = 0;           // Consecutive /get_client_id checks without answer
+  var claim_timeout = 1500;              // Milliseconds, /get_client_id timeout (healthy answer: ~10 ms)
+  var claim_fast_ms = 500;               // A /get_client_id answer slower than this is 'slow' (see checkClaim)
+  // A /get_client_id that overlapped one of our POST /data (in flight, or ended less than post_overlap_ms before
+  // it started) may just be queued behind it (same browser, nginx worker busy in rp_set_params): its slowness is
+  // not measured, a slow answer with our id counts as 'own' (a failure or another id still count).
+  var post_inflight = 0;                 // POST /data requests in flight (postParamsChunks, probeApp)
+  var last_post_end = 0;                 // Date.now() when the last POST /data ended
+  var post_overlap_ms = 200;
+  // Anti-loop guard of sendParams(). A NaN in params.local (config without some keys -> <select> without selection)
+  // once made an endless loop of POSTs (~15/s) that filled the fds of the nginx worker (CLOSE-WAIT) and killed it.
+  // A POST without any real change (only always_send_params) less than post_min_gap_ms after the end of the
+  // previous POST is not sent, and at most post_max_per_s POSTs per second are sent (more are deferred, console.warn).
+  var post_min_gap_ms = 200;
+  var post_max_per_s = 10;
+  var post_starts = [];                  // Date.now() of the POSTs started by sendParams() in the last second
+  var post_rate_timer = null;            // Deferred sendParams() (post_max_per_s reached)
+  var post_rate_args = null;             // Its arguments (OR of the deferred calls)
+  // Cautious mode (2.0): a slow/failed /get_client_id means nginx is busy, usually an App change in progress
+  // (main_menu loading). A GET /data then may hit main_menu and crash the nginx worker (signal 11). A single
+  // slow/failed answer is retried at once (checkClaimConfirm, no GET /data meanwhile); if the retry is slow or
+  // fails too: no GET /data, re-check every cautious_delay ms and resume after cautious_need consecutive fast
+  // answers with our id.
+  var cautious_mode = false;
+  var cautious_delay = 1000;             // Milliseconds between /get_client_id checks in cautious mode
+  var cautious_need = 2;                 // Consecutive fast answers with our id needed to leave it
+  var cautious_max_checks = 20;          // Checks without leaving it (~20-50 s) -> error modal (Retry/Restart), never frozen
+  var cautious_ok = 0;
+  var cautious_checks = 0;
+  var cautious_timer = null;
+  var cautious_busy = false;             // A cautious /get_client_id check is in flight
+  var cautious_stalled = false;          // Gave up after cautious_max_checks (modal shown); Retry resumes it
+  var cautious_probe = false;            // Leave it through probeApp() (it began after "Application not loaded")
+  // "Application not loaded" / another App id in GET /data: no GET /data until probeApp() confirms our App
+  var app_check_pending = false;
   var start_retries = 3;                 // bazaar?start attempts (2.0: the worker may die during the start)
   var state_key = 'lockin_state_' + app_id;  // sessionStorage key of the last server-confirmed settings
+  // sessionStorage flag: Restart after onControlLost() -> restoreState() even if our App is still loaded
+  // (another tab of this same App took control). While set, saveState() does not overwrite state_key.
+  var restore_pending_key = 'lockin_restore_pending_' + app_id;
+  var restart_restores = false;          // The Restart button of the shown modal comes from onControlLost()
+  // Read-only params (read_only = 1 in src/main.c): the display shows them, the user never changes them
+  var readonly_keys = ('meas_min_ch1,meas_max_ch1,meas_amp_ch1,meas_avg_ch1,meas_freq_ch1,meas_per_ch1,'+
+                       'meas_min_ch2,meas_max_ch2,meas_amp_ch2,meas_avg_ch2,meas_freq_ch2,meas_per_ch2,'+
+                       'lock_lock_feedback,lock_rl_state,lock_signal_i,lock_error,lock_error_mean,lock_error_std,'+
+                       'lock_ramp_A,lock_ramp_B,lock_sin_ref,lock_cos_ref,lock_cos_1f,lock_cos_2f,lock_cos_3f,'+
+                       'lock_sq_ref_b,lock_sq_quad_b,lock_sq_phas_b,lock_sq_ref,lock_sq_quad,lock_sq_phas,'+
+                       'lock_in1,lock_in2,lock_out1,lock_out2,lock_slow_out1,lock_slow_out2,lock_slow_out3,lock_slow_out4,'+
+                       'lock_oscA,lock_oscB,lock_X,lock_Y,lock_F1,lock_F2,lock_F3,lock_sqX,lock_sqY,lock_sqF,'+
+                       'lock_cnt_clk,lock_cnt_clk2,lock_pidA_in,lock_pidA_out,lock_ctrl_A,lock_pidB_in,lock_pidB_out,'+
+                       'lock_ctrl_B').split(',');
+  // Unsent user changes. A change made while a POST is in flight only sets send_que; the POST (or GET) response
+  // then calls loadParams(), which used to overwrite params.local with the server values and the queued
+  // sendParams() found nothing to send (the 2nd of two quick changes was lost). unsent_base holds the values
+  // of params.local that are not user changes: params.local at the start of the last POST (what was sent),
+  // updated to the server values by each loadParams(). A key of params.local that differs from unsent_base and
+  // from the server value is an unsent user change: loadParams(.., true) keeps it (see unsentChanges()).
+  var unsent_base = null;
+  // Read-only params that the display uses but that are not saved in a config (config_params_keys).
+  // When they are missing (e.g. loading a saved config) the previous values of params.local are kept.
+  var display_keep_keys = readonly_keys;
+  // Never kept: read-only values, and keys that loadParams()/updateTimeUnits()/sendParams() handle by themselves
+  var unsent_skip_keys = readonly_keys.concat(['single_btn', 'xmin', 'xmax', 'time_units', 'forcex_flag',
+                                               'min_y', 'max_y', 'lock_lock_control']);
+  // localStorage key of the saved configs. Own key of this App: 'lockConfig' is shared with lock_in+pid_harmonic
+  // (loading one of its configs left keys without value and made an endless POST loop).
+  var config_storage_key = 'lockConfig_' + app_id;
+  var config_storage_old_key = 'lockConfig';
   var last_state_save = 0;
   var last_get_failed = false;
   var refresh_counter = 0;
@@ -236,6 +301,11 @@
       user_editing = true;
     });
     // end
+    // Leaving a select/checkbox without a change (so no onDropdownChange()/sendParams()) must end the edit mode
+    // too: the focus above set user_editing = true and only the change handlers set it back to false
+    $('select, input[type=checkbox]', '#accordion,#bottom_panel,#leftpanel')
+      .on('blur', function() { user_editing = false; })
+      .on('keydown', function(e) { if(isEscapeKey(e)) $(this).blur(); });
 
 
     $('#trig_mode').on('change', function() {
@@ -1080,6 +1150,7 @@
     });
 
     $('.btn-app-restart').on('click', function() {
+      if(restart_restores) setRestorePending(true);  // "took control" modal: restore after the reload
       location.reload();
     });
 
@@ -1201,60 +1272,17 @@
             //$('#'+iname+'_apply').show();
          })
         // on blur (focus lost), check data and send to server
-        .on('blur', function(event) {
-            iname=$(this)[0].id;
-            //console.log(iname);
-            //$('#'+iname+'_apply').hide();
-            text_param_editor='';
-            $(this).parent().removeClass('input-group');
-            var val = parseLocalFloat($(this).val());
-            if(! isNaN(val)) {
-              params.local[iname] = val;
-              sendParams();
-            }
-            else {
-              $(this).val(params.local[iname])
-            }
-            if(event.relatedTarget)
-              if(event.relatedTarget.tagName=="INPUT")
-                setTimeout(function(){ user_editing = true; }, update_interval ) ;
-            user_editing = false;
-        })
-        .on('input', function(event) {
-            iname=$(this)[0].id;
-            //console.log('input:'+iname);
-            //$('#'+iname+'_apply').hide();
-            user_editing = true;
-            var val = parseLocalFloat($(this).val());
-            setTimeout(function(pp){
-              iname=pp[1];
-              //console.log(iname);
-              //console.log(user_editing);
-              if (text_param_editor==''){
-                var val = parseLocalFloat($('#'+iname).val());
-                if(val==pp[0]){
-                  if(! isNaN(val)) {
-                    params.local[iname] = val;
-                    sendParams();
-                  }
-                }
-              }
-              user_editing = true;
-            }, 100  , [val,iname] ) ;
-        })
-        .on('keydown', function(e) {
-            //console.log('keydown:'+$(this)[0].id);
-            //console.log('log:'+text_param_editor+' key:'+e.key );
-            if( $.inArray(e.key, ['Backspace','Delete','0','1','2','3','4','5','6','7','8','9','+','-',',','.'] ) >0 ){
-              text_param_editor=$(this)[0].id;
-              //console.log('now:'+text_param_editor);
-              //e.preventDefault();
-              e.stopPropagation();
-            }
-        })
-        // If press "enter", launch .blur()
+        .on('blur', function(event) { numberInputBlur(this, event); })
+        // typing / spinner arrows: send after 100 ms without changes (see numberInputInput())
+        .on('input', function(event) { numberInputInput(this); })
+        // digits: typing mode (no send until blur/Enter). Escape: cancel the edit
+        .on('keydown', function(e) { numberInputKeydown(this, e); })
+        // If press "enter", launch .blur(). preventDefault(): no implicit submit of the <form>, whose HTML5
+        // validation (max/min) re-focused the input after the blur -> user_editing = true -> 2nd POST
         .on('keypress', function(e) {
             if(e.keyCode == 13) {
+              e.preventDefault();
+              editTimerCancel(this.id);
               $(this).blur();
             }
         })
@@ -1272,8 +1300,9 @@
         //console.log(id);
         //console.log('ctrl:'+event.ctrlKey + ' alt:'+ event.altKey + ' shift:'+ event.shiftKey);
 
-        var user_editing_old = user_editing;
-        user_editing = true ;
+        // No user_editing = true here: it stayed true after the wheel over an input without focus (nothing
+        // set it back to false) and froze the indicators. sendParams(.., user_editing_update) sets it at the end.
+        editTimerCancel(id);
         //console.log('user_editing: '+user_editing + ' user_editing_old:'+user_editing_old);
         //console.log(event);
         event.preventDefault();
@@ -1293,8 +1322,11 @@
             $currVal = 0;
         }
 
-        // Increment or decrement numeric based on scroll distance
-        if (event.deltaFactor * event.deltaY > 0) {
+        // Increment or decrement numeric based on scroll distance.
+        // SHIFT + wheel: Chrome sends deltaX instead of deltaY (deltaY = 0 always decremented). jquery.mousewheel
+        // gives deltaY = -orgEvent.deltaY but deltaX = +orgEvent.deltaX, so -deltaX has the sign of deltaY
+        var wheel_dir = event.deltaY || -event.deltaX || delta || 0;
+        if (event.deltaFactor * wheel_dir > 0) {
             if ($currVal + $inc <= $max) {
                 $this.val($currVal + $inc);
                 $currVal = $currVal + $inc;
@@ -1318,7 +1350,8 @@
         }*/
 
         params.local[id] = $currVal;
-        sendParams(true,true,true,true);
+        // 3rd arg is single_btn: must be false here (true made the scope stop after one acquisition and froze R/X/Y/phi)
+        sendParams(true,true,false,true);
         //console.log('currVal='+$currVal);
         //user_editing = false ;
         //console.log('SENT '+id);
@@ -1716,7 +1749,10 @@
 
     if (params.local){
         for ( i in lpfs){
-          params.local[lpfs[i]]        = parseInt($('#'+lpfs[i]       ).val());
+          // A <select> without selection (val() null) gives NaN: keep params.local and show its value again
+          var lv = parseInt($('#'+lpfs[i]).val());
+          if(isFinite(lv)) params.local[lpfs[i]] = lv;
+          else if(isSendable(params.local[lpfs[i]])) $('#'+lpfs[i]).val(params.local[lpfs[i]]);
         }
 
         sendParams(true);
@@ -2162,6 +2198,12 @@
     }
   }
 
+  // Value of a numeric param for the display: 0 if it is missing (never received)
+  function display_val(key) {
+    var v = params.local[key];
+    return (v === undefined || v === null || isNaN(v)) ? 0 : v;
+  }
+
   function display_update() {
     if(!params.local) return 0;
     var set_raw  =  $('#lock_osc_raw_mode').data('checked');
@@ -2173,11 +2215,11 @@
     if(set_raw) scl = 1/2048;
 
     if(disp_slow){
-      var X = params.local.lock_X  *scl ;
-      var Y = params.local.lock_Y  *scl ;
-      var F1= params.local.lock_F1 *scl ;
-      var F2= params.local.lock_F2 *scl ;
-      var F3= params.local.lock_F3 *scl ;
+      var X = display_val('lock_X')*scl ;
+      var Y = display_val('lock_Y')*scl ;
+      var F1= display_val('lock_F1')*scl ;
+      var F2= display_val('lock_F2')*scl ;
+      var F3= display_val('lock_F3')*scl ;
       var R = Math.sqrt( Math.pow(X,2)+Math.pow(Y,2)) ;
       var Fi= Math.atan2(Y,X)*180/Math.PI ;
 
@@ -2191,10 +2233,10 @@
         $('#disp_F2').html(  F2.toFixed(fixn));
         $('#disp_F3').html(  F3.toFixed(fixn));
       }else{
-        var fv0 = Math.max( params.local.lock_X.toString().length , params.local.lock_Y.toString().length )  ;
-        var fv1 = params.local.lock_F1.toString().length ;
-        var fv2 = params.local.lock_F2.toString().length ;
-        var fv3 = params.local.lock_F3.toString().length ;
+        var fv0 = Math.max( String(display_val('lock_X')).length , String(display_val('lock_Y')).length )  ;
+        var fv1 = String(display_val('lock_F1')).length ;
+        var fv2 = String(display_val('lock_F2')).length ;
+        var fv3 = String(display_val('lock_F3')).length ;
 
         $('#disp_x' ).html( format_oom(X ,'V',fv0) );
         $('#disp_y' ).html( format_oom(Y ,'V',fv0));
@@ -2216,8 +2258,8 @@
     }
 
     if (disp_fast) {
-      var sqX = params.local.lock_sqX *scl;
-      var sqY = params.local.lock_sqY *scl;
+      var sqX = display_val('lock_sqX')*scl;
+      var sqY = display_val('lock_sqY')*scl;
       var sqR = Math.sqrt( Math.pow(sqX,2)+Math.pow(sqY,2) ) ;
       var sqFi= Math.atan2(sqY,sqX)*180/Math.PI ;
       if(set_raw){
@@ -2227,7 +2269,7 @@
         $('#disp_sqr' ).html( sqR.toFixed(fixn)    );
         $('#disp_sqfi').html( sqFi.toFixed(2+fixn) );
       }else{
-        var fvsq = Math.max( params.local.lock_sqX.toString().length , params.local.lock_sqY.toString().length )  ;
+        var fvsq = Math.max( String(display_val('lock_sqX')).length , String(display_val('lock_sqY')).length )  ;
         $('#disp_sqx' ).html( format_oom(sqX ,'V',fvsq) );
         $('#disp_sqy' ).html( format_oom(sqY ,'V',fvsq) );
         $('#disp_sqr' ).html( format_oom(sqR ,'V',fvsq) );
@@ -2241,7 +2283,7 @@
 
     }
 
-    var error_mean = params.local.lock_error_mean;
+    var error_mean = display_val('lock_error_mean');
 
     if(isNaN(params.local.lock_error_std))
       var error_std  = 0;
@@ -2516,29 +2558,155 @@
   // loaded, or null if there was no (usable) answer.
   function probeApp() {
     var dfd = $.Deferred();
+    post_inflight++;
     $.ajax({ type: 'POST', url: post_url, data: JSON.stringify({ datasets: { params: {} } }),
              timeout: post_chunk_timeout, cache: false })
-    .done(function(d) { dfd.resolve(d && d.app ? (d.app.id || '') : null); })   // '' = no App loaded
-    .fail(function() { dfd.resolve(null); });
+    .done(function(d) { postEnd(); dfd.resolve(d && d.app ? (d.app.id || '') : null); })   // '' = no App loaded
+    .fail(function() { postEnd(); dfd.resolve(null); });
     return dfd.promise();
   }
 
   // Page load and Retry button: GET /data only if our App is the loaded one, otherwise start it
   function resumeApp() {
     probeApp().done(function(id) {
-      if(id === app_id) { app_started = true; control_lost = false; updateGraphData(); }  // already running: keep its state
+      if(id === app_id) {
+        app_check_pending = false;  // probeApp() confirmed our App: GET /data allowed again
+        if(isRestorePending()) { restoreState(); }  // Restart after onControlLost(): restore, no stop/start
+        else { app_started = true; control_lost = false; updateGraphData(); }  // already running: keep its state
+      }
       else { startApp(1, id); }
     });
   }
 
-  // 'own' | 'lost' | 'unknown' (timeout: nginx busy, e.g. during /bazaar?apps=). 0.9x has no endpoint -> 'own'.
-  function checkClaim() {
+  // End of one of our POST /data (see post_inflight)
+  function postEnd() {
+    if(post_inflight > 0) post_inflight--;
+    last_post_end = Date.now();
+  }
+
+  // A /get_client_id started at t0 and answered now overlapped one of our POST /data (see post_overlap_ms)
+  function claimOverlapsPost(t0) {
+    return post_inflight > 0 || (last_post_end > 0 && last_post_end >= t0 - post_overlap_ms);
+  }
+
+  // Resolves (st, ms, text_status, overlapped). st: 'own' | 'lost' | 'slow' (our id, but answered in >= claim_fast_ms) |
+  // 'unknown' (failed or aborted: nginx busy, e.g. during /bazaar?apps=). 0.9x has no endpoint -> 'own'.
+  // A slow answer with our id that overlapped a POST /data resolves 'own' with overlapped = true.
+  // Outside cautious mode, checks closer than claim_check_period resolve 'own' without a request (unless force).
+  function checkClaim(force) {
     var dfd = $.Deferred();
-    if(!claim_supported || Date.now() - last_claim_check < claim_check_period) return dfd.resolve('own').promise();
-    $.ajax({ url: root_url + '/get_client_id', timeout: 2000, cache: false, dataType: 'text' })
-    .done(function(msg) { last_claim_check = Date.now(); dfd.resolve(String(msg).trim() === client_id ? 'own' : 'lost'); })
-    .fail(function(xhr) { dfd.resolve((xhr.status == 404 || xhr.status == 405) ? 'own' : 'unknown'); });
+    if(!claim_supported || (!cautious_mode && force !== true && Date.now() - last_claim_check < claim_check_period))
+      return dfd.resolve('own', 0).promise();
+    var t0 = Date.now();
+    $.ajax({ url: root_url + '/get_client_id', timeout: claim_timeout, cache: false, dataType: 'text' })
+    .done(function(msg) {
+      var ms = Date.now() - t0;
+      last_claim_check = Date.now();
+      if(String(msg).trim() !== client_id) dfd.resolve('lost', ms);
+      else if(ms < claim_fast_ms) dfd.resolve('own', ms);
+      else if(claimOverlapsPost(t0)) {
+        console.log('/get_client_id slow (' + ms + ' ms) during a POST /data: not measured, our id');
+        dfd.resolve('own', ms, undefined, true);
+      }
+      else dfd.resolve('slow', ms);
+    })
+    .fail(function(xhr, text_status) {
+      last_claim_check = 0;
+      dfd.resolve((xhr.status == 404 || xhr.status == 405) ? 'own' : 'unknown', Date.now() - t0, text_status);
+    });
     return dfd.promise();
+  }
+
+  function describeClaim(st, ms, text_status) {
+    return '/get_client_id ' + (st === 'slow' ? 'slow' : 'failed (' + (text_status || 'error') + ')') + ' in ' + ms + ' ms';
+  }
+
+  // checkClaim() outside cautious mode: a single slow/failed /get_client_id is not enough, it is retried at once
+  // (the caller does no GET /data meanwhile). Resolves (st, ms, text_status, reason): 'slow'/'unknown' only if
+  // the retry is slow or fails too (reason describes both); 'own'/'lost' as soon as one answer says so.
+  function checkClaimConfirm() {
+    var dfd = $.Deferred();
+    checkClaim().done(function(st, ms, text_status) {
+      if(st === 'own' || st === 'lost') {
+        dfd.resolve(st, ms, text_status);
+        return;
+      }
+      var first = describeClaim(st, ms, text_status);
+      console.log(first + ', retrying at once');
+      checkClaim(true).done(function(st2, ms2, text_status2) {
+        if(st2 === 'own' || st2 === 'lost') dfd.resolve(st2, ms2, text_status2);
+        else dfd.resolve(st2, ms2, text_status2, first + '; retry: ' + describeClaim(st2, ms2, text_status2));
+      });
+    });
+    return dfd.promise();
+  }
+
+  // No GET /data until cautious_need consecutive fast /get_client_id answers with our id (see cautious_mode)
+  function enterCautious(reason, then_probe) {
+    if(then_probe) cautious_probe = true;
+    if(!cautious_mode) {
+      cautious_mode = true;
+      cautious_checks = 0;
+      cautious_stalled = false;
+      console.info('Cautious mode ON: ' + reason + '. No GET /data until ' + cautious_need +
+                   ' fast /get_client_id answers with our id' + (cautious_probe ? ' and probeApp() confirms our App' : ''));
+    }
+    cautious_ok = 0;
+    if(cautious_timer) clearTimeout(cautious_timer);
+    cautious_timer = setTimeout(cautiousCheck, cautious_delay);
+  }
+
+  function leaveCautious(reason) {
+    if(cautious_timer) {
+      clearTimeout(cautious_timer);
+      cautious_timer = null;
+    }
+    if(cautious_mode) console.info('Cautious mode OFF: ' + reason);
+    cautious_mode = false;
+    cautious_ok = 0;
+    cautious_checks = 0;
+    cautious_stalled = false;
+    cautious_probe = false;
+  }
+
+  function cautiousCheck() {
+    cautious_timer = null;
+    if(!cautious_mode || cautious_busy) return;
+    if(control_lost) { leaveCautious('control lost'); return; }
+    cautious_busy = true;
+    checkClaim().done(function(st, ms, text_status, overlapped) {
+      cautious_busy = false;
+      if(!cautious_mode) return;
+      if(st === 'lost') {
+        leaveCautious('/get_client_id returned another id');
+        onControlLost();
+        return;
+      }
+      cautious_checks++;
+      if(st === 'own' && overlapped) {  // slow, but queued behind our POST /data: neither fast nor a busy nginx
+        console.log('Cautious mode: /get_client_id took ' + ms + ' ms during a POST /data, not counted');
+      }
+      else if(st === 'own') {
+        if(++cautious_ok >= cautious_need) {
+          var probe = cautious_probe;
+          leaveCautious(cautious_ok + ' fast /get_client_id answers with our id (last ' + ms + ' ms)' +
+                        (probe ? ', probing the loaded App' : ''));
+          if(probe) resumeApp();   // probeApp() first: GET /data only if our App is the loaded one
+          else updateGraphData();
+          return;
+        }
+      }
+      else {
+        cautious_ok = 0;
+        console.log('Cautious mode: ' + describeClaim(st, ms, text_status));
+      }
+      if(cautious_checks >= cautious_max_checks) {
+        cautious_stalled = true;   // updateGraphData() (Retry -> resumeApp()) starts the checks again
+        showModalError('The Red Pitaya does not answer (/get_client_id).', true, true);
+        return;
+      }
+      cautious_timer = setTimeout(cautiousCheck, cautious_delay);
+    });
   }
 
   // Stop polling and do not restart by ourselves (avoids the main_menu <-> App ping-pong)
@@ -2551,12 +2719,25 @@
     }
     showModalError('Another client (main menu or another App) took control of the Red Pitaya.<br>' +
                    'Press Restart to take it back: your last settings will be restored.', false, true);
+    restart_restores = true;  // after showModalError(), which clears it
+  }
+
+  function isRestorePending() {
+    try { return sessionStorage.getItem(restore_pending_key) === '1'; } catch(e) { return false; }
+  }
+
+  function setRestorePending(on) {
+    try {
+      if(on) sessionStorage.setItem(restore_pending_key, '1');
+      else   sessionStorage.removeItem(restore_pending_key);
+    } catch(e) {}
   }
 
   // Last server-confirmed user settings (same keys as Config save). sessionStorage: per tab, survives
   // location.reload() (Restart), is not shared with other tabs and is cleared when the tab is closed.
   function saveState(srv, force) {
     if(!srv || (force !== true && Date.now() - last_state_save < 2000)) return;
+    if(isRestorePending()) return;  // Keep the state to restore (the board may have another tab's settings)
     var s = {};
     for(var i in config_params_keys) {
       var k = config_params_keys[i];
@@ -2585,12 +2766,14 @@
     // Split in several sequential POSTs if needed (Ecosystem 2.0 hangs with big POST bodies)
     postParamsChunks(splitParams(p), post_chunk_timeout, post_chunk_retries)
     .done(function() {
+      setRestorePending(false);
       app_started = true;
       control_lost = false;
       auto_restarts = 0;
       updateGraphData();
     })
     .fail(function() {
+      setRestorePending(false);
       showModalError('Could not restore the application parameters.', false, true);
     });
   }
@@ -2615,6 +2798,7 @@
         setTimeout(function() {
           probeApp().done(function(id) {
             if(id === app_id) {
+              app_check_pending = false;  // probeApp() confirmed our App: GET /data allowed again
               restoreState();
             }
             else if(attempt < start_retries) {
@@ -2634,6 +2818,7 @@
   function showModalError(err_msg, retry_btn, restart_btn, ignore_btn) {
     var err_modal = $('#modal_err');
 
+    restart_restores = false;  // onControlLost() sets it again after this call
     err_modal.find('#btn_retry_get')[retry_btn ? 'show' : 'hide']();
     err_modal.find('.btn-app-restart')[restart_btn ? 'show' : 'hide']();
     err_modal.find('#btn_ignore')[ignore_btn ? 'show' : 'hide']();
@@ -2642,7 +2827,15 @@
   }
 
   function updateGraphData() {
-    if(downloading||scope_stop||control_lost) {
+    if(downloading||scope_stop||control_lost||app_check_pending) {
+      return;
+    }
+    if(cautious_mode) {  // only cautiousCheck() leaves it; other callers (sendParams, buttons) just wait
+      if(cautious_stalled && !cautious_timer && !cautious_busy) {  // after the error modal: Retry
+        cautious_stalled = false;
+        cautious_checks = 0;
+        cautiousCheck();
+      }
       return;
     }
     if(update_timer) {
@@ -2652,24 +2845,17 @@
     downloading = true;
 
     // Ecosystem 2.0: check we still own the board before GET /data (another App loaded -> worker crash)
-    checkClaim().done(function(st) {
+    checkClaimConfirm().done(function(st, ms, text_status, reason) {
       if(st === 'lost') {
         downloading = false;
         onControlLost();
         return;
       }
-      if(st === 'unknown') {
+      if(st !== 'own') {  // 'slow' | 'unknown' twice: nginx busy (App change?), GET /data could crash the worker
         downloading = false;
-        if(++claim_unknown_count > 5) {
-          claim_unknown_count = 0;
-          showModalError('The Red Pitaya does not answer (/get_client_id).', true, true);
-        }
-        else {
-          update_timer = setTimeout(updateGraphData, 500);
-        }
+        enterCautious(reason || describeClaim(st, ms, text_status));
         return;
       }
-      claim_unknown_count = 0;
       doGetData();
     });
   }
@@ -2691,10 +2877,14 @@
 
       if(dresult.status === 'ERROR') {
         // "Application not loaded": restart only if we still own the board (no ping-pong with main_menu)
+        app_check_pending = true;  // no GET /data until probeApp() (POST) confirms our App is loaded
         last_claim_check = 0;  // force a fresh check
-        checkClaim().done(function(st) {
+        checkClaimConfirm().done(function(st, ms, text_status, reason) {
           if(st === 'lost') {
             onControlLost();
+          }
+          else if(st !== 'own') {  // nginx busy: maybe an App change in progress, wait before deciding
+            enterCautious('Application not loaded, ' + (reason || describeClaim(st, ms, text_status)), true);
           }
           else if(!app_started || auto_restarts++ < 2) {  // our own board: the worker died or the App was unloaded
             app_started = false;
@@ -2709,10 +2899,14 @@
         // Check if the application started on the server is the same as on client
         if(app_id !== dresult.app.id) {
           var other_app_id = dresult.app.id;
+          app_check_pending = true;  // no GET /data until probeApp() (POST) confirms our App is loaded
           last_claim_check = 0;  // force a fresh check
-          checkClaim().done(function(st) {
+          checkClaimConfirm().done(function(st, ms, text_status, reason) {
             if(st === 'lost') {
               onControlLost();
+            }
+            else if(st !== 'own') {  // nginx busy: maybe an App change in progress, wait before deciding
+              enterCautious('loaded App is ' + other_app_id + ', ' + (reason || describeClaim(st, ms, text_status)), true);
             }
             else if(!app_started || auto_restarts++ < 2) {
               app_started = false;
@@ -2746,7 +2940,7 @@
         else {
           // Apply the params state received from server if not in edit mode
           if(! user_editing) {
-            loadParams(dresult.datasets.params);
+            loadParams(dresult.datasets.params, true);  // true: keep the unsent user changes
 
             // Restore the autorun value modified by loadParams
             if(arun_before_ajax != arun_after_ajax) {
@@ -2794,6 +2988,7 @@
       }
     })
     .fail(function(jqXHR, textStatus, errorThrown) {
+      last_claim_check = 0;  // the worker may have died: fresh /get_client_id check (cautious mode if slow)
       if(last_get_failed) {
         if(window.location.href[0]!='f')
           showModalError('Data receiving failed.<br>Error status: ' + textStatus, true, true);
@@ -2917,15 +3112,135 @@
     if ( $.inArray( param_name, [ 'lock_pidB_PSR', 'lock_pidB_ISR', 'lock_pidB_DSR', 'lock_pidB_SAT' ] )>-1 ) lock_pidB_update() ;
     if ( $.inArray( param_name, [ 'lock_lpf_F1_tau', 'lock_lpf_F1_order', 'lock_lpf_F2_tau', 'lock_lpf_F2_order', 'lock_lpf_F3_tau', 'lock_lpf_F3_order', 'lock_lpf_sq_tau', 'lock_lpf_sq_order' ] )>-1 ) lpf_update();
 
-    params.local[param_name] = parseInt(that.val());
+    var dv = parseInt(that.val());
+    if(isFinite(dv)) params.local[param_name] = dv;  // a <select> without selection gives NaN: not copied
     sendParams(do_get);
     that.blur();
     user_editing = false;
   }
 
-  function loadParams(orig_params) {
+  // Edit mode of the number inputs (input_number). user_editing = true stops loadParams() of GET /data, so it
+  // must go back to false in every way out of an edit (blur, Enter, Escape, wheel), or the indicators freeze.
+  // Pending 100 ms timer of the 'input' handler, by input id: cancelled on blur/Enter/Escape/wheel.
+  var edit_timers = {};
+
+  function editTimerCancel(id) {
+    if(edit_timers[id] !== undefined) {
+      clearTimeout(edit_timers[id]);
+      delete edit_timers[id];
+    }
+  }
+
+  function isEscapeKey(e) {
+    return e.key == 'Escape' || e.key == 'Esc' || e.keyCode == 27;
+  }
+
+  // true if the focus is in an input/select of the panels (the elements whose focus sets user_editing = true)
+  function editFocusActive() {
+    var a = document.activeElement;
+    return !!a && (a.tagName == 'INPUT' || a.tagName == 'SELECT') &&
+           $(a).closest('#accordion,#bottom_panel,#leftpanel').length > 0;
+  }
+
+  // Blur towards another input: edit mode again after update_interval (the POST of this blur may set
+  // user_editing = false meanwhile), but only if that input still has the focus (it could have lost it already)
+  function editRefocusCheck(event) {
+    var rt = (event ? event.relatedTarget : null);
+    if(rt && rt.tagName == 'INPUT')
+      setTimeout(function() { if(document.activeElement === rt) user_editing = true; }, update_interval);
+  }
+
+  // blur (also after Enter / Escape): check data and send to server, end of the edit mode
+  function numberInputBlur(that, event) {
+    var iname = that.id;
+    editTimerCancel(iname);
+    text_param_editor = '';
+    $(that).parent().removeClass('input-group');
+    var val = parseLocalFloat($(that).val());
+    if(! isNaN(val)) {
+      params.local[iname] = val;
+      sendParams();
+    }
+    else {
+      $(that).val(params.local[iname]);
+    }
+    editRefocusCheck(event);
+    user_editing = false;
+  }
+
+  // 'input' event: if the value does not change for 100 ms and it is not being typed (spinner arrows), send it
+  function numberInputInput(that) {
+    var iname = that.id;
+    user_editing = true;
+    var val = parseLocalFloat($(that).val());
+    editTimerCancel(iname);
+    edit_timers[iname] = setTimeout(function() {
+      delete edit_timers[iname];
+      // The edit already ended (blur/Enter/Escape): blur sent the value and set user_editing = false.
+      // Setting params.local / user_editing = true here would resend it and freeze the indicators.
+      if(document.activeElement !== that) return;
+      if(text_param_editor == '') {
+        var v = parseLocalFloat($(that).val());
+        if(v == val && ! isNaN(v)) {
+          params.local[iname] = v;
+          sendParams();
+        }
+      }
+      user_editing = true;
+    }, 100);
+  }
+
+  function numberInputKeydown(that, e) {
+    if(isEscapeKey(e)) {
+      // Cancel the edit: restore the last value and leave the input (blur ends the edit mode, nothing to send)
+      editTimerCancel(that.id);
+      text_param_editor = '';
+      if(params.local && params.local[that.id] !== undefined) $(that).val(params.local[that.id]);
+      $(that).blur();
+      return;
+    }
+    if( $.inArray(e.key, ['Backspace','Delete','0','1','2','3','4','5','6','7','8','9','+','-',',','.'] ) >0 ){
+      text_param_editor = that.id;
+      e.stopPropagation();
+    }
+  }
+
+  // Keys of srv (server params) whose params.local value is an unsent user change (see unsent_base)
+  function unsentChanges(srv) {
+    var ch = {};
+    if(!unsent_base || !params.local) return ch;
+    for(var k in srv) {
+      if(unsent_skip_keys.indexOf(k) >= 0) continue;
+      var v = params.local[k];
+      if(!isSendable(v)) continue;  // NaN/undefined/null/Infinity: never sent (splitParams), so never pending
+      if(v != unsent_base[k] && v != srv[k]) ch[k] = v;  // same loose comparison as isParamChanged()
+    }
+    return ch;
+  }
+
+  // keep_unsent: true for server responses (POST/GET), keeps the unsent user changes in params.local and in
+  // the controls (params.original keeps the server values, so the next sendParams() sends them)
+  function loadParams(orig_params, keep_unsent) {
     if(! $.isPlainObject(orig_params)) {
       return;
+    }
+
+    // Keys missing in orig_params (a config of another App or of an older version, e.g. without lock_lpf_*):
+    // keep the current values, so their controls and params.local do not change. .val(undefined) used to leave
+    // a <select> without selection, lpf_update() copied NaN to params.local and the POSTs never ended.
+    if(params.local) {
+      for(var mk in params.local) {
+        if(orig_params[mk] === undefined || orig_params[mk] === null) orig_params[mk] = params.local[mk];
+      }
+    }
+
+    // Keys missing in orig_params (a saved config does not have the read-only values): keep the previous ones
+    if(params.local) {
+      for(var ki = 0; ki < display_keep_keys.length; ki++) {
+        var kk = display_keep_keys[ki];
+        if(orig_params[kk] === undefined && params.local[kk] !== undefined)
+          orig_params[kk] = params.local[kk];
+      }
     }
 
     // Ignore xmin/xmax values received from server. That values must be used only on AUTO button click
@@ -2947,8 +3262,11 @@
         orig_params.lock_lock_control=orig_params.lock_lock_feedback;
     }
 
-    // Same data in local and original params
-    params.original = $.extend({}, orig_params);
+    var unsent = (keep_unsent === true ? unsentChanges(orig_params) : {});
+    if(!$.isEmptyObject(unsent)) console.info('loadParams: keeping unsent changes: ' + Object.keys(unsent).join(', '));
+
+    // Same data in local and original params (+ the unsent changes while the controls below are updated)
+    params.original = $.extend({}, orig_params, unsent);
     params.local = $.extend({}, params.original);
 
     // Autorun if trigger mode is Auto(0) or Normal(1), stop if it is Single(2)
@@ -3243,6 +3561,9 @@
     updateTimeUnits(orig_params);
     $('#ytitle').show();
 
+    // Server values back in params.original: the unsent changes differ from it and sendParams() sends them
+    for(var uk in unsent) params.original[uk] = orig_params[uk];
+    unsent_base = $.extend({}, params.original);
   }
 
   function updateTimeUnits(new_params) {
@@ -3276,7 +3597,7 @@
   function isParamChanged() {
     if(params.original) {
       for(var key in params.original) {
-        if(params.original[key] != params.local[key]) {
+        if(params.original[key] != params.local[key] && isSendable(params.local[key])) {
           return true;
         }
       }
@@ -3287,6 +3608,26 @@
   // Split a params object in several objects, so that the JSON body of each POST
   // is smaller than post_max_bytes. Keys in last_send_params go in the last one.
   // Only finite numeric values are sent: null/bool/strings crash (2.0) or hang (0.9x) the nginx worker.
+  // Numeric value that splitParams() would send, NaN if it would not send it (NaN, undefined, null, Infinity, bool...)
+  function sendableValue(raw) {
+    var v = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')) ? Number(raw) : NaN;
+    return isFinite(v) ? v : NaN;
+  }
+
+  function isSendable(raw) {
+    return !isNaN(sendableValue(raw));
+  }
+
+  // true if params.local has a change that would really be sent: a sendable value that differs from params.original
+  function hasRealChange() {
+    if(!params.local) return false;
+    for(var key in params.local) {
+      if((!params.original || params.original[key] != params.local[key]) && isSendable(params.local[key]))
+        return true;
+    }
+    return false;
+  }
+
   function splitParams(p) {
     var chunks = [];
     var chunk = {};
@@ -3307,8 +3648,8 @@
 
     for(var i = 0; i < keys.length; i++) {
       var raw = p[keys[i]];
-      var v = (typeof raw === 'number' || (typeof raw === 'string' && raw.trim() !== '')) ? Number(raw) : NaN;
-      if(!isFinite(v)) {
+      var v = sendableValue(raw);
+      if(isNaN(v)) {
         console.warn('splitParams: skipping non-numeric param', keys[i], raw);
         continue;
       }
@@ -3338,6 +3679,7 @@
     var tries_left = max_retries;
 
     function postNext() {
+      post_inflight++;
       $.ajax({
         type: 'POST',
         url: post_url,
@@ -3346,6 +3688,7 @@
         cache: false
       })
       .done(function(dresult) {
+        postEnd();
         i++;
         tries_left = max_retries;
         if(i < chunks.length && dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
@@ -3356,6 +3699,7 @@
         }
       })
       .fail(function(xhr, status) {
+        postEnd();
         if(status === 'timeout' && tries_left > 0) {
           tries_left--;
           console.warn('postParamsChunks: chunk ' + (i+1) + '/' + chunks.length + ' timed out, retrying (' +
@@ -3376,10 +3720,38 @@
     if(control_lost) {
       return;  // Another client owns the board: do not change its settings
     }
-    if(sending ||(force_send !== true && !isParamChanged())) {
+    if(sending ||(force_send !== true && send_all !== true && !isParamChanged())) {
       send_que = sending;
+      if(sending && send_all === true) send_que_all = true;  // the queued call must send all too
       return;
     }
+
+    // Anti-loop guard (see post_min_gap_ms): nothing really changed and the previous POST ended a moment ago
+    var now_ms = Date.now();
+    if(send_all !== true && single_btn !== true && !hasRealChange() &&
+       last_post_end > 0 && now_ms - last_post_end < post_min_gap_ms) {
+      console.log('sendParams: no real change ' + (now_ms - last_post_end) + ' ms after the last POST: not sent');
+      if(user_editing_update) user_editing = editFocusActive();
+      return;
+    }
+    // Rate limit: at most post_max_per_s POSTs per second, the rest are deferred (merged in one call)
+    while(post_starts.length && now_ms - post_starts[0] >= 1000) post_starts.shift();
+    if(post_starts.length >= post_max_per_s) {
+      var rargs = [refresh_data, force_send, single_btn, user_editing_update, send_all];
+      if(post_rate_args) for(var ri = 0; ri < rargs.length; ri++) rargs[ri] = (post_rate_args[ri] === true || rargs[ri] === true);
+      post_rate_args = rargs;
+      if(!post_rate_timer) {
+        console.warn('sendParams: more than ' + post_max_per_s + ' POST/s, the next one is deferred');
+        post_rate_timer = setTimeout(function() {
+          var a = post_rate_args;
+          post_rate_timer = null;
+          post_rate_args = null;
+          sendParams.apply(null, a);
+        }, Math.max(1, 1000 - (now_ms - post_starts[0])));
+      }
+      return;
+    }
+    post_starts.push(now_ms);
 
     var auto_flag = params.local.auto_flag;  // Keep the value of auto_flag, because in POST response it is always 0
     sending = true;
@@ -3395,6 +3767,9 @@
         send_params[key] = params.local[key];
       }
     }
+    // What is being sent (params.local now): only later changes are unsent changes (see unsent_base).
+    // With split POSTs (postParamsChunks) only the response of the last one is loaded, and it has all of them.
+    unsent_base = $.extend({}, params.local);
 
     postParamsChunks(splitParams(send_params), (use_long_timeout ? long_timeout : post_chunk_timeout), post_chunk_retries)
     .done(function(dresult) {
@@ -3434,7 +3809,14 @@
         }
 
         if(dresult.app && dresult.app.id === app_id) saveState(dresult.datasets.params, true);
-        if(!user_editing) loadParams(dresult.datasets.params);
+        if(!user_editing) loadParams(dresult.datasets.params, true);  // true: keep the unsent user changes
+        // Edit mode (e.g. wheel with focus): loadParams() is skipped, so mark the sent values as sent; otherwise
+        // params.original keeps the old ones and the next sendParams() (doGetData / send_que) resends them
+        else if(params.original) {
+          for(var sk in send_params) {
+            if(sk in params.original) params.original[sk] = send_params[sk];
+          }
+        }
         //console.log('lock_error_offset: '+dresult.datasets.params["lock_error_offset"]);
         updateTriggerSlider();
 
@@ -3445,6 +3827,7 @@
       else if(dresult.status == 'ERROR') {
         showModalError((dresult.reason ? dresult.reason : 'Error while sending data (E1).'), false, true, true);
         send_que = false;
+        send_que_all = false;
       }
       else {
         showModalError('Error while sending data (E2).', false, true, true);
@@ -3455,13 +3838,17 @@
     })
     .always(function() {
       sending = false;
-      if(user_editing_update) { user_editing = true ; } else { user_editing = false } ;
+      // user_editing_update (wheel): keep the edit mode only if an input still has the focus (blur may come
+      // during the POST: true here then would never go back to false)
+      user_editing = (user_editing_update ? editFocusActive() : false);
       //console.log('user_editing: '+user_editing);
 
       if(send_que) {
+        var que_all = send_que_all;
         send_que = false;
+        send_que_all = false;
         setTimeout(function(refresh_data) {
-          sendParams(refresh_data);
+          sendParams(refresh_data, false, false, false, que_all);
         }, 100);
       }
     });
@@ -4219,6 +4606,35 @@
 
   // Functions for params load/save
 
+  // Returns the saved configs of this App (JSON text) or '' if there are none.
+  // The first time, it copies from the old shared key 'lockConfig' only the configs that belong to this App
+  // (they have lock_mod_sq_on/lock_lpf_sq_tau/lock_lpf_sq_order/lock_sg_amp_sq and not lock_mod_out1/lock_lpf_F0_tau/
+  // lock_sg_amp0, that are from lock_in+pid_harmonic). 'lockConfig' is left untouched (older versions use it).
+  function config_storage_read(){
+    if ( !localStorage[config_storage_key] && !localStorage[config_storage_key + '_migrated'] ) {
+      try {
+        var old_cfgs = localStorage[config_storage_old_key] ? JSON.parse(localStorage[config_storage_old_key]) : [];
+        var own_cfgs = [];
+        for(var oi = 0; oi < old_cfgs.length; oi++){
+          var od = (old_cfgs[oi] && old_cfgs[oi].data) ? old_cfgs[oi].data : {};
+          if( od.lock_mod_sq_on !== undefined && od.lock_lpf_sq_tau !== undefined &&
+              od.lock_lpf_sq_order !== undefined && od.lock_sg_amp_sq !== undefined &&
+              od.lock_mod_out1 === undefined && od.lock_lpf_F0_tau === undefined && od.lock_sg_amp0 === undefined )
+            own_cfgs.push(old_cfgs[oi]);
+        }
+        if(own_cfgs.length) {
+          localStorage[config_storage_key] = JSON.stringify(own_cfgs);
+          console.info('config_storage_read: ' + own_cfgs.length + ' configs copied from localStorage.' +
+                       config_storage_old_key + ' to localStorage.' + config_storage_key);
+        }
+      } catch(e) {
+        console.log('config_storage_read: could not migrate localStorage.' + config_storage_old_key + ': ' + e);
+      }
+      localStorage[config_storage_key + '_migrated'] = '1';
+    }
+    return localStorage[config_storage_key] || '';
+  }
+
   function config_save_storage(name){
     // check support and if there are saved configs
     if (typeof(Storage) == "undefined") {
@@ -4227,8 +4643,8 @@
     }
 
     // If thera are saved configs, load. If not, create empty container
-    if ( localStorage.lockConfig ){
-      params.storage=JSON.parse(localStorage.lockConfig);
+    if ( config_storage_read() ){
+      params.storage=JSON.parse(localStorage[config_storage_key]);
     } else {
       params.storage=[];
     }
@@ -4253,7 +4669,7 @@
     params.storage.push(tmp_storage_elem);
 
     // update storage key
-    localStorage.lockConfig=JSON.stringify(params.storage);
+    localStorage[config_storage_key]=JSON.stringify(params.storage);
 
   }
 
@@ -4265,8 +4681,8 @@
     }
 
     // If there are saved configs, load. If not, create empty container
-    if ( localStorage.lockConfig ){
-      params.storage=JSON.parse(localStorage.lockConfig);
+    if ( config_storage_read() ){
+      params.storage=JSON.parse(localStorage[config_storage_key]);
     } else {
       params.storage=[];
       console.log("config_load_storage: No data saved in storage");
@@ -4287,10 +4703,11 @@
       return -1 ;
     }
 
-    // Load actual data to skip loadParams errors
-    meas_keys="meas_min_ch1,meas_max_ch1,meas_amp_ch1,meas_avg_ch1,meas_freq_ch1,meas_per_ch1,meas_min_ch2,meas_max_ch2,meas_amp_ch2,meas_avg_ch2,meas_freq_ch2,meas_per_ch2".split(",");
-    for(i in meas_keys){
-      params.storage[num].data[ meas_keys[i] ] = params.local[ meas_keys[i] ]
+    // Load actual data to skip loadParams errors (meas_*, lock_X/Y/F1/F2/F3, ... are not saved in a config)
+    var meas_keys = display_keep_keys;
+    for(var mi = 0; mi < meas_keys.length; mi++){
+      if(params.local && params.local[ meas_keys[mi] ] !== undefined)
+        params.storage[num].data[ meas_keys[mi] ] = params.local[ meas_keys[mi] ];
     }
 
     /* LOLO load_config_block_start */
@@ -4309,6 +4726,9 @@
 
     // load into params
     loadParams(params.storage[num].data);
+    // A POST in flight: its response must not overwrite the config (empty unsent_base -> all its values are
+    // unsent changes until the queued sendParams(.., send_all) sends them)
+    if(sending) unsent_base = {};
 
     // update params to server
     // send_all: loadParams() overwrote params.original, so all params must be sent, not only changed ones
@@ -4324,8 +4744,8 @@
     }
 
     // If there are saved configs, load. If not, create empty container
-    if ( localStorage.lockConfig ){
-      params.storage=JSON.parse(localStorage.lockConfig);
+    if ( config_storage_read() ){
+      params.storage=JSON.parse(localStorage[config_storage_key]);
     } else {
       params.storage=[];
       console.log("config_del_storage: No data saved in storage");
@@ -4351,7 +4771,7 @@
     params.storage.splice(num, 1);
 
     // update storage key
-    localStorage.lockConfig=JSON.stringify(params.storage);
+    localStorage[config_storage_key]=JSON.stringify(params.storage);
   }
 
 
@@ -4363,8 +4783,8 @@
     }
 
     // If there are saved configs, load. If not, create empty container
-    if ( localStorage.lockConfig ){
-      params.storage=JSON.parse(localStorage.lockConfig);
+    if ( config_storage_read() ){
+      params.storage=JSON.parse(localStorage[config_storage_key]);
     } else {
       params.storage=[];
       console.log("config_load_storage: No data saved in storage");
@@ -4424,8 +4844,8 @@
 
 
       // If thera are saved configs, load. If not, create empty container
-      if ( localStorage.lockConfig ){
-        params.storage=JSON.parse(localStorage.lockConfig);
+      if ( config_storage_read() ){
+        params.storage=JSON.parse(localStorage[config_storage_key]);
       } else {
         params.storage=[];
       }
@@ -4445,7 +4865,7 @@
       params.storage.push(tmp_storage_elem);
 
       // update storage key
-      localStorage.lockConfig=JSON.stringify(params.storage);
+      localStorage[config_storage_key]=JSON.stringify(params.storage);
 
       // update config table
       config_show_storage();
@@ -4491,7 +4911,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v0.2.3)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v0.2.4)</h2>
     </div>
   </div>
   <div class="container">
@@ -4546,7 +4966,7 @@
 
                 <div class="row">
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_oscA_sw" class="col-xs-4 control-label">OscA:</label>
                         <div class="col-xs-8">
@@ -4589,7 +5009,7 @@
                     </form>
                   </div>
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_oscB_sw" class="col-xs-4 control-label">OscB:</label>
                         <div class="col-xs-8">
@@ -4635,7 +5055,7 @@
 
                 <div class="row">
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_trig_sw" class="col-xs-4 control-label">Ext Trig:</label>
                         <div class="col-xs-8">
@@ -4668,7 +5088,7 @@
                     <div class="row">
                       <hr style="margin: 7px 7px">
                       <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_osc_lockin_mode" class="btn btn-primary btn-lg" data-checked="true" disabled>R|Phase&nbsp;Mode</button>
                           </div>
@@ -4679,7 +5099,7 @@
                         Disable anti-aliasing filter:
                       </div>
                       <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
                               <input type="checkbox" id="lock_osc1_filt_off" checked>Ch1
@@ -4688,7 +5108,7 @@
                         </form>
                       </div>
                       <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
                               <input type="checkbox" id="lock_osc2_filt_off" checked>Ch2
@@ -4719,7 +5139,7 @@
 
                 <div class="row">
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_out1_sw" class="col-xs-4 control-label">Out1:</label>
                         <div class="col-xs-8">
@@ -4746,7 +5166,7 @@
                     </form>
                   </div>
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_out2_sw" class="col-xs-4 control-label">Out2:</label>
                         <div class="col-xs-8">
@@ -4786,7 +5206,7 @@
                     <div class="row">
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_slow_out1_sw" class="col-xs-4 control-label">Slow out1:</label>
                             <div class="col-xs-8">
@@ -4813,7 +5233,7 @@
                         </form>
                       </div>
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_slow_out2_sw" class="col-xs-4 control-label">Slow out2:</label>
                             <div class="col-xs-8">
@@ -4840,7 +5260,7 @@
                         </form>
                       </div>
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_slow_out3_sw" class="col-xs-4 control-label">Slow out3:</label>
                             <div class="col-xs-8">
@@ -4867,7 +5287,7 @@
                         </form>
                       </div>
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_slow_out4_sw" class="col-xs-4 control-label">Slow out4:</label>
                             <div class="col-xs-8">
@@ -4920,7 +5340,7 @@
               <!-- Input ---------------------------------------------------->
               <div class="row">
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  <form class="form-horizontal" role="form" onsubmit="return false;">
+                  <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                     <div class="form-group">
                       <label for="lock_signal_sw" class="col-xs-4 control-label">Lock-in input:</label>
                       <div class="col-xs-8">
@@ -4965,7 +5385,7 @@
                       <p><strong>Harmonic oscilator</strong></p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_gen_mod_hp" class="col-xs-4 control-label">Period:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -4984,7 +5404,7 @@
                     <hr style="margin: 7px 7px">
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_gen_mod_phase" class="col-xs-4 control-label">Phase:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -5017,7 +5437,7 @@
                       <p>Low Pass Filter</p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <div class="col-xs-8"> cut
                             <select id="lock_lpf_F1_tau" class="form-control">
@@ -5050,7 +5470,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_sg_amp1" class="col-xs-6 control-label">Amplification</label>
                           <div class="col-xs-6">
@@ -5077,7 +5497,7 @@
                       <p>Low Pass Filter</p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <div class="col-xs-8"> cut
                             <select id="lock_lpf_F2_tau" class="form-control">
@@ -5110,7 +5530,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_sg_amp2" class="col-xs-6 control-label">Amplification</label>
                           <div class="col-xs-6">
@@ -5137,7 +5557,7 @@
                       <p>Low Pass Filter</p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <div class="col-xs-8"> cut
                             <select id="lock_lpf_F3_tau" class="form-control">
@@ -5170,7 +5590,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_sg_amp3" class="col-xs-6 control-label">Amplification</label>
                           <div class="col-xs-6">
@@ -5213,7 +5633,7 @@
                       <p><strong>Square oscilator</strong></p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_gen_mod_sqp" class="col-xs-4 control-label">Period:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -5229,7 +5649,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_gen_mod_phase_sq" class="col-xs-4 control-label">Phase:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -5253,7 +5673,7 @@
                       <p>Low Pass Filter</p>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <div class="col-xs-8"> cut
                             <select id="lock_lpf_sq_tau" class="form-control">
@@ -5286,7 +5706,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_sg_amp_sq" class="col-xs-6 control-label">Amplification</label>
                           <div class="col-xs-6">
@@ -5325,7 +5745,7 @@
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="aux_lock_in_hide">
                   <div class="row">
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_aux_A" class="col-xs-4 control-label">Aux A:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -5338,7 +5758,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_aux_B" class="col-xs-4 control-label">Aux B:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -5374,7 +5794,7 @@
 
                 <div class="row">
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_ramp_step" class="col-xs-4 control-label"
                           data-toggle="tooltip" data-placement="right" title="Sets Ramp Period in a way I should tell you"> Ramp period: </label>
@@ -5392,7 +5812,7 @@
                   </div>
 
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Ramp hig&nbsp;lim:</label>
                         <div class="col-xs-4 col-sm-8">
@@ -5409,7 +5829,7 @@
                   </div>
 
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Ramp low&nbsp;lim:</label>
                         <div class="col-xs-4 col-sm-8">
@@ -5426,7 +5846,7 @@
                   </div>
 
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="form-group">
                         <label for="lock_ramp_B_factor" class="col-xs-4 control-label">Ramp B&nbsp;factor:</label>
                         <div class="col-xs-4 col-sm-8">
@@ -5453,7 +5873,7 @@
                   <hr>
 
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
                           <input type="checkbox" id="lock_ramp_reset">Scan reset
@@ -5462,7 +5882,7 @@
                     </form>
                   </div>
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
                           <input type="checkbox" id="lock_ramp_enable">Scan enable
@@ -5471,7 +5891,7 @@
                     </form>
                   </div>
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
                           <input type="checkbox" id="lock_ramp_direction">Scan direction
@@ -5509,7 +5929,7 @@
               <div class="panel-group col-xs-12 col-sm-12 col-md-12 in" id="error_hide">
 
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  <form class="form-horizontal" role="form" onsubmit="return false;">
+                  <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                     <div class="form-group">
                       <label for="lock_error_sw" class="col-xs-4 control-label">Error signal:</label>
                       <div class="col-xs-8">
@@ -5529,7 +5949,7 @@
                 </div>
 
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                  <form class="form-horizontal" role="form" onsubmit="return false;">
+                  <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                     <div class="form-group">
                       <label for="lock_error_offset" class="col-xs-4 control-label">offset for error signal:</label>
                       <div class="col-xs-4 col-sm-8">
@@ -5557,7 +5977,7 @@
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                   <div class="row">  <!-- label + reset -->
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_pidA_sw" class="col-xs-4 control-label">input:</label>
                           <div class="col-xs-8">
@@ -5600,7 +6020,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidA_irst">reset integral
@@ -5609,7 +6029,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidA_freeze">freeze out
@@ -5618,7 +6038,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidA_ifreeze">freeze integral
@@ -5633,7 +6053,7 @@
                   <div class="row">
                     <div class="row collapse" data-tag="PidAOptions"> <!-- sp control -->
                       <div class="panel-group col-xs-12 col-sm-5 col-md-5">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <div class="col-xs-12 col-sm-12">
                               <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_sp" step="1" min="-8192" max="8191">
@@ -5658,7 +6078,7 @@
                     <div style="border-style: solid; border-color: #FF9999;">
                       <div class="row"> <!-- kp control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kp" step="1" min="-8192" max="8191">
@@ -5671,7 +6091,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidA_PSR" class="form-control">
@@ -5699,7 +6119,7 @@
                     <div style="border-style: solid; border-color: #99FF99;">
                       <div class="row"> <!-- ki control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12"  data-tag="PidActrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_ki" step="1" min="-8192" max="8191">
@@ -5712,7 +6132,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidA_ISR" class="form-control">
@@ -5745,7 +6165,7 @@
                     <div style="border-style: solid; border-color: #9999FF;">
                       <div class="row"> <!-- kd control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidActrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidA_kd" step="1" min="-8192" max="8191">
@@ -5758,7 +6178,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidAOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidA_DSR" class="form-control">
@@ -5789,7 +6209,7 @@
                   <div class="row">
                     <div data-tag="PidAOptions" class="collapse">
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_pidA_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
                             <div class="col-xs-8">
@@ -5840,7 +6260,7 @@
                 <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                   <div class="row">  <!-- label + reset -->
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_pidB_sw" class="col-xs-4 control-label">input:</label>
                           <div class="col-xs-8">
@@ -5883,7 +6303,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidB_irst">reset integral
@@ -5892,7 +6312,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidB_freeze">freeze out
@@ -5901,7 +6321,7 @@
                       </form>
                     </div>
                     <div class="panel-group col-xs-12 col-sm-4 col-md-4">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_pidB_ifreeze">freeze integral
@@ -5915,7 +6335,7 @@
                   <div class="row">
                     <div class="row collapse"  data-tag="PidBOptions"> <!-- sp control -->
                       <div class="panel-group col-xs-12 col-sm-5 col-md-5">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <div class="col-xs-12 col-sm-12">
                               <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidB_sp" step="1" min="-8192" max="8191">
@@ -5940,7 +6360,7 @@
                     <div style="border-style: solid; border-color: #FF9999;">
                       <div class="row"> <!-- kp control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidBctrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidB_kp" step="1" min="-8192" max="8191">
@@ -5953,7 +6373,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidBOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidB_PSR" class="form-control">
@@ -5981,7 +6401,7 @@
                     <div style="border-style: solid; border-color: #99FF99;">
                       <div class="row"> <!-- ki control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12"  data-tag="PidBctrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidB_ki" step="1" min="-8192" max="8191">
@@ -5994,7 +6414,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidBOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidB_ISR" class="form-control">
@@ -6027,7 +6447,7 @@
                     <div style="border-style: solid; border-color: #9999FF;">
                       <div class="row"> <!-- kd control -->
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12" data-tag="PidBctrl">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12 col-sm-12">
                                 <input type="number" autocomplete="off" class="form-control" value="0" id="lock_pidB_kd" step="1" min="-8192" max="8191">
@@ -6040,7 +6460,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-7 col-md-7 collapse" data-tag="PidBOptions">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <div class="col-xs-12">
                                 <select id="lock_pidB_DSR" class="form-control">
@@ -6071,7 +6491,7 @@
                   <div class="row">
                     <div data-tag="PidBOptions" class="collapse">
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_pidB_SAT" class="col-xs-4 control-label">SAT&nbsp;lim:</label>
                             <div class="col-xs-8">
@@ -6141,7 +6561,7 @@
                     <div class="row">
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
                               <input type="checkbox" id="lock_rl_error_enable">Error Enable
@@ -6151,7 +6571,7 @@
                       </div>
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <label for="lock_rl_error_threshold" class="col-xs-4 control-label">|error|&nbsp;&gt;</label>
                             <div class="col-xs-6 col-sm-6">
@@ -6165,7 +6585,7 @@
                       </div>
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
                               <input type="checkbox" id="lock_rl_signal_enable">Signal Enable
@@ -6175,7 +6595,7 @@
                       </div>
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group">
                             <!--label for="lock_rl_signal_sw" class="col-xs-4 control-label">Signal:</label-->
                             <div class="col-xs-5">
@@ -6202,7 +6622,7 @@
                       </div>
 
                       <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="checkbox" style="padding-bottom: 12px;">
                             <label class="group-label">
                               <input type="checkbox" id="lock_rl_reset">RL reset
@@ -6229,7 +6649,7 @@
 
                       <div class="row">
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <label for="lock_sf_jumpA" class="col-xs-4 control-label">Jump ctrl_A</label>
                               <div class="col-xs-6 col-sm-6">
@@ -6242,7 +6662,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group">
                               <label for="lock_sf_jumpB" class="col-xs-4 control-label">Jump ctrl_B</label>
                               <div class="col-xs-6 col-sm-6">
@@ -6263,7 +6683,7 @@
                       </div>
                       <div class="row">
                         <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
                                 <input type="checkbox" id="lock_sf_AfrzO">A out
@@ -6272,7 +6692,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
                                 <input type="checkbox" id="lock_sf_AfrzI">A int
@@ -6284,7 +6704,7 @@
 
                       <div class="row">
                         <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
                                 <input type="checkbox" id="lock_sf_BfrzO">B out
@@ -6293,7 +6713,7 @@
                           </form>
                         </div>
                         <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="checkbox" style="padding-bottom: 12px;">
                               <label class="group-label">
                                 <input type="checkbox" id="lock_sf_BfrzI">B int
@@ -6305,7 +6725,7 @@
 
                       <div class="row">
                         <div class="panel-group col-xs-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                             <div class="form-group text-center">
                               <button id="lock_sf_start" class="btn btn-primary btn-lg" data-checked="true" disabled>Start Step Responce</button>
                             </div>
@@ -6322,7 +6742,7 @@
 
                     <div class="row">
                       <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
                           </div>
@@ -6332,7 +6752,7 @@
 
                     <div class="row">
                       <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_pidA_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;A enable</button>
                           </div>
@@ -6342,7 +6762,7 @@
 
                     <div class="row">
                       <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_pidB_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;B enable</button>
                           </div>
@@ -6352,14 +6772,14 @@
 
                     <div class="row">
                       <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
                           </div>
                         </form>
                       </div>
                       <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                           <div class="form-group text-center">
                             <button id="lock_ctrl_aux_lock_now" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock<br>Now</button>
                           </div>
@@ -6382,7 +6802,7 @@
                   <div id="LockConfig" class="collapse">
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
@@ -6392,7 +6812,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_ctrl_aux_set_pidA_enable" checked>PID A enable
@@ -6402,7 +6822,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable" checked>PID B enable
@@ -6412,7 +6832,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
                           <div class="col-xs-8">
@@ -6428,7 +6848,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_sw">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
                           <div class="col-xs-8">
@@ -6456,7 +6876,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_time_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -6473,7 +6893,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group">
                           <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
                           <div class="col-xs-4 col-sm-8">
@@ -6490,7 +6910,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_ctrl_aux_lock_trig_rise">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="checkbox" style="padding-bottom: 12px;">
                           <label class="group-label">
                             <input type="checkbox" id="lock_ctrl_aux_lock_trig_rise">trig upward?
@@ -6500,7 +6920,7 @@
                     </div>
 
                     <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_btn_set_trig">
-                      <form class="form-horizontal" role="form" onsubmit="return false;">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group text-center">
                           <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
                           <br>
@@ -6676,7 +7096,7 @@
           </div>
           <div id="trigger" class="panel-collapse collapse in">
             <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
+              <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                 <div class="form-group">
                   <label for="trig_source" class="col-xs-4 control-label">Source:</label>
                   <div class="col-xs-8">
@@ -6738,7 +7158,7 @@
           </div>
           <div id="range" class="panel-collapse collapse">
             <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
+              <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                 <div class="form-group">
                   <label class="col-xs-4 col-sm-3 control-label" style="padding-top: 35px;">Range:</label>
                   <div class="col-xs-8 col-sm-9">
@@ -6868,7 +7288,7 @@
           </div>
           <div id="gain" class="panel-collapse collapse">
             <div class="panel-body">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
+              <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                 <div class="group-label" style="padding-bottom: 10px;">Channel 1</div>
                 <div class="form-group">
                   <label for="gain_ch1_att" class="col-xs-4 col-sm-6 control-label">Probe attenuation:</label>
@@ -7087,7 +7507,7 @@
           <div class="panel-group col-xs-12 col-sm-12 col-md-12">
 
             <div class="row">
-              <form class="form-horizontal" role="form" onsubmit="return false;">
+              <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                 <div class="form-group">
                   <div class="panel-group col-xs-12 col-sm-4 col-md-4">
                     <label for="config_name_input" class="col-xs-4 control-label">Config&nbsp;Name:</label>
@@ -7122,7 +7542,7 @@
               <div class="panel-group col-xs-12"></div>
               <div class="panel-group col-xs-1"></div>
               <div class="panel-group col-xs-11">
-                <form class="form-horizontal" role="form" onsubmit="return false;">
+                <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                   <div class="checkbox" style="padding-bottom: 12px;">
                     <label class="group-label">
                       <input type="checkbox" id="load_config_block_start" checked>

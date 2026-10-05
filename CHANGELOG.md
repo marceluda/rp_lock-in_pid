@@ -1,6 +1,36 @@
 
 # Devbuild  changes
 
+## 0.2.4
+  - BUGFIX: The second of two quick changes was lost (e.g. two controls changed while a POST
+            was in flight): server responses keep the unsent user changes and the queued POST
+            sends them. Config -> load during a POST also arrives.
+  - BUGFIX: Indicators (X, Y, R, phi...) frozen after editing a number field (the 100 ms timer
+            of the field left the edit mode on). Escape restores the field; leaving a select or
+            checkbox without changes also ends the edit mode.
+  - BUGFIX: Out of range value + Enter sent 2 POSTs (implicit submit + HTML5 validation of the
+            form re-focused the field): Enter does preventDefault() and the forms are novalidate.
+  - BUGFIX: The mouse wheel over a number field stopped the oscilloscope (it sent single_btn).
+            SHIFT + wheel up now increments (Chrome sends it as a horizontal scroll).
+  - BUGFIX: Wheel over a focused field sent each step twice.
+  - BUGFIX: Restart after "another client took control" restores your settings also when the
+            intruder is another tab of this same App (the App stays loaded).
+  - FEATURE: Cautious polling on Ecosystem 2.0: a slow or failed /get_client_id (App change in
+             progress) stops GET /data until the board answers fast again, and after
+             "Application not loaded" no GET /data is done until the probe confirms this App
+             (avoids the nginx worker crash).
+  - BUGFIX: Cautious mode entered without reason during active use: a single slow/failed
+            /get_client_id is retried at once (cautious only if the retry is slow/fails too), a
+            slow answer overlapping our own POST /data is not measured, and the checks to leave it
+            are 1 s apart (was 3 s).
+  - BUGFIX: Endless POST loop (~15 POST/s, it crashed the nginx worker) after Config -> load of a
+            config without some keys (e.g. one of lock_in+pid_harmonic): missing keys keep their
+            current value, a select without selection never gives NaN, NaN is never a pending
+            change, and sendParams() has an anti-loop guard (no POST without changes < 200 ms after
+            the previous one, at most 10 POST/s). The display tolerates missing X/Y/F values.
+  - BUGFIX: Saved configs use an own localStorage key (lockConfig_lock_in+pid); only the configs
+            of this App are copied from the old shared key 'lockConfig'.
+
 ## 0.2.3
   - FEATURE: Ecosystem 2.0 support. FPGA is loaded with fpga.sh + fpga.bit.bin (fpgautil).
   - BUGFIX: "Error while sending data (E3)" on Ecosystem 2.0. The web UI now sends only the
