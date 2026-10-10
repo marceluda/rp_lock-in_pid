@@ -1,6 +1,13 @@
 
 # Devbuild  changes
 
+## Documentation (after 2.2.6, not a new version)
+  - FEATURE: `doc/` written for v2.2.6: `App.md` (instruments and technical data), `Usage.md` (web interface and
+             procedures, screenshots in `doc/.Usage/`), `Structure.md` (layers and FPGA block diagrams, Mermaid),
+             `FPGA.md` (register map checked against the RTL), `Remote.md` (Python scripts on the board and the SSH
+             client; there is no HTTP API), `Devel.md` (build, tests, installation). `doc/README.md` is now the
+             index of `doc/`. README rewritten (features, documentation, installation, building).
+
 ## 2.2.6 - Lock control in the FPGA, Capture Lock, web UI fixes of lock_in+pid_harmonic 2.3.10-2.3.17
 Port of the lock / web UI / controller changes of lock_in+pid_harmonic v2.3.10 to v2.3.17 (see its CHANGELOG
 for the details of each one). New FPGA image. One step: those changes build on each other (Capture Lock, Fire on
