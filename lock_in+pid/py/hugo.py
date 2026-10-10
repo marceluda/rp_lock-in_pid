@@ -112,8 +112,8 @@ class fpga_osc(fpga_regs):
 
     def dec(self,num=None):
         if type(num)==int:
-            if not (num in [1,8,64,1024,8192,65536] ):
-                print('Error: dec should be: [1,8,64,1024,8192,65536]')
+            if not (num in [1,8,64,1024,8192,65536,524288] ):
+                print('Error: dec should be: [1,8,64,1024,8192,65536,524288]')
             else:
                 self['Dec'].val(num)
         return self['Dec'].val()
@@ -147,13 +147,13 @@ class fpga_osc(fpga_regs):
             # Get ChA
             mem = mmap.mmap(ff.fileno(), mmap.PAGESIZE*1024*32, offset=0x40110000)
             for i in range(2**14):
-                C=int.from_bytes(mem.read(4), byteorder='little', signed=False)
+                C=int.from_bytes(mem.read(4), byteorder='little', signed=False) & 0x3fff  # 14 ADC bits (2.0 FPGA: 16-bit sign-extended)
                 self.chA[i]= ( -1 * ( (C^16383) +1 )  ) if (C & 0x2000 ) else C
             mem.close()
             # Get ChB
             mem = mmap.mmap(ff.fileno(), mmap.PAGESIZE*1024*32, offset=0x40120000)
             for i in range(2**14):
-                C=int.from_bytes(mem.read(4), byteorder='little', signed=False)
+                C=int.from_bytes(mem.read(4), byteorder='little', signed=False) & 0x3fff  # 14 ADC bits (2.0 FPGA: 16-bit sign-extended)
                 self.chB[i]= ( -1 * ( (C^16383) +1 )  ) if (C & 0x2000 ) else C
             mem.close()
             self.chA = self.chA[self.ptr:16384] + self.chA[0:self.ptr]
@@ -179,10 +179,14 @@ class fpga_osc(fpga_regs):
         self['conf'].val( 2 )
 
     def start_trigger(self):
+        # 2.0 FPGA (v2.2.5): unlock the trigger (0x94 = 1) before writing the
+        # source, as controllerhf.so does. In the 0.9x FPGA 0x94 is unmapped.
+        fpga_reg(name='TrgLock', index=0x94//4, nbits=1, signed=False,
+                 base_addr=self.base_addr, dev_file=self.dev_file).val(1)
         self['TrgSrc'].val(self.trigVal)
 
     def set_dec(self,dec):
-        if int(dec) in [0,1,8,64,1024,8192,65536]:
+        if int(dec) in [0,1,8,64,1024,8192,65536,524288]:
             self['Dec'].val(int(dec))
             return True
         else:
@@ -199,7 +203,7 @@ osc.add( fpga_reg(name='TrgSrc'   ,index=1 ,rw=True,nbits= 4,signed=False) )
 osc.add( fpga_reg(name='ChAth'    ,index=2 ,rw=True,nbits=14,signed=True ) )
 osc.add( fpga_reg(name='ChBth'    ,index=3 ,rw=True,nbits=14,signed=True ) )
 osc.add( fpga_reg(name='TrgDelay' ,index=4 ,rw=True,nbits=32,signed=False) )
-osc.add( fpga_reg(name='Dec'      ,index=5 ,rw=True,nbits=17,signed=False) )
+osc.add( fpga_reg(name='Dec'      ,index=5 ,rw=True,nbits=20,signed=False) )
 osc.add( fpga_reg(name='CurWpt'   ,index=6 ,rw=True,nbits=14,signed=False) )
 osc.add( fpga_reg(name='TrgWpt'   ,index=7 ,rw=True,nbits=14,signed=False) )
 osc.add( fpga_reg(name='ChAHys'   ,index=8 ,rw=True,nbits=14,signed=False) )

@@ -36,6 +36,14 @@
 
 /** Bit mask in the trigger_source register for depicting the trigger source type. */
 #define OSC_FPGA_TRIG_SRC_MASK 0x00000007
+/** Trigger source field (bits [3:0]) as read back from the trig_source register. */
+#define OSC_FPGA_TRIG_SRC_RD_MASK 0x0000000f
+/** conf bit 2 (R): trigger status. 0.9x: post-trigger delay running (adc_dly_do);
+ *  2.0 (v0.94, rp_scope_com): trigger received, sticky until next arm/reset (adc_trg_rd). */
+#define OSC_FPGA_CONF_TRIG_ST_BIT   0x4
+/** conf bit 4 (R), only in the 2.0 v0.94 scope: acquisition (post-trigger
+ *  delay) finished, sticky until next arm/reset (adc_dly_end). Reads 0 in 0.9x. */
+#define OSC_FPGA_CONF_ACQ_DONE_BIT  0x10
 /** Bit mask in the cha_thr register for depicting trigger threshold on channel A. */
 #define OSC_FPGA_CHA_THR_MASK  0x00003fff
 /** Bit mask in the cha_thr register for depicting trigger threshold on channel B. */
@@ -62,7 +70,10 @@ typedef struct osc_fpga_reg_mem_s {
     /** @brief  Configuration:
      * bit     [0] - arm_trigger
      * bit     [1] - rst_wr_state_machine
-     * bits [31:2] - reserved 
+     * bit     [2] - (R) trigger status (see OSC_FPGA_CONF_TRIG_ST_BIT)
+     * bit     [3] - arm_keep
+     * bit     [4] - (R) acquisition done, 2.0 only (OSC_FPGA_CONF_ACQ_DONE_BIT)
+     * bits [31:5] - reserved 
      */
     uint32_t conf;
 
@@ -180,8 +191,21 @@ typedef struct osc_fpga_reg_mem_s {
      * bits [31:25] - reserved
      */
     uint32_t chb_filt_pp;            
-    
-    
+
+    /** @brief Offsets 0x50 - 0x90: AXI/DMA and external trigger debouncer
+     * registers, not used by this application. */
+    uint32_t reserved_50_90[17];
+
+    /** @brief Offset 0x94 - Trigger lock control (only in the 2.0 v0.94 scope,
+     * used by the Vivado 2020.1 FPGA design of this App since v2.2.5)
+     * bit [0] - (W) write 1 to unlock the trigger. After every trigger the
+     *           2.0 FPGA locks the trigger (trig_source bit 5 reads 1) and
+     *           ignores any new trigger until this bit is written (librp:
+     *           acq_Start() -> osc_SetUnlockTrigger()). In the 0.9x
+     *           scope (v0.2.x FPGA, Vivado 2015.2) this address is unmapped (write ignored).
+     */
+    uint32_t trigger_lock_ctr;
+
     /** @brief  ChA & ChB data - 14 LSB bits valid starts from 0x10000 and
      * 0x20000 and are each 16k samples long */
 } osc_fpga_reg_mem_t;

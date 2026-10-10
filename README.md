@@ -19,6 +19,25 @@ The project is hosted in: https://marceluda.github.io/rp_lock-in_pid
 There you can find documentation about use and building of the app, and
 some suggested applications.
 
+## Version 2.2.x (Ecosystem 2.0)
+
+Current version: **2.2.5** (branch `devel2.0`).
+
+This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
+using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)
+(project `v0.94`, model `Z10`, the same port done in
+[rp_lock-in_pid_h](https://github.com/marceluda/rp_lock-in_pid_h) v2.3.x).
+It is intended for the Red Pitaya **Ecosystem 2.0** (e.g. `RedPitaya_OS_2.04`).
+The 0.2.x series (branch `master`, FPGA with Vivado 2015.2) is the version for the 0.9x / 1.0 ecosystems.
+
+- FPGA: `lock_in+pid/fpga/` (Vivado 2020.1, see [lock_in+pid/fpga/README.md](lock_in+pid/fpga/README.md)).
+  Oscilloscope of the Ecosystem 2.0 (trigger lock, decimation widened to 20 bits), bus reads of the
+  lock module held during the read. Registers of the lock module unchanged.
+- Web interface and C controller: those of v0.2.4 plus the changes needed by the 2.0 scope
+  (still built with the Linaro toolchain).
+- Only the App itself is packaged (the `_DEBUG` and `_RELOAD` flavours were removed).
+- See the [CHANGELOG](CHANGELOG.md).
+
 # Compile / implementation HELP
 
 The App was based on code from project:
@@ -70,6 +89,11 @@ The building was tested on Ubuntu 16.04 Linux x86_64
 
 ## Building
 
+Since v2.2.5 the FPGA is built with **Vivado 2020.1** (`/tools/Xilinx/Vivado/2020.1`, or set
+`VIVADO_SETTINGS=.../settings64.sh`): `lock_in+pid/fpga/Makefile` loads it by itself in a clean
+environment. `settings.sh` loads Vivado 2015.2 (not needed for the FPGA any more) and the Linaro
+toolchain used for the C controller; `make` from the root builds everything (FPGA + C + zip/tar in
+`archive/`).
 
 Run on terminal:
 
@@ -112,6 +136,13 @@ For cleaning:
 $ make clean       # clean all
 $ make clean_app   # clean only C objects
 $ make clean_fpga  # clean only FPGA implementation temp files and .bin
+```
+
+Upload to a Red Pitaya (`RPIP` on the command line or in `_settings.env`):
+```
+$ make upload RPIP=rp-XXXXXX.local        # the whole App
+$ make upload_html RPIP=rp-XXXXXX.local   # index.html, css, js
+$ make upload_bit RPIP=rp-XXXXXX.local    # red_pitaya.bit + fpga.bit.bin
 ```
 
 # Upload App to Red Pitaya device

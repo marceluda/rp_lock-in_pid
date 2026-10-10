@@ -1002,8 +1002,9 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
 
         /* Get the signals - available at rp_fpga_chX_signal vectors */
         for(smpl_cnt = 0; smpl_cnt < OSC_FPGA_SIG_LEN; smpl_cnt++) {
-            int cha_smpl = rp_fpga_cha_signal[smpl_cnt];
-            int chb_smpl = rp_fpga_chb_signal[smpl_cnt];
+            /* keep the 14 ADC bits (2.0 FPGA: 16-bit sign-extended samples) */
+            int cha_smpl = rp_fpga_cha_signal[smpl_cnt] & ((1<<c_osc_fpga_adc_bits)-1);
+            int chb_smpl = rp_fpga_chb_signal[smpl_cnt] & ((1<<c_osc_fpga_adc_bits)-1);
 
             // TWO'S COMPLEMENT
             // LOLO
@@ -1309,7 +1310,9 @@ int rp_osc_meas_clear(rp_osc_meas_res_t *ch_meas)
 /*----------------------------------------------------------------------------------*/
 inline int rp_osc_adc_sign(int in_data)
 {
-    int s_data = in_data;
+    /* 14-bit sample (0.9x) or 16-bit sign-extended sample (2.0 FPGA of
+     * v2.2.5): keep the 14 ADC bits before converting (see fpga.c). */
+    int s_data = in_data & ((1<<c_osc_fpga_adc_bits)-1);
     if(s_data & (1<<(c_osc_fpga_adc_bits-1)))
         s_data = -1 * ((s_data ^ ((1<<c_osc_fpga_adc_bits)-1)) + 1);
     return s_data;

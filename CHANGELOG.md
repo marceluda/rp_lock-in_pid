@@ -1,6 +1,36 @@
 
 # Devbuild  changes
 
+## 2.2.5 - FPGA rebuilt with Vivado 2020.1 (Ecosystem 2.0), branch devel2.0
+First version of the 2.2.x series (branch `devel2.0`): v0.2.4 with the FPGA design ported to Vivado 2020.1,
+as done in lock_in+pid_harmonic v2.3.10-v2.3.17. The 0.2.x series (branch `master`, Vivado 2015.2) stays as
+the version for the 0.9x / 1.0 ecosystems.
+  - CHANGED: `lock_in+pid/fpga` is now the RedPitaya-FPGA v0.94 project (model Z10) with the lock module of
+             this App (`prj/v0.94/rtl/lock.v` + `lock/`, same registers). `make` builds `red_pitaya.bit` and
+             `fpga.bit.bin` (bootgen), `make project` opens the Vivado project, `make clean` cleans; Vivado
+             2020.1 is loaded inside the Makefile, isolated from the Linaro setup of the C controller. The
+             2015.2 design is kept untracked in `fpga_old_2015.2/` (remains in history at v0.2.4).
+  - CHANGED: The scope is the Red Pitaya 2.0 one (from lock_in+pid_harmonic): the controller unlocks its
+             trigger (0x94) before each acquisition and detects the end of acquisition with conf bit 4;
+             decimation register widened to 20 bits (up to 524288); scope read data held for the PS side of
+             the bus (CDC fix of `rp_scope_cfg`). Kept from the 2015.2 design: lock at 0x40600000, scope at
+             0x40100000 with the lock signals and lock trigger, slow outputs (PWM) driven by the lock, digital
+             modulation on `exp_n_io[7]`, ASG / PID regions answer without error.
+  - BUGFIX: Bus reads of fast changing signals (in1, oscA, out1, PID in/out...) could return a mix of bits of
+            two values: `lock.v` now loads `sys_rdata` only during a read and holds it, and the read-only wires
+            are read from registered copies (`*_rd`) frozen during the read, with a multicycle constraint
+            (fix of lock_in+pid_harmonic v2.3.17; generator `resources/config_tool.py` updated, now pointing to
+            `fpga/prj/v0.94/rtl/lock.v`). Test: `lock_in+pid/test/lock_bus_read_sim.sh` (xsim 2020.1).
+  - BUGFIX: Negative scope samples would be shown as -1 V (the 2.0 scope returns 16-bit sign-extended samples):
+            the controller and `py/hugo.py` keep the 14 ADC bits; `hugo.py` unlocks the trigger and accepts
+            decimation 524288.
+  - CHANGED: Only the App is built and packaged: the `_DEBUG` and `_RELOAD` flavours (controllerhf_dbg.so,
+             controllerhf_rld.so, target_dbg/, target_rld/, their zip/tar and icons, the RELOAD dock of
+             `src/main.c`) were removed. `make upload*` kept, as in lock_in+pid_harmonic v2.3.15 (rw script of
+             the OS, `RPIP` required, fpga.sh 755).
+  - CHANGED: `settings.sh` loads Vivado 2015.2 only if it is installed (not needed any more).
+  - NOTE: FPGA timing does not close (as in the 2015.2 design and in lock_in+pid_harmonic 2.3.x).
+
 ## 0.2.4
   - BUGFIX: The second of two quick changes was lost (e.g. two controls changed while a POST
             was in flight): server responses keep the unsent user changes and the queued POST

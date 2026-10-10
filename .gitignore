@@ -10,6 +10,15 @@ lock_in+pid/target/
 lock_in+pid/target_dbg/
 lock_in+pid/target_rld/
 lock_in+pid/fpga/out/
+lock_in+pid/fpga/prj/*/out/
+lock_in+pid/fpga/prj/*/build/
+lock_in+pid/fpga/prj/*/sdk/
+lock_in+pid/fpga/prj/*/.Xil/
+lock_in+pid/fpga/prj/*/.srcs/
+lock_in+pid/fpga/prj/*/.gen/
+lock_in+pid/fpga/synReport*
+# old Vivado 2015.2 design (kept in history at v0.2.4), not versioned
+lock_in+pid/fpga_old_2015.2/
 lock_in+pid/fpga/.srcs/
 archive/
 lock_in+pid/fpga/.Xil
@@ -55,3 +64,11 @@ fsm_encoding.os
 ehthumbs.db
 Thumbs.db
 __pycache__/
+
+# Python / xsim simulation products #
+#####################################
+*.pyc
+xsim.dir/
+*.pb
+*.wdb
+webtalk*

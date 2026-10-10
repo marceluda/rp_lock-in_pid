@@ -2,7 +2,13 @@
 # setup Xilinx Vivado FPGA tools
 ################################################################################
 
-. /opt/Xilinx/Vivado/2015.2/settings64.sh
+# v2.2.5: the FPGA is built with Vivado 2020.1, loaded by lock_in+pid/fpga/Makefile itself
+# in a clean environment (VIVADO_SETTINGS, default /tools/Xilinx/Vivado/2020.1/settings64.sh).
+# Vivado 2015.2 is not needed any more (the C controller only uses the Linaro toolchain);
+# it is still loaded if present, as in the 0.2.x series.
+if [ -f /opt/Xilinx/Vivado/2015.2/settings64.sh ]; then
+  . /opt/Xilinx/Vivado/2015.2/settings64.sh
+fi
 
 ################################################################################
 # setup Linaro toolchain
