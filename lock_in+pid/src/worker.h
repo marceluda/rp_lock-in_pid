@@ -35,6 +35,11 @@ int rp_osc_worker_exit(void);
 int rp_osc_worker_change_state(rp_osc_worker_state_t new_state);
 int rp_osc_worker_get_state(rp_osc_worker_state_t *state);
 int rp_osc_worker_update_params(rp_app_params_t *params, int fpga_update);
+/* v2.3.14: new parameters + auto-set state in one step (the auto-set starts from these parameters) */
+int rp_osc_worker_start_auto_set(rp_app_params_t *params, int fpga_update);
+/* v2.3.14 (Capture Lock): parameter generation and wait for the scope to be armed */
+int rp_osc_worker_params_gen(void);
+int rp_osc_worker_wait_armed(int gen, rp_osc_worker_state_t state, int timeout_us);
 
 /* removes 'dirty' flags */
 int rp_osc_clean_signals(void);

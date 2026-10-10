@@ -918,11 +918,26 @@ class red_pitaya_app():
     def ramp_enable(self,val=True):
         self.__lock_control_update('ramp_enable_ctrl',val)
 
+    # v2.2.6 (from lock_in+pid_harmonic v2.3.13): lock_now / launch_lock are lock requests that act on their 0->1
+    # edge and are never cleared by the FPGA; [1:0] = 00 releases the lock. The state is read from lock_status (0x2C).
+    def __lock_request(self,bit):
+        lock_control = self.lock.get('lock_control')
+        self.lock.set('lock_control', lock_control & ~0b11 )          # no request: edge for the next write
+        self.lock.set('lock_control', (lock_control & ~0b11) | bit )
+
     def launch_lock(self):
-        self.rp.__lock_control_update('launch_lock',True)
+        self.__lock_request(0b10)
 
     def lock_now(self):
-        self.rp.__lock_control_update('lock_now',True)
+        self.__lock_request(0b01)
+
+    def release_lock(self):
+        self.lock.set('lock_control', self.lock.get('lock_control') & ~0b11 )
+
+    def lock_status(self):
+        st = int(self.lock.get('lock_status'))
+        return { 'armed': bool(st & 1), 'locked': bool(st & 2), 'pidB_enable': bool(st & 4),
+                 'pidA_enable': bool(st & 8), 'ramp_enable': bool(st & 16), 'lock_count': (st >> 8) & 0xff }
 
     def counter_start(self):
         self.lock.read_ctrl = self.lock.get('read_ctrl') | 0b10

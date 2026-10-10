@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.5)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.6)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -48,6 +48,8 @@
   //var root_url = 'http://192.168.1.100';   // Default RedPitaya IP
 
   var app_version = 'VERSION';
+  // v2.2.6: the web UI fixes of lock_in+pid_harmonic v2.3.10-v2.3.17 were ported here; comments that quote
+  // v2.3.x refer to those versions of lock_in+pid_harmonic (CHANGELOG.md of this App: 2.2.6).
   var start_app_url = root_url + '/bazaar?start=' + app_id;
   var stop_app_url = root_url + '/bazaar?stop=';
   var get_url = root_url + '/data';
@@ -64,9 +66,11 @@
                                          // headers and body in one write only if both fit in ~1400 B (headers ~500-800 B)
   var post_chunk_timeout = 2000;         // Milliseconds, per POST chunk. A healthy POST answers in ~10 ms; a hung one never
   var post_chunk_retries = 2;            // Retries of a chunk that timed out (values are absolute, so it is safe)
-  var always_send_params = ['single_btn', 'xmin', 'xmax', 'lock_lock_control'];  // Sent in every POST, even if
-                                         // unchanged: loadParams() overrides them locally, so server may differ
-  var last_send_params = ['single_btn', 'auto_flag'];  // Go in the last POST when params are split
+  var always_send_params = ['single_btn', 'xmin', 'xmax'];  // Sent in every POST, even if unchanged:
+                                         // loadParams() overrides them locally, so server may differ.
+                                         // v2.3.13: lock_lock_control is no longer here (read-only mirror, see lockStatus())
+  var last_send_params = ['single_btn', 'auto_flag',   // Go in the last POST when params are split
+                          'lock_ctrl_aux_lock_now', 'lock_ctrl_aux_launch_lock_trig'];  // v2.3.14: same POST as single_btn
   var meas_panel_dec = 5;                // Decimation for numerical measure panel to make it human readable
   var meas_panel_dec_mobdev = 1;         // Decimation for numerical measure panel for mobile devices
   var points_per_px = 5;                 // How many points per pixel should be drawn. Set null for unlimited (will disable client side decimation).
@@ -77,7 +81,7 @@
   var xmin = -1000000;
   var xmax = 1000000;
 
-  var time_range_max = [130, 1000, 8, 130, 1, 8];
+  var time_range_max = [130, 1000, 8, 130, 1, 8, 68];  // v2.2.6: range 6 = decimation 512k (68.7 s)
   var range_steps = [0.5, 1, 2, 5, 10, 20, 50, 100];
 
   var plot_options = {
@@ -99,7 +103,14 @@
   var scope_stop = false;
   var sending = false;
   var send_que = false;
+  var single_que = false;  // a Single click arrived while a POST was in flight: send it when the POST ends
   var send_que_all = false;              // The queued sendParams() must use send_all (config load during a POST)
+  // v2.3.17: Config -> load. Time scale values that the server derives (or the forceX handshake) are never sent in
+  // the send_all of a config load: a stale forcex_flag 0 / time_units of params.local in a later chunk ended the
+  // forceX of the new window, and the page kept the window in the old units (x1000). The window is applied from
+  // the answer of the last chunk instead (configLoadApplyX()), as restoreState() does.
+  var send_all_skip = ['forcex_flag', 'time_units', 'time_range', 'gui_xmin', 'gui_xmax'];
+  var config_load_x_pending = false;     // set by config_load_storage(), taken by the sendParams(send_all) that sends it
   var use_long_timeout = false;
   var trig_dragging = false;
   var touch_last_y = 0;
@@ -146,6 +157,9 @@
   var app_check_pending = false;
   var start_retries = 3;                 // bazaar?start attempts (2.0: the worker may die during the start)
   var state_key = 'lockin_state_' + app_id;  // sessionStorage key of the last server-confirmed settings
+  // Transient commands: never saved in the state nor restored by Restart; forced to 0 by restoreState()
+  // and Config -> load (v2.2.6, from lock_in+pid_harmonic v2.3.10)
+  var state_transient_zero = ['lock_ctrl_aux_lock_now', 'lock_ctrl_aux_launch_lock_trig'];
   // sessionStorage flag: Restart after onControlLost() -> restoreState() even if our App is still loaded
   // (another tab of this same App took control). While set, saveState() does not overwrite state_key.
   var restore_pending_key = 'lockin_restore_pending_' + app_id;
@@ -153,7 +167,7 @@
   // Read-only params (read_only = 1 in src/main.c): the display shows them, the user never changes them
   var readonly_keys = ('meas_min_ch1,meas_max_ch1,meas_amp_ch1,meas_avg_ch1,meas_freq_ch1,meas_per_ch1,'+
                        'meas_min_ch2,meas_max_ch2,meas_amp_ch2,meas_avg_ch2,meas_freq_ch2,meas_per_ch2,'+
-                       'lock_lock_feedback,lock_rl_state,lock_signal_i,lock_error,lock_error_mean,lock_error_std,'+
+                       'lock_lock_status,lock_rl_state,lock_signal_i,lock_error,lock_error_mean,lock_error_std,'+
                        'lock_ramp_A,lock_ramp_B,lock_sin_ref,lock_cos_ref,lock_cos_1f,lock_cos_2f,lock_cos_3f,'+
                        'lock_sq_ref_b,lock_sq_quad_b,lock_sq_phas_b,lock_sq_ref,lock_sq_quad,lock_sq_phas,'+
                        'lock_in1,lock_in2,lock_out1,lock_out2,lock_slow_out1,lock_slow_out2,lock_slow_out3,lock_slow_out4,'+
@@ -169,7 +183,8 @@
   var unsent_base = null;
   // Read-only params that the display uses but that are not saved in a config (config_params_keys).
   // When they are missing (e.g. loading a saved config) the previous values of params.local are kept.
-  var display_keep_keys = readonly_keys;
+  // v2.2.6: lock_lock_control is read-only on the server (written only through the lock buttons, see lockRequest())
+  var display_keep_keys = readonly_keys.concat(['lock_lock_control']);
   // Never kept: read-only values, and keys that loadParams()/updateTimeUnits()/sendParams() handle by themselves
   var unsent_skip_keys = readonly_keys.concat(['single_btn', 'xmin', 'xmax', 'time_units', 'forcex_flag',
                                                'min_y', 'max_y', 'lock_lock_control']);
@@ -192,6 +207,10 @@
 
   set_trigger_val=false;
   trigger_just_set=false;
+  // Time units (0 us, 1 ms, 2 s) of the x values of the plotted data (datasets), taken from the same GET /data
+  // answer. "Choose from graph" converts the click with these units, not with params.local.time_units, which a
+  // POST answer (zoom -> forceX) may change before the data in the new units arrive.
+  var plot_time_units = null;
   last_disp_units=false;
   lasttsp=Math.floor((new Date().getTime())/1000);
   last_unit_mode = 0 ;
@@ -200,7 +219,7 @@
   config_params_txts = 'xmin,xmax,trig_mode,trig_source,trig_edge,trig_delay,trig_level,time_range,time_units,en_avg_at_dec,min_y,'+
                        'max_y,prb_att_ch1,gain_ch1,prb_att_ch2,gain_ch2,gui_xmin,gui_xmax,'+
                        'lock_oscA_sw,lock_oscB_sw,lock_osc1_filt_off,lock_osc2_filt_off,lock_osc_raw_mode,lock_osc_lockin_mode,lock_trig_sw,'+
-                       'lock_out1_sw,lock_out2_sw,lock_slow_out1_sw,lock_slow_out2_sw,lock_slow_out3_sw,lock_slow_out4_sw,lock_lock_control,'+
+                       'lock_out1_sw,lock_out2_sw,lock_slow_out1_sw,lock_slow_out2_sw,lock_slow_out3_sw,lock_slow_out4_sw,'+
                        'lock_lock_trig_val,lock_lock_trig_time_val,lock_lock_trig_sw,lock_rl_error_threshold,lock_rl_signal_sw,lock_rl_signal_threshold,'+
                        'lock_rl_error_enable,lock_rl_signal_enable,lock_rl_reset,lock_sf_jumpA,lock_sf_jumpB,lock_sf_start,lock_sf_AfrzO,'+
                        'lock_sf_AfrzI,lock_sf_BfrzO,lock_sf_BfrzI,lock_signal_sw,lock_sg_amp1,lock_sg_amp2,lock_sg_amp3,lock_sg_amp_sq,'+
@@ -309,6 +328,7 @@
 
 
     $('#trig_mode').on('change', function() {
+      lockCaptureLeave('trig_mode');  // v2.3.14: a capture ends, the other scope settings are restored
       onDropdownChange($(this), 'trig_mode', true);
 
       // Autorun if trigger mode is Auto(0) or Normal(1), stop if it is Single(2).
@@ -1216,34 +1236,33 @@
     });
 
     $('#btn_set_trig').on('click', function() {
-      $('#btn_set_trig').prop('disabled', true);
-      if( $('#btn_set_trig_auto_zoom').is(':checked') ){
-        user_editing = true;
-        var max_time_val = 2*(params.local.lock_ramp_hig_lim-params.local.lock_ramp_low_lim)*(params.local.lock_ramp_step+1) ;
-        max_time_val = params.local.time_units == 0 ? max_time_val * 8 / 1000       :
-                       params.local.time_units == 1 ? max_time_val * 8 / 1000000    :
-                                                      max_time_val * 8 / 1000000000 ;
+      // v2.3.12: no "Auto-zoom" (it moved the zoom so that t = 0 was on screen): the click is converted from the
+      // absolute time of the x axis, with any zoom / offset / units (see clickToTrigTime()).
+      // v2.3.14: a 2nd click (or Esc) cancels; the warning is recomputed on each change (trigFromGraphMsg())
+      if(set_trigger_val) { trigFromGraphCancel(); return; }
+      var tg = trigFromGraphTargets(params.local ? params.local.lock_ctrl_aux_trig_type : 0);
+      if(!tg.time && !tg.level) return;
+      trigFromGraphStart();
+    });
+    $(document).on('keydown', function(e) {
+      if(set_trigger_val && isEscapeKey(e)) trigFromGraphCancel();
+    });
 
-
-        params.local.trig_source=2 ;
-        params.local.trig_mode=1 ;
-        params.local.lock_trig_sw=2
-
-        opt=plot.getOptions();
-        opt.xaxes[0].min=0-max_time_val*0.1;
-        opt.xaxes[0].max=max_time_val*1.1;
-
-        params.local.trig_delay=0-max_time_val*0.1;
-        params.local.xmin=0-max_time_val*0.1;
-        params.local.xmax=max_time_val*1.1;
-        params.local.gui_xmin=0-max_time_val*0.1;
-        params.local.gui_xmax=max_time_val*1.1;
-
-        setTimeout(function(){  autoscaleY(); }, update_interval*5 );
-
-        sendParams();
+    // v2.3.14: Capture Lock / Fire on click (UI preferences, nothing is sent to the server)
+    $('#ui_capture_lock').on('change', function() {
+      ui_capture_lock = $(this).is(':checked') ? 1 : 0;
+      $(this).blur();
+      user_editing = false;
+      if(!ui_capture_lock && lockCaptureLeave('')) {   // unchecked during a capture: scope settings back
+        sendParams(true);
+        runStop();
       }
-      set_trigger_val=true;
+    });
+    $('#ui_fire_on_click').on('change', function() {
+      ui_fire_on_click = $(this).is(':checked') ? 1 : 0;
+      $(this).blur();
+      user_editing = false;
+      trigFromGraphMsg();
     });
 
     // Tooltips for range buttons
@@ -1316,6 +1335,11 @@
         $max = parseFloat($this.attr('max'));
         $min = parseFloat($this.attr('min'));
         $currVal = parseInt($this.val());
+        // v2.3.16: fields with units: the converted value ("16.58 ms" is 2072500 ticks, not 16); not valid: the last one
+        if(input_unit_parsers[id]) {
+          $currVal = numberInputValue(id, $this.val());
+          if(isNaN($currVal) && params.local) $currVal = Number(params.local[id]);
+        }
         //console.log( $currVal );
         // If blank, assume value of 0
         if (isNaN($currVal)) {
@@ -1402,13 +1426,37 @@
 
 
     // Buttons
-    var input_buttons = '#lock_osc_raw_mode,#lock_osc_lockin_mode,#lock_sf_start,#lock_ctrl_aux_lock_now,#lock_ctrl_aux_launch_lock_trig,'+
-                        '#lock_ctrl_aux_pidB_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_ramp_enable_ctrl,#lock_mod_sq_on,'+
-                        '#lock_mod_harmonic_on';
+    var input_buttons = '#lock_osc_raw_mode,#lock_osc_lockin_mode,#lock_sf_start,#lock_mod_sq_on,#lock_mod_harmonic_on';
     $(input_buttons).on('click', function() {
       $(this).toggleClass('btn-default btn-primary');
       params.local[this.id] = ($(this).is('.btn-primary') ? 1 : 0);
       sendParams();
+    });
+
+    // v2.3.13: lock control buttons (doc/lock_control.md). One POST per click, never a POST in answer to the status.
+    // Scan / PID A / PID B show the EFFECTIVE enable (lock_lock_status). Not locked: toggle the manual enable.
+    // Locked: release the lock keeping the effective enables, with the clicked one changed.
+    $('#lock_ctrl_aux_ramp_enable_ctrl,#lock_ctrl_aux_pidA_enable_ctrl,#lock_ctrl_aux_pidB_enable_ctrl').on('click', function() {
+      if(!params.local) return;
+      var st = lockStatus(params.original);
+      var on = ($(this).hasClass('btn-primary') ? 0 : 1);
+      if(st && st.locked) {
+        for(var ek in lock_enable_keys) params.local[ lock_enable_keys[ek] ] = st[ek];
+        params.local.lock_ctrl_aux_lock_now         = 0;
+        params.local.lock_ctrl_aux_launch_lock_trig = 0;
+        lockSetBtn('lock_ctrl_aux_lock_now', 0);
+        lockSetBtn('lock_ctrl_aux_launch_lock_trig', 0);
+      }
+      params.local[this.id] = on;
+      lockSetBtn(this.id, on);
+      sendParams();
+    });
+    // Trigger Lock / Lock Now: request bits of lock_control (levels). Off -> request; on -> release (both to 0)
+    // v2.3.14: the request goes through lockRequest() (Capture Lock), the release through lockRelease()
+    $('#lock_ctrl_aux_launch_lock_trig,#lock_ctrl_aux_lock_now').on('click', function() {
+      if(!params.local) return;
+      if(Number(params.local[this.id])) lockRelease();
+      else                              lockRequest(this.id);
     });
 
     // Checkboxes inputs
@@ -1564,32 +1612,9 @@
     });
 
     $("#plot_holder").on("plotclick", function (event, pos, item) {
-        if (set_trigger_val) {
-            var time_raw =pos.x;
-            var level_raw=pos.y;
-
-            var time_val  = Math.round(  time_raw  *( Math.pow(10, (params.local.time_units-2)*3 ) )/8e-9) ;
-            var level_val = params.local.lock_osc_raw_mode==0 ? Math.round(level_raw*8192) : level_raw ;
-
-            var max_time_val = 2*(params.local.lock_ramp_hig_lim-params.local.lock_ramp_low_lim)*(params.local.lock_ramp_step+1) ;
-            time_val         = time_val % max_time_val;
-
-            if(time_val<0) time_val = time_val + max_time_val;
-
-            user_editing=false;
-            trigger_just_set=true;
-            $('#lock_lock_trig_time_val').val(time_val);
-            params.local.lock_lock_trig_time_val=time_val;
-
-            $('#lock_lock_trig_val').val(level_val);
-            params.local.lock_lock_trig_val=level_val;
-
-            $('#lock_lock_trig_val').blur();
-
-
-            $('#btn_set_trig').prop('disabled', false);
-            set_trigger_val=false;
-        }
+        // pos.x / pos.y: absolute coordinates of the axes (not relative to the visible window).
+        // v2.3.14: see trigFromGraphClick() (capture offset, Fire on click)
+        trigFromGraphClick(pos);
     });
 
 
@@ -2079,57 +2104,127 @@
   }
 
 
+  // v2.3.13: lock control status, read-only register lock_status (0x2C here; 0x1C in lock_in+pid_harmonic) = param lock_lock_status (doc/lock_control.md).
+  // Bits: 0 armed, 1 locked, 2 PID B, 3 PID A, 4 ramp (effective enables), 15:8 number of locks (mod 256).
+  // The FPGA runs the whole lock sequence by itself: the UI only shows this, it never writes it back.
+  var lock_enable_keys = { ramp: 'lock_ctrl_aux_ramp_enable_ctrl', pidA: 'lock_ctrl_aux_pidA_enable_ctrl',
+                           pidB: 'lock_ctrl_aux_pidB_enable_ctrl' };
+  function lockStatus(p) {
+    var s = (p ? Number(p.lock_lock_status) : NaN);
+    if(!isFinite(s) || s < 0) return null;
+    s = Math.round(s);
+    return { armed: s & 1, locked: (s >> 1) & 1, pidB: (s >> 2) & 1, pidA: (s >> 3) & 1, ramp: (s >> 4) & 1,
+             count: (s >> 8) & 255 };
+  }
+
+  function lockSetBtn(id, on) {
+    $('#' + id).toggleClass('btn-primary', !!on).toggleClass('btn-default', !on).data('checked', !!on);
+  }
+
+  // Shows the lock state (params.original = last server answer). Changes neither params.local nor the server.
+  function lock_status_display() {
+    if(!params.original) return;
+    var st = lockStatus(params.original);
+    for(var ek in lock_enable_keys)
+      lockSetBtn(lock_enable_keys[ek], st ? st[ek] : Number(params.original[ lock_enable_keys[ek] ]));
+    lockSetBtn('lock_ctrl_aux_launch_lock_trig', Number(params.original.lock_ctrl_aux_launch_lock_trig));
+    lockSetBtn('lock_ctrl_aux_lock_now',         Number(params.original.lock_ctrl_aux_lock_now));
+    var lbl = $('#lock_status_label');
+    var txt = 'OFF', cls = 'label-default';
+    if(!st)             { txt = '?';      cls = 'label-default'; }
+    else if(st.locked)  { txt = 'LOCKED'; cls = 'label-success'; }
+    else if(st.armed)   { txt = 'ARMED';  cls = 'label-warning'; }
+    if(lbl.text() !== txt) lbl.text(txt);
+    lbl.removeClass('label-default label-success label-warning').addClass(cls);
+    $('#lock_status_count').text(st ? st.count : '-');
+  }
+
+  // v2.3.16: "Time trigger" and "Level trigger" are text fields that accept units (they were <input type="number">:
+  // "20 s" could not be typed, a pasted "19 s" gave "" and parseLocalFloat("") = 0 was sent: time trigger OFF).
+  // Value of the field in register units, NaN if it is empty or not valid (never sent: the last value is restored).
+  //   Time trigger:  8 ns ticks, 0..2^32-1 (v2.3.15: 32-bit unsigned, lock_ctrl.v). Units: s, ms, us (µs), ns,
+  //                  ticks (or no unit). E.g. "16.58 ms" -> 2072500, "20 s" -> 2500000000. Above 2^32-1: 2^32-1.
+  //   Level trigger: counts (1 V = 8192), -8192..8191. Units: V, mV, counts (or no unit). E.g. "0.1 V" -> 819.
+  // Decimal point or comma; the space between number and unit is optional ("16.58ms").
+  var lock_trig_time_units  = { '': 1, 'tick': 1, 'ticks': 1, 's': 125e6, 'seg': 125e6, 'ms': 125e3,
+                                'us': 125, 'µs': 125, 'μs': 125, 'ns': 0.125 };
+  var lock_trig_level_units = { '': 1, 'count': 1, 'counts': 1, 'v': 8192, 'mv': 8.192 };
+
+  function parseUnitValue(str, unit_table) {
+    var s = (str === undefined || str === null) ? '' : String(str).trim();
+    var m = s.match(/^([+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:e[+-]?\d+)?)\s*([^\s\d.,+-]*)$/i);
+    if(!m) return NaN;
+    var unit = m[2].toLowerCase();
+    if(!Object.prototype.hasOwnProperty.call(unit_table, unit)) return NaN;
+    var v = parseFloat(m[1].replace(',', '.'));
+    return isFinite(v) ? v * unit_table[unit] : NaN;
+  }
+
+  function parseTrigTime(str) {
+    var v = parseUnitValue(str, lock_trig_time_units);
+    if(!isFinite(v) || v < 0) return NaN;
+    if(v > 0 && v < 0.5) return 1;               // a time below one tick (e.g. "3 ns") is 1 tick, not 0 (OFF)
+    return Math.min(4294967295, Math.round(v));
+  }
+
+  function parseTrigLevel(str) {
+    var v = parseUnitValue(str, lock_trig_level_units);
+    if(!isFinite(v)) return NaN;
+    return Math.max(-8192, Math.min(8191, Math.round(v)));
+  }
+
+  // Number inputs (input_number) whose text is converted by a parser (units): see numberInputValue()
+  var input_unit_parsers = { lock_lock_trig_time_val: parseTrigTime, lock_lock_trig_val: parseTrigLevel };
+
+  // Last values shown by lock_ctrl_update() (they were implicit globals, created by its first call)
+  var trig_time, trig_val, aux_trig_type;
+
+  // v2.3.16: value of a number input (input_number) to send, NaN if empty or not valid (then it is not sent and the
+  // last value is restored). parseLocalFloat('') is 0: an emptied field (or an invalid text in an <input
+  // type="number">, whose .val() is '') used to send 0.
+  function numberInputValue(id, str) {
+    if(input_unit_parsers[id]) return input_unit_parsers[id](str);
+    if(str === undefined || str === null || String(str).trim() === '') return NaN;
+    return parseLocalFloat(String(str));
+  }
+
   function lock_ctrl_update() {
-    lock_lock_trig_time_val_arr = $("#lock_lock_trig_time_val" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
-    lock_lock_trig_val_arr      = $("#lock_lock_trig_val" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
+    // v2.3.16: the text of the fields is converted first (units), then compared with the last values: the number
+    // of "20 s" used to be compared with trig_time (in ticks) before the conversion. The fields are rewritten in
+    // register units only when the edit ends (numberInputBlur()), not while typing ("20 m" on the way to "20 ms").
+    var t_new = parseTrigTime( $("#lock_lock_trig_time_val").val() );
+    var v_new = parseTrigLevel( $("#lock_lock_trig_val").val() );
     lock_ctrl_aux_trig_type     = parseInt($("#lock_ctrl_aux_trig_type" ).val());
 
-    if( !$.isNumeric(lock_lock_trig_time_val_arr[0]) || !$.isNumeric(lock_lock_trig_val_arr[0])  ) return -1 ;
-
     if (params) if (params.local)
-    if( parseLocalFloat(lock_lock_trig_time_val_arr[0]) == trig_time  &&
-        parseLocalFloat(lock_lock_trig_val_arr[0])      == trig_val   &&
+    if( t_new === trig_time  &&
+        v_new === trig_val   &&
         lock_ctrl_aux_trig_type                         == aux_trig_type
         ) return -1 ;
 
-    trig_time    = Math.abs( parseLocalFloat( lock_lock_trig_time_val_arr[0] ) );
-    trig_val     =           parseLocalFloat( lock_lock_trig_val_arr[0]        );
+    trig_time    = t_new;
+    trig_val     = v_new;
     aux_trig_type=                            lock_ctrl_aux_trig_type           ;
 
-    if( lock_lock_trig_time_val_arr.length === 2) {
-      if ( lock_lock_trig_time_val_arr[1].toLowerCase()=="s" || lock_lock_trig_time_val_arr[1].toLowerCase()=="seg" )
-        trig_time = Math.round( trig_time / 8e-9 );
-      if ( lock_lock_trig_time_val_arr[1].toLowerCase()=="ms" )
-        trig_time = Math.round( trig_time / 8e-6 );
-      if ( lock_lock_trig_time_val_arr[1].toLowerCase()=="us"  || lock_lock_trig_time_val_arr[1].toLowerCase()=="μs"   )
-        trig_time = Math.round( trig_time / 8e-3 );
-      trig_time = Math.min( 500000000 , trig_time  ) ;
-      trig_time = Math.max(         0 , trig_time  ) ;
-      $("#lock_lock_trig_time_val").val(""+trig_time);
-    }
-
-    if( lock_lock_trig_val_arr.length === 2) {
-      if ( lock_lock_trig_val_arr[1].toLowerCase()=="v" )
-        trig_val = Math.round( trig_val * 8192 );
-      if ( lock_lock_trig_val_arr[1].toLowerCase()=="mv" )
-        trig_val = Math.round( trig_val * 8192 /1000 );
-      trig_val = Math.min(  8191 , trig_val  ) ;
-      trig_val = Math.max( -8192 , trig_val  ) ;
-      $("#lock_lock_trig_val").val(""+trig_val);
-    }
-
-    timeval = trig_time*8e-9;
-    if ( timeval === 0 ){
-      txt=" OFF ";
+    if ( isNaN(trig_time) ){
+      txt = "<small class=\"text-danger\">? number of 8 ns ticks or a time with units: s, ms, us, ns</small>";
     }else{
-      oom = Math.floor(Math.log10(timeval)/3);
-      val = timeval/Math.pow(10,3*oom);
-      txt = "<b>T&nbsp;=&nbsp;" + val.toFixed(3) + "&nbsp;" + units[oom.toString()] + "s</b>";
+      timeval = trig_time*8e-9;
+      if ( timeval === 0 ){
+        txt=" OFF ";
+      }else{
+        oom = Math.floor(Math.log10(timeval)/3);
+        val = timeval/Math.pow(10,3*oom);
+        txt = "<b>T&nbsp;=&nbsp;" + val.toFixed(3) + "&nbsp;" + units[oom.toString()] + "s</b>";
+      }
     }
 
     $('#lock_lock_trig_time_val_text').html( txt   );
 
-    $('#lock_lock_trig_val_text').html( "<small><b>V<sub>trg</sub>&nbsp;=&nbsp;" + (trig_val/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" ) ;
+    if ( isNaN(trig_val) )
+      $('#lock_lock_trig_val_text').html( "<small class=\"text-danger\">? counts (1 V = 8192) or a voltage with units: V, mV</small>" ) ;
+    else
+      $('#lock_lock_trig_val_text').html( "<small><b>V<sub>trg</sub>&nbsp;=&nbsp;" + (trig_val/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" ) ;
 
 
     switch(lock_ctrl_aux_trig_type) {
@@ -2738,20 +2833,452 @@
   function saveState(srv, force) {
     if(!srv || (force !== true && Date.now() - last_state_save < 2000)) return;
     if(isRestorePending()) return;  // Keep the state to restore (the board may have another tab's settings)
+    // Values that cannot be taken from this answer keep the previously saved ones (never dropped)
+    var prev = loadSavedState() || {};
     var s = {};
     for(var i in config_params_keys) {
       var k = config_params_keys[i];
       if(srv[k] !== null && srv[k] !== undefined && isFinite(srv[k])) s[k] = Number(srv[k]);
+      else if(prev[k] !== undefined && isFinite(prev[k]))               s[k] = Number(prev[k]);
     }
+    // Transient commands are not saved (see state_transient_zero)
+    for(var ti = 0; ti < state_transient_zero.length; ti++) delete s[ state_transient_zero[ti] ];
+    // v2.2.6 (lock_in+pid_harmonic v2.3.10): time scale. xmin/xmax are in [time_units] (0 us, 1 ms, 2 s), which
+    // the server picks from the decimation. Also saved in seconds: restoreState() converts them to the units the
+    // server uses after the restart.
+    var tu = Number(srv.time_units);
+    if(isFinite(srv.xmin) && isFinite(srv.xmax) && (tu === 0 || tu === 1 || tu === 2) &&
+       Number(srv.xmax) > Number(srv.xmin)) {
+      s.state_xmin_s = Number(srv.xmin) / timeUnitFactor(tu);
+      s.state_xmax_s = Number(srv.xmax) / timeUnitFactor(tu);
+    }
+    else if(isFinite(prev.state_xmin_s) && isFinite(prev.state_xmax_s) && Number(prev.state_xmax_s) > Number(prev.state_xmin_s)) {
+      s.state_xmin_s = Number(prev.state_xmin_s);
+      s.state_xmax_s = Number(prev.state_xmax_s);
+    }
+    // v2.3.14: during a lock capture, the scope settings of the user (not those of the capture), and the
+    // UI preferences (Capture Lock / Fire on click)
+    var cs = lockCaptureSavedScope();
+    if(cs) {
+      s.trig_mode = Number(cs.trig_mode);  s.trig_source = Number(cs.trig_source);  s.lock_trig_sw = Number(cs.lock_trig_sw);
+      s.state_xmin_s = cs.xmin_s;  s.state_xmax_s = cs.xmax_s;
+      delete s.xmin;  delete s.xmax;  delete s.trig_delay;
+    }
+    $.extend(s, uiPrefsGet());
     try { sessionStorage.setItem(state_key, JSON.stringify(s)); last_state_save = Date.now(); } catch(e) {}
+  }
+
+  // GUI time units (0 us, 1 ms, 2 s) -> factor from seconds (same as the server: 10^(3*(2-time_units)))
+  function timeUnitFactor(tu) {
+    return Math.pow(10, 3 * (2 - tu));
+  }
+
+  // [TRIG FROM GRAPH BEGIN] (pure functions, also run by test/trig_from_graph_sim.js)
+  // Ramp period in FPGA clock cycles (8 ns), as gen_ramp.v: one step every lock_ramp_step+1 cycles; a
+  // triangle goes low->high->low in 2*(high-low) steps, a sawtooth jumps back in one step: (high-low)+1 steps.
+  // 0 if the ramp can not be computed (high <= low).
+  function rampPeriodCycles(p) {
+    var span = Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim);
+    var cyc  = Number(p.lock_ramp_step) + 1;
+    if(!(span > 0) || !(cyc > 0)) return 0;
+    return (Number(p.lock_ramp_sawtooth) ? span + 1 : 2 * span) * cyc;
+  }
+
+  // Time trigger (lock_trig_time, 8 ns cycles counted by lock_ctrl.v from the scan floor) of a click on the plot.
+  //   x:          absolute x of the click in the units of the plotted data (flot pos.x). The scope time axis is
+  //               absolute (t = 0 is the scope trigger, which must be the scan floor), whatever the zoom/offset.
+  //   time_units: units of x (0 us, 1 ms, 2 s): 1 us = 125 cycles.
+  //   period:     ramp period in cycles (rampPeriodCycles), the counter restarts at each scan floor: the time is
+  //               taken modulo the period (t < 0 is the end of the previous period). 0: no modulo.
+  function clickToTrigTime(x, time_units, period) {
+    var cycles = Math.round(Number(x) * 125 * Math.pow(10, 3 * Number(time_units)));
+    if(!isFinite(cycles)) return null;
+    if(period > 0) cycles = ((cycles % period) + period) % period;
+    return Math.min(4294967295, Math.max(0, cycles));
+  }
+
+  // Level trigger (lock_trig_val, -8192..8191) of a click: y in V (1 V = 8192) or in counts in raw mode
+  function clickToTrigLevel(y, raw_mode) {
+    var v = Math.round(Number(raw_mode) ? Number(y) : Number(y) * 8192);
+    if(!isFinite(v)) return null;
+    return Math.min(8191, Math.max(-8192, v));
+  }
+
+  // Which values "Choose from graph" sets, from the lock trigger type (lock_ctrl_aux_trig_type):
+  // 1 Time -> only the time, 2 Level -> only the level, 3 Level+time -> both, 0 OFF -> none
+  function trigFromGraphTargets(trig_type) {
+    var t = Number(trig_type);
+    return { time: (t == 1 || t == 3), level: (t == 2 || t == 3) };
+  }
+  // [TRIG FROM GRAPH END]
+
+  // [LOCK CAPTURE BEGIN] v2.3.14: "Capture Lock" and "Fire on click" (doc/lock_capture.md). Also run by
+  // test/lock_capture_ui_sim.js.
+  // Capture Lock: a lock request from the UI (Trigger Lock, Lock Now, Fire on click) first sets the scope to
+  // Single + External + Ext Trig = "Lock control trig" (pulse of lock_ctrl.v when the state enters LOCKED) with
+  // a window around the lock, then sends Single + the request in ONE POST: the controller applies the request
+  // only after the worker has armed the scope (src/main.c, rp_osc_worker_wait_armed()). The scope can only
+  // trigger on that lock, so the capture never depends on which scan floor the scope or the lock saw first.
+  // The trace stays frozen until the user changes the scope trigger (Auto/Normal/Single, source, Ext Trig),
+  // presses Single or AUTO (server auto-set, serverAutoScale()), or unchecks Capture Lock: then the saved scope
+  // settings are restored. The Autoscale button (autoscaleY(): local rescale of the Y axis) does not end it.
+  var ui_capture_lock  = 1;              // UI preferences (checkboxes), saved in the state and in the configs
+  var ui_fire_on_click = 1;
+  var lock_cap_ext_trig = 128;           // lock_trig_sw (Ext Trig) value of "Lock control trig"
+  var lock_cap_pre = 0.3;                // Part of the window before the lock when its position is not known
+  var lock_cap_poll_ms = 500;            // GET /data period while the capture is frozen (lock state only)
+  var lock_seq_timeout_ms = 5000;        // Max wait for a POST in flight before the next step of a request
+  var lock_cap = { state: 'off',         // 'off' | 'config' | 'arming' | 'waiting' | 'captured'
+                   saved: null,          // scope settings before the capture (see lockCaptureSave())
+                   offset_s: null,       // time of the lock after the scan floor [s] (Time trigger), else null
+                   t_armed: 0, late: false, seq: 0 };
+
+  // Window of the capture, around the lock event (t = 0 of the scope = the lock).
+  //   p:  params (lock_ctrl_aux_trig_type, lock_lock_trig_time_val in 8 ns cycles)
+  //   xmin_s, xmax_s: window of the user before the capture, in seconds from the scope trigger (scan floor)
+  // Time trigger with the lock inside that window: the same window shifted by the lock time, so the trace
+  // looks like the one of the scan floor (offset_s = lock time after the floor). Otherwise the lock at
+  // lock_cap_pre of the width (also for Lock Now: now = true, it locks at once, not at the trigger time).
+  // Returns { xmin_s, xmax_s, offset_s } or null.
+  function lockCaptureWindow(p, xmin_s, xmax_s, now) {
+    var w = Number(xmax_s) - Number(xmin_s);
+    if(!(w > 0)) return null;
+    var type = (now ? 0 : Number(p.lock_ctrl_aux_trig_type));
+    var t_s = (type == 1 ? Number(p.lock_lock_trig_time_val) * 8e-9 : NaN);
+    if(isFinite(t_s) && t_s >= xmin_s && t_s <= xmax_s)
+      return { xmin_s: xmin_s - t_s, xmax_s: xmax_s - t_s, offset_s: t_s };
+    return { xmin_s: -lock_cap_pre * w, xmax_s: (1 - lock_cap_pre) * w, offset_s: (isFinite(t_s) ? t_s : null) };
+  }
+
+  // x of a click (plot units tu) -> x in time from the scan floor, for "Choose from graph". null: not possible
+  function lockCaptureClickX(x, tu) {
+    if(lock_cap.state === 'off') return x;
+    if(lock_cap.state !== 'captured' || lock_cap.offset_s === null) return null;
+    return Number(x) + lock_cap.offset_s * timeUnitFactor(tu);
+  }
+
+  function lockCaptureActive() { return lock_cap.state !== 'off'; }
+
+  // Scope settings to restore after the capture (only the first time: a new capture keeps the original ones)
+  function lockCaptureSave() {
+    if(lock_cap.saved || !params.local) return;
+    var tu = Number(params.local.time_units), f = timeUnitFactor(isFinite(tu) ? tu : 0);
+    var xmin = Number(params.local.xmin), xmax = Number(params.local.xmax);
+    if(plot) {
+      var o = plot.getOptions();
+      if(o.xaxes[0].min !== null && o.xaxes[0].max !== null) { xmin = o.xaxes[0].min; xmax = o.xaxes[0].max; }
+    }
+    lock_cap.saved = { trig_mode: params.local.trig_mode, trig_source: params.local.trig_source,
+                       lock_trig_sw: params.local.lock_trig_sw, xmin_s: xmin / f, xmax_s: xmax / f };
+  }
+
+  // x window of the plot and of params.local, in seconds (converted to the current time units)
+  function lockSetXWindow(xmin_s, xmax_s) {
+    var tu = Number(params.local.time_units), f = timeUnitFactor(isFinite(tu) ? tu : 0);
+    params.local.xmin = xmin_s * f;
+    params.local.xmax = xmax_s * f;
+    if(plot) {
+      var o = plot.getOptions();
+      o.xaxes[0].min = params.local.xmin;
+      o.xaxes[0].max = params.local.xmax;
+      plot.setupGrid();
+      plot.draw();
+    }
+  }
+
+  function lockScopeSelects(skip) {   // skip: the select the user has just changed (keeps its value)
+    if(skip !== 'trig_mode')    $('#trig_mode').val(params.local.trig_mode);
+    if(skip !== 'trig_source')  $('#trig_source').val(params.local.trig_source);
+    if(skip !== 'lock_trig_sw') $('#lock_trig_sw').val(params.local.lock_trig_sw);
+    autorun = (params.local.trig_mode == 2 ? 0 : 1);
+    $('#btn_single').prop('disabled', autorun);
+  }
+
+  // Ends the capture. keep: name of the scope setting the user has just changed ('trig_mode', 'trig_source',
+  // 'lock_trig_sw'), which is not restored; 'single' keeps Single mode; 'none' does not restore anything.
+  // Changes params.local only (the caller sends). Returns true if something was restored.
+  function lockCaptureEnd(keep) {
+    var sv = lock_cap.saved;
+    lock_cap.state = 'off';
+    lock_cap.saved = null;
+    lock_cap.offset_s = null;
+    lock_cap.late = false;
+    lock_cap.seq++;                      // pending steps of an old request do nothing
+    lockCaptureBanner();
+    trigFromGraphMsg();
+    if(keep === 'none' || !sv || !params.local) return false;
+    if(keep !== 'trig_mode')    params.local.trig_mode    = (keep === 'single' ? 2 : sv.trig_mode);
+    if(keep !== 'trig_source')  params.local.trig_source  = sv.trig_source;
+    if(keep !== 'lock_trig_sw') params.local.lock_trig_sw = sv.lock_trig_sw;
+    lockSetXWindow(sv.xmin_s, sv.xmax_s);
+    lockScopeSelects(keep);
+    return true;
+  }
+
+  // Scope setting changed by the user (trigger mode/source/Ext Trig, Single, AUTO) during a capture
+  function lockCaptureLeave(keep) {
+    if(!lockCaptureActive()) return false;
+    console.log('Capture Lock: ended by ' + keep + ', scope settings restored');
+    return lockCaptureEnd(keep);
+  }
+
+  // Runs fn(ok) when no POST is in flight nor queued, and with no_get also no GET /data (ok = false after
+  // lock_seq_timeout_ms)
+  function lockWhenIdle(fn, no_get, t0) {
+    if(t0 === undefined) t0 = Date.now();
+    if(!sending && !send_que && !post_rate_timer && !(no_get && downloading)) { fn(true); return; }
+    if(Date.now() - t0 > lock_seq_timeout_ms) { fn(false); return; }
+    setTimeout(function() { lockWhenIdle(fn, no_get, t0); }, 20);
+  }
+
+  // Capture being set up: no GET /data may start (doGetData()). nginx answers a GET with the first new data
+  // within 200 ms, so a GET started before the Single was armed could take the capture and it would be
+  // discarded as old: GETs start again only once the request POST has been answered (state 'waiting').
+  function lockCaptureBusy() { return lock_cap.state === 'config' || lock_cap.state === 'arming'; }
+
+  // Lock request from the UI: key = 'lock_ctrl_aux_launch_lock_trig' (Trigger Lock) or 'lock_ctrl_aux_lock_now'.
+  // 1st POST: the pending values (e.g. those of Choose from graph), the release of an active request (a new 0->1
+  //           edge is needed to arm again) and, with Capture Lock, the scope settings of the capture;
+  // 2nd POST: the request (with Capture Lock: + Single, in the same POST, see src/main.c).
+  function lockRequest(key) {
+    if(!params.local) return;
+    var capture = !!ui_capture_lock;
+    var seq = ++lock_cap.seq;
+    params.local.lock_ctrl_aux_lock_now         = 0;
+    params.local.lock_ctrl_aux_launch_lock_trig = 0;
+    if(capture) {
+      lockCaptureSave();
+      var w = lockCaptureWindow(params.local, lock_cap.saved.xmin_s, lock_cap.saved.xmax_s, key === 'lock_ctrl_aux_lock_now');
+      if(!w) w = { xmin_s: lock_cap.saved.xmin_s, xmax_s: lock_cap.saved.xmax_s, offset_s: null };
+      lock_cap.state    = 'config';
+      lock_cap.offset_s = w.offset_s;
+      lock_cap.late     = false;
+      if(update_timer) { clearTimeout(update_timer); update_timer = null; }
+      params.local.trig_mode    = 2;
+      params.local.trig_source  = 2;
+      params.local.lock_trig_sw = lock_cap_ext_trig;
+      lockSetXWindow(w.xmin_s, w.xmax_s);
+      lockScopeSelects();
+      lockCaptureClearPlot();
+      lockCaptureBanner();
+      trigFromGraphMsg();
+    }
+    lockSetBtn(key, 1);
+    sendParams();
+    lockWhenIdle(function(ok) {   // with Capture Lock also no GET /data in flight (see lockCaptureBusy())
+      if(seq !== lock_cap.seq) return;   // cancelled meanwhile (release, Auto, ...)
+      if(!ok) console.warn('lockRequest: a POST is still in flight after ' + lock_seq_timeout_ms + ' ms, sending anyway');
+      params.local[key] = 1;
+      lockSetBtn(key, 1);
+      if(!capture) { sendParams(); return; }
+      lock_cap.state = 'arming';
+      lockCaptureBanner();
+      sendParams(false, true, true);     // single_btn + request in one POST
+      lockWhenIdle(function() {
+        if(seq !== lock_cap.seq || lock_cap.state !== 'arming') return;
+        lock_cap.state   = 'waiting';    // GET /data started from now on can only bring the capture
+        lock_cap.t_armed = Date.now();
+        lockCaptureBanner();
+        // A GET in flight from before is ignored (lockCaptureOnData()); polling goes on while the capture
+        // is active (doGetData())
+        if(!downloading) updateGraphData();
+      });
+    }, capture);
+  }
+
+  // Release (2nd click on Trigger Lock / Lock Now). A capture still waiting is cancelled (the lock will not
+  // come): the scope settings are restored. A capture already taken stays frozen.
+  function lockRelease() {
+    if(!params.local) return;
+    params.local.lock_ctrl_aux_lock_now         = 0;
+    params.local.lock_ctrl_aux_launch_lock_trig = 0;
+    lockSetBtn('lock_ctrl_aux_lock_now', 0);
+    lockSetBtn('lock_ctrl_aux_launch_lock_trig', 0);
+    if(lockCaptureActive() && lock_cap.state !== 'captured') {
+      lockCaptureEnd('');
+      sendParams(true);
+      runStop();
+      return;
+    }
+    lock_cap.seq++;
+    sendParams();
+  }
+
+  // GET /data answer during a capture. state0: lock_cap.state when that GET started. Returns true if the data
+  // may be drawn (no capture, or this is the capture), false to keep the plot (waiting / frozen).
+  function lockCaptureOnData(state0, status) {
+    if(lock_cap.state === 'off') return true;
+    if(lock_cap.state === 'waiting' && state0 === 'waiting' && status === 'OK') {
+      lock_cap.state = 'captured';
+      lockCaptureBanner();
+      trigFromGraphMsg();
+      console.log('Capture Lock: lock captured');
+      return true;
+    }
+    if(lock_cap.state === 'waiting') {
+      var st = lockStatus(params.original);
+      var late = !!(st && st.locked && Date.now() - lock_cap.t_armed > 2000);
+      if(late !== lock_cap.late) { lock_cap.late = late; lockCaptureBanner(); }
+    }
+    return false;
+  }
+
+  // Frozen capture: GET /data only every lock_cap_poll_ms (lock state), without drawing
+  function lockCaptureFrozen() { return lock_cap.state === 'captured'; }
+
+  function lockCaptureClearPlot() {
+    for(var i = 0; i < datasets.length; i++) datasets[i].data = [];
+    if(plot && datasets.length) {
+      plot.setData(filterData(datasets, plot.width()));
+      plot.draw();
+    }
+  }
+
+  function lockCaptureBanner() {
+    var txt = '', cls = 'label-warning';
+    if(lock_cap.state === 'config' || lock_cap.state === 'arming') {
+      txt = 'Capture Lock: arming the scope...';
+    }
+    else if(lock_cap.state === 'waiting') {
+      txt = 'Capture Lock: scope armed on the lock event, waiting for the lock...' +
+            (lock_cap.late ? ' (LOCKED but not captured: press Auto or Single)' : '');
+    }
+    else if(lock_cap.state === 'captured') {
+      cls = 'label-success';
+      txt = 'Lock captured (t&nbsp;=&nbsp;0: lock' + (lock_cap.offset_s !== null ? ', ' + format_oom(lock_cap.offset_s, 's') +
+            ' after the scan floor' : '') + ') &mdash; press Auto or Single to refresh';
+    }
+    $('#lock_capture_banner, #lock_capture_msg').html(txt).removeClass('label-warning label-success').addClass(cls);
+    if(txt) $('#lock_capture_banner, #lock_capture_msg').show();
+    else    $('#lock_capture_banner, #lock_capture_msg').hide();
+  }
+
+  // Warning of "Choose from graph" for the current scope / capture state ('' = none). p: params.local
+  function trigFromGraphWarning(p, tg) {
+    if(!tg.time) return '';
+    if(lock_cap.state === 'captured') {
+      if(lock_cap.offset_s !== null) return '';
+      return 'This trace is a lock capture (t&nbsp;=&nbsp;0 at the lock): the time can not be taken from it' +
+             (tg.level ? ' (only the level is set)' : '') + '. Press Auto or Single first';
+    }
+    if(lock_cap.state !== 'off') return 'Waiting for the lock capture: the time can not be taken now';
+    if(!(p.trig_mode != 0 && p.trig_source == 2 && p.lock_trig_sw == 2))
+      return 'Warning: t&nbsp;=&nbsp;0 of the graph is the scan floor only with the scope trigger ' +
+             'in Normal/Single, source External and Oscilloscope Ext&nbsp;Trig = Scan floor';
+    return '';
+  }
+
+  // Message under "Choose from graph" while a click is pending; recomputed on every change of the scope
+  // trigger / lock trigger type / capture state. Trigger type OFF cancels the pending click.
+  function trigFromGraphMsg() {
+    if(!set_trigger_val || !params.local) { $('#btn_set_trig_msg').html(''); return; }
+    var tg = trigFromGraphTargets(params.local.lock_ctrl_aux_trig_type);
+    if(!tg.time && !tg.level) { trigFromGraphCancel(); return; }
+    var msg = 'Click on the graph to set the ' + (tg.time && tg.level ? 'time and level' : (tg.time ? 'time' : 'level')) +
+              ' trigger' + (ui_fire_on_click ? ' and fire Trigger Lock' : '') + ' (Esc or the button: cancel)';
+    var warn = trigFromGraphWarning(params.local, tg);
+    if(warn) msg += '<br><span class="text-danger">' + warn + '</span>';
+    $('#btn_set_trig_msg').html('<small>' + msg + '</small>');
+  }
+
+  function trigFromGraphStart() {
+    set_trigger_val = true;
+    $('#btn_set_trig').text('Cancel').removeClass('btn-primary').addClass('btn-warning');
+    trigFromGraphMsg();
+  }
+
+  function trigFromGraphCancel() {
+    set_trigger_val = false;
+    $('#btn_set_trig').text('Choose from graph').removeClass('btn-warning').addClass('btn-primary');
+    $('#btn_set_trig_msg').html('');
+  }
+
+  // Click on the plot with "Choose from graph" pending: writes the value(s) of the lock trigger type and, with
+  // "Fire on click", fires Trigger Lock (an active request is released and armed again with the new values).
+  function trigFromGraphClick(pos) {
+    if(!set_trigger_val || !params.local) return false;
+    var tg = trigFromGraphTargets(params.local.lock_ctrl_aux_trig_type);
+    var tu = (plot_time_units !== null ? plot_time_units : params.local.time_units);
+    var x_floor = lockCaptureClickX(pos.x, tu);
+    var time_val  = (x_floor === null ? null : clickToTrigTime(x_floor, tu, rampPeriodCycles(params.local)));
+    var level_val = clickToTrigLevel(pos.y, params.local.lock_osc_raw_mode);
+    if(tg.time && time_val === null && !tg.level) return false;   // nothing to set: keep waiting (see the message)
+
+    user_editing = false;
+    trigger_just_set = true;
+    if(tg.time && time_val !== null) {
+      $('#lock_lock_trig_time_val').val(time_val);
+      params.local.lock_lock_trig_time_val = time_val;
+    }
+    if(tg.level && level_val !== null) {
+      $('#lock_lock_trig_val').val(level_val);
+      params.local.lock_lock_trig_val = level_val;
+    }
+    console.log('Choose from graph: x=' + pos.x + ' [' + ['us','ms','s'][tu] + '] y=' + pos.y +
+                (x_floor !== pos.x ? ' (x from the floor=' + x_floor + ')' : '') +
+                (tg.time  ? ' -> lock_trig_time=' + time_val  : '') +
+                (tg.level ? ' -> lock_trig_val='  + level_val : '') + (ui_fire_on_click ? ' + Trigger Lock' : ''));
+    lock_ctrl_update();
+    trigFromGraphCancel();
+    if(ui_fire_on_click) lockRequest('lock_ctrl_aux_launch_lock_trig');
+    else                 sendParams();
+    return true;
+  }
+
+  // UI preferences in the saved state / configs. Missing (old state or config): kept as they are.
+  function uiPrefsGet() { return { ui_capture_lock: ui_capture_lock ? 1 : 0, ui_fire_on_click: ui_fire_on_click ? 1 : 0 }; }
+  function uiPrefsSet(o) {
+    if(!o) return;
+    if(o.ui_capture_lock  !== undefined && isFinite(o.ui_capture_lock))  ui_capture_lock  = Number(o.ui_capture_lock)  ? 1 : 0;
+    if(o.ui_fire_on_click !== undefined && isFinite(o.ui_fire_on_click)) ui_fire_on_click = Number(o.ui_fire_on_click) ? 1 : 0;
+    $('#ui_capture_lock').prop('checked', !!ui_capture_lock);
+    $('#ui_fire_on_click').prop('checked', !!ui_fire_on_click);
+  }
+  // Scope settings to save during a capture: those of the user (saved before it), not the capture ones
+  function lockCaptureSavedScope() {
+    if(!lock_cap.saved) return null;
+    var sv = lock_cap.saved;
+    return { trig_mode: sv.trig_mode, trig_source: sv.trig_source, lock_trig_sw: sv.lock_trig_sw,
+             xmin_s: sv.xmin_s, xmax_s: sv.xmax_s };
+  }
+  // Config save: during a capture, the scope settings of the user; UI preferences apart from the params
+  // (elem.ui, they are not sent to the server)
+  function configAddCaptureUi(elem) {
+    var cs = lockCaptureSavedScope();
+    if(cs) {
+      var cf = timeUnitFactor(Number(params.local.time_units) || 0);
+      elem.data.trig_mode = cs.trig_mode;  elem.data.trig_source = cs.trig_source;  elem.data.lock_trig_sw = cs.lock_trig_sw;
+      elem.data.xmin = cs.xmin_s * cf;  elem.data.xmax = cs.xmax_s * cf;
+    }
+    elem.ui = uiPrefsGet();
+  }
+  // [LOCK CAPTURE END]
+
+  // Last saved state of this tab (or null)
+  function loadSavedState() {
+    var saved = null;
+    try { saved = JSON.parse(sessionStorage.getItem(state_key)); } catch(e) {}
+    return (saved && typeof saved === 'object') ? saved : null;
   }
 
   // After each start: send def_params + the saved state (the server side App starts with its static defaults)
   function restoreState() {
-    var p = $.extend({}, def_params), saved = null;
-    try { saved = JSON.parse(sessionStorage.getItem(state_key)); } catch(e) {}
+    var p = $.extend({}, def_params), saved = loadSavedState(), x_s = null;
     if(saved) {
       $.extend(p, saved);
+      // v2.3.14: UI preferences (not server params)
+      uiPrefsSet(saved);
+      delete p.ui_capture_lock;
+      delete p.ui_fire_on_click;
+      // Time scale saved in seconds: sent last, converted to the server units (see below). The saved
+      // xmin/xmax are in the units of the old session, which the restarted server may not be using.
+      if(isFinite(saved.state_xmin_s) && isFinite(saved.state_xmax_s) && saved.state_xmax_s > saved.state_xmin_s) {
+        x_s = [ Number(saved.state_xmin_s), Number(saved.state_xmax_s) ];
+        delete p.xmin;
+        delete p.xmax;
+      }
+      delete p.state_xmin_s;
+      delete p.state_xmax_s;
       /* LOLO load_config_block_start */
       // Same safety rule as Config -> load: an unexpected restart should not close the loops by itself
       if(load_config_block_start == 1) {
@@ -2763,8 +3290,18 @@
         p.lock_ctrl_aux_launch_lock_trig = 0;   // lock_control[1]: would arm the lock trigger
       }
     }
+    // Always (also with states saved by older versions): transient commands to 0
+    for(var ti = 0; ti < state_transient_zero.length; ti++) p[ state_transient_zero[ti] ] = 0;
     // Split in several sequential POSTs if needed (Ecosystem 2.0 hangs with big POST bodies)
     postParamsChunks(splitParams(p), post_chunk_timeout, post_chunk_retries)
+    .then(function(dresult) {
+      // Time scale last, in the units the server uses now (time_units is read-only on the server side). The
+      // server picks the decimation from it and, if the units change, forces the new range (forcex_flag).
+      var srv = (dresult && dresult.datasets) ? dresult.datasets.params : null;
+      if(!x_s || !srv || !isFinite(srv.time_units)) return dresult;
+      var f = timeUnitFactor(Number(srv.time_units));
+      return postParamsChunks([ { xmin: x_s[0] * f, xmax: x_s[1] * f } ], post_chunk_timeout, post_chunk_retries);
+    })
     .done(function() {
       setRestorePending(false);
       app_started = true;
@@ -2861,11 +3398,17 @@
   }
 
   function doGetData() {
+    // v2.3.14: no GET /data while a lock capture is being set up (see lockCaptureBusy())
+    if(lockCaptureBusy()) {
+      downloading = false;
+      return;
+    }
     // Send params if there are any unsent changes
     sendParams();
 
     var arun_before_ajax = autorun;
     var long_timeout_used = use_long_timeout;
+    var cap_state0 = lock_cap.state;  // v2.3.14: capture state when this GET starts (lockCaptureOnData())
 
     $.ajax({
       url: get_url,
@@ -2927,11 +3470,19 @@
         // Check if trigger mode (which may switch autorun) was changed during ajax request
         var arun_after_ajax = autorun;
 
-        datasets = [];
-        for(var i=0; i<dresult.datasets.g1.length; i++) {
-          dresult.datasets.g1[i].color = i;
-          dresult.datasets.g1[i].label = 'Channel ' + (i+1);
-          datasets.push(dresult.datasets.g1[i]);
+        // v2.3.14 Capture Lock: while waiting for the capture or frozen on it, the data are not drawn
+        // (the lock state still is: loadParams() below)
+        var cap_draw = lockCaptureOnData(cap_state0, dresult.status);
+        if(cap_draw) {
+          datasets = [];
+          // Units of the x values of these data (see plot_time_units)
+          var dtu = Number(dresult.datasets.params.time_units);
+          if(dtu === 0 || dtu === 1 || dtu === 2) plot_time_units = dtu;
+          for(var i=0; i<dresult.datasets.g1.length; i++) {
+            dresult.datasets.g1[i].color = i;
+            dresult.datasets.g1[i].label = 'Channel ' + (i+1);
+            datasets.push(dresult.datasets.g1[i]);
+          }
         }
 
         if(! plot) {
@@ -2960,9 +3511,11 @@
           }
 
           // Redraw the plot using new datasets
-          plot.setData(filterData(datasets, plot.width()));
-          plot.setupGrid();
-          plot.draw();
+          if(cap_draw) {
+            plot.setData(filterData(datasets, plot.width()));
+            plot.setupGrid();
+            plot.draw();
+          }
         }
 
         if(! trig_dragging) {
@@ -2971,13 +3524,14 @@
 
         updateRanges();
 
-        if(autorun || dresult.status === 'AGAIN') {
+        // v2.3.14: polling goes on during a capture (waiting: its data; frozen: only the lock state, slower)
+        if(autorun || dresult.status === 'AGAIN' || lockCaptureActive()) {
           if(autorun) {
             $('#btn_single').prop('disabled', true);
           }
           update_timer = setTimeout(function() {
             updateGraphData();
-          }, update_interval);
+          }, (lockCaptureFrozen() ? lock_cap_poll_ms : update_interval));
         }
         else {
           $('#btn_single').prop('disabled', false);
@@ -3112,11 +3666,16 @@
     if ( $.inArray( param_name, [ 'lock_pidB_PSR', 'lock_pidB_ISR', 'lock_pidB_DSR', 'lock_pidB_SAT' ] )>-1 ) lock_pidB_update() ;
     if ( $.inArray( param_name, [ 'lock_lpf_F1_tau', 'lock_lpf_F1_order', 'lock_lpf_F2_tau', 'lock_lpf_F2_order', 'lock_lpf_F3_tau', 'lock_lpf_F3_order', 'lock_lpf_sq_tau', 'lock_lpf_sq_order' ] )>-1 ) lpf_update();
 
+    // v2.3.14: the user takes the scope trigger during a capture: it ends, the other settings are restored
+    if(param_name == 'trig_source' || param_name == 'lock_trig_sw') {
+      if(lockCaptureLeave(param_name)) { do_get = true; runStop(); }
+    }
     var dv = parseInt(that.val());
     if(isFinite(dv)) params.local[param_name] = dv;  // a <select> without selection gives NaN: not copied
     sendParams(do_get);
     that.blur();
     user_editing = false;
+    trigFromGraphMsg();  // v2.3.14: the warning of a pending "Choose from graph" follows the trigger settings
   }
 
   // Edit mode of the number inputs (input_number). user_editing = true stops loadParams() of GET /data, so it
@@ -3156,14 +3715,18 @@
     editTimerCancel(iname);
     text_param_editor = '';
     $(that).parent().removeClass('input-group');
-    var val = parseLocalFloat($(that).val());
+    // v2.3.16: empty or not valid -> not sent, the last value is restored (it used to send 0). Fields with
+    // units ("20 s", "0.1 V") are rewritten in register units (ticks, counts).
+    var val = numberInputValue(iname, $(that).val());
     if(! isNaN(val)) {
+      if(input_unit_parsers[iname]) $(that).val('' + val);
       params.local[iname] = val;
       sendParams();
     }
-    else {
+    else if(params.local && params.local[iname] !== undefined) {
       $(that).val(params.local[iname]);
     }
+    if(input_unit_parsers[iname]) lock_ctrl_update();   // .val() does not fire 'input': refresh T / Vtrg
     editRefocusCheck(event);
     user_editing = false;
   }
@@ -3172,7 +3735,7 @@
   function numberInputInput(that) {
     var iname = that.id;
     user_editing = true;
-    var val = parseLocalFloat($(that).val());
+    var val = numberInputValue(iname, $(that).val());   // v2.3.16: NaN (never sent) if empty / not valid
     editTimerCancel(iname);
     edit_timers[iname] = setTimeout(function() {
       delete edit_timers[iname];
@@ -3180,7 +3743,7 @@
       // Setting params.local / user_editing = true here would resend it and freeze the indicators.
       if(document.activeElement !== that) return;
       if(text_param_editor == '') {
-        var v = parseLocalFloat($(that).val());
+        var v = numberInputValue(iname, $(that).val());
         if(v == val && ! isNaN(v)) {
           params.local[iname] = v;
           sendParams();
@@ -3243,6 +3806,11 @@
       }
     }
 
+    // v2.3.16: lock_lock_trig_time_val is a float32 parameter of the C controller: 0xFFFFFFFF (4294967295) comes back as
+    // 4294967296 (float32 has no integer between 4294967040 and 2**32), out of the range of the field. The register
+    // is 0xFFFFFFFF (src/lock.c lock_float_to_u32() saturates): show and keep that value.
+    if(Number(orig_params.lock_lock_trig_time_val) > 4294967295) orig_params.lock_lock_trig_time_val = 4294967295;
+
     // Ignore xmin/xmax values received from server. That values must be used only on AUTO button click
     // and on ForceX flag, but that is done before the sendParams() function is called.
     if(plot) {
@@ -3258,8 +3826,8 @@
         //orig_params.lock_ctrl_aux_lock_trig_rise     = params.local.lock_ctrl_aux_lock_trig_rise     ;
         trigger_just_set=false;
       }
-      if(orig_params.lock_lock_control!=orig_params.lock_lock_feedback)
-        orig_params.lock_lock_control=orig_params.lock_lock_feedback;
+      // v2.3.13: lock_lock_control is no longer replaced by the FPGA feedback (the old lock_lock_feedback): the lock
+      // state is read from lock_lock_status and only shown (lock_status_display()), never written back
     }
 
     var unsent = (keep_unsent === true ? unsentChanges(orig_params) : {});
@@ -3549,6 +4117,9 @@
 
     // [LOLO DOCK LOADPARAMS END]
 
+    lock_status_display();  // v2.3.13: lock buttons from the effective state (after the generated dock)
+    trigFromGraphMsg();     // v2.3.14: warning of a pending "Choose from graph" (trigger settings may have changed)
+
 
     lock_ramp_step_update();
     lock_modulation_update();
@@ -3723,6 +4294,9 @@
     if(sending ||(force_send !== true && send_all !== true && !isParamChanged())) {
       send_que = sending;
       if(sending && send_all === true) send_que_all = true;  // the queued call must send all too
+      // v2.2.6 (lock_in+pid_harmonic v2.3.10): do not lose a Single click made while another POST is in
+      // flight (e.g. the one of the trig_mode change: the first Single after switching to Single gave no trace)
+      if(sending && single_btn === true) single_que = true;
       return;
     }
 
@@ -3755,6 +4329,9 @@
 
     var auto_flag = params.local.auto_flag;  // Keep the value of auto_flag, because in POST response it is always 0
     sending = true;
+    // v2.3.17: this send_all is the one of a Config -> load: apply the time window of the last answer
+    var apply_config_x = (send_all === true && config_load_x_pending);
+    if(apply_config_x) config_load_x_pending = false;
     params.local.single_btn = (single_btn === true ? 1 : 0);
     use_long_timeout = !!auto_flag;
 
@@ -3762,6 +4339,10 @@
     // Ecosystem 2.0 hangs with big POST bodies (E3), so all the ~220 params can not be sent every time.
     var send_params = {};
     for(var key in params.local) {
+      if(send_all === true && send_all_skip.indexOf(key) >= 0) continue;   // v2.3.17 (see send_all_skip)
+      // v2.2.6: nor the read-only params (meas_*, lock_X..., lock_lock_status, lock_lock_control): the server
+      // ignores them, they only made the POSTs of a Config -> load bigger (testAgent 2026-10-10 01:00)
+      if(send_all === true && display_keep_keys.indexOf(key) >= 0) continue;
       if(send_all === true || !params.original || params.original[key] != params.local[key] ||
          always_send_params.indexOf(key) >= 0) {
         send_params[key] = params.local[key];
@@ -3808,6 +4389,9 @@
           plot.draw();
         }
 
+        // v2.3.17: Config -> load: the window and units the server ended with (with or without forceX in this answer)
+        if(apply_config_x && auto_flag != 1) configLoadApplyX(dresult.datasets.params);
+
         if(dresult.app && dresult.app.id === app_id) saveState(dresult.datasets.params, true);
         if(!user_editing) loadParams(dresult.datasets.params, true);  // true: keep the unsent user changes
         // Edit mode (e.g. wheel with focus): loadParams() is skipped, so mark the sent values as sent; otherwise
@@ -3828,6 +4412,7 @@
         showModalError((dresult.reason ? dresult.reason : 'Error while sending data (E1).'), false, true, true);
         send_que = false;
         send_que_all = false;
+        single_que = false;
       }
       else {
         showModalError('Error while sending data (E2).', false, true, true);
@@ -3845,10 +4430,13 @@
 
       if(send_que) {
         var que_all = send_que_all;
+        var do_single = single_que;
         send_que = false;
         send_que_all = false;
+        single_que = false;
         setTimeout(function(refresh_data) {
-          sendParams(refresh_data, false, false, false, que_all);
+          if(do_single) sendParams(true, true, true, false, que_all);
+          else          sendParams(refresh_data, false, false, false, que_all);
         }, 100);
       }
     });
@@ -3989,6 +4577,7 @@
   }
 
   function singleUpdate() {
+    lockCaptureLeave('single');  // v2.3.14: new acquisition with the scope settings saved before the capture
     if(! autorun) {
       sendParams(true, true, true);
     }
@@ -4415,8 +5004,10 @@
   }
 
   function serverAutoScale() {
+    var restored = lockCaptureLeave('');  // v2.3.14: ends a capture, scope settings back
     params.local.auto_flag = 1;
     sendParams(true);
+    if(restored) runStop();
   }
 
   function postGenSingle(channel) {
@@ -4664,6 +5255,7 @@
       if(params.local[ config_params_keys[i] ]!= null )
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
+    configAddCaptureUi(tmp_storage_elem);  // v2.3.14: user scope settings during a capture, UI preferences
 
     // store element in params storage
     params.storage.push(tmp_storage_elem);
@@ -4721,11 +5313,31 @@
       params.storage[num].data['lock_ctrl_aux_launch_lock_trig']   = 0 ;  // would arm the lock trigger
     }
     // */
+    // Transient commands are never loaded from a config (v2.2.6, see state_transient_zero)
+    for(var ti = 0; ti < state_transient_zero.length; ti++)
+      params.storage[num].data[ state_transient_zero[ti] ] = 0 ;
     user_editing = true;
     //sending = true;
 
+    // v2.3.17: time window of the config. Its xmin/xmax are in the time units of the moment it was saved
+    // (its time_units), but the server takes them in the units it uses now (time_units is read-only there and
+    // follows the decimation): a config saved in ms loaded with the scope in us gave -2...33 us. The window is
+    // taken in seconds here and applied after loadParams() (which keeps the plot window) in the current units,
+    // as restoreState() does; if they change, the server answers with forceX in the new ones. The time scale
+    // values that the server derives (time_units, time_range, gui_xmin/gui_xmax) are not loaded.
+    var cfg_x_s = configWindowSeconds(params.storage[num].data, params.local ? params.local.time_units : 0);
+    var cfg_derived = ['time_units', 'time_range', 'gui_xmin', 'gui_xmax'];
+    for(var di = 0; di < cfg_derived.length; di++) delete params.storage[num].data[ cfg_derived[di] ];
+
+    // v2.3.14: a lock capture ends (the config brings its own scope settings); UI preferences of the config
+    // (configs saved before v2.3.14 have none: the current ones are kept)
+    lockCaptureEnd('none');
+    uiPrefsSet(params.storage[num].ui);
+
     // load into params
     loadParams(params.storage[num].data);
+    if(cfg_x_s) lockSetXWindow(cfg_x_s[0], cfg_x_s[1]);   // params.local.xmin/xmax and the plot axes
+    config_load_x_pending = true;   // the answer of the last chunk sets the window (configLoadApplyX())
     // A POST in flight: its response must not overwrite the config (empty unsent_base -> all its values are
     // unsent changes until the queued sendParams(.., send_all) sends them)
     if(sending) unsent_base = {};
@@ -4734,6 +5346,47 @@
     // send_all: loadParams() overwrote params.original, so all params must be sent, not only changed ones
     sendParams(true, true, false, false, true);
 
+  }
+
+  // v2.3.17: x window of a saved config in seconds: [xmin_s, xmax_s], or null if it has none. xmin/xmax are in the
+  // config time_units (0 us, 1 ms, 2 s); configs without time_units are taken in cur_tu (the current units, the
+  // way the server reads them).
+  function configWindowSeconds(d, cur_tu) {
+    if(!d) return null;
+    var xmin = Number(d.xmin), xmax = Number(d.xmax), tu = Number(d.time_units);
+    if(d.xmin === undefined || d.xmin === null || d.xmax === undefined || d.xmax === null) return null;
+    if(!isFinite(xmin) || !isFinite(xmax) || !(xmax > xmin)) return null;
+    if(d.time_units === undefined || d.time_units === null || !(tu === 0 || tu === 1 || tu === 2)) {
+      tu = Number(cur_tu);
+      if(!(tu === 0 || tu === 1 || tu === 2)) tu = 0;
+    }
+    var f = timeUnitFactor(tu);
+    return [ xmin / f, xmax / f ];
+  }
+
+  // v2.3.17: after the send_all of a Config -> load: window and time units of the answer of the last chunk (the
+  // server converted the window and may have changed the units). The page takes them as sent and as current, in
+  // params and in the plot axes, whatever forcex_flag says (a later chunk may have ended the forceX already).
+  function configLoadApplyX(srv) {
+    if(!srv || !params.local) return false;
+    var tu = Number(srv.time_units), xmin = Number(srv.xmin), xmax = Number(srv.xmax);
+    if(!(tu === 0 || tu === 1 || tu === 2) || !isFinite(xmin) || !isFinite(xmax) || !(xmax > xmin)) return false;
+    updateTimeUnits(srv);   // params.local/original.time_units + axis label
+    var keys = ['xmin', 'xmax', 'time_range', 'gui_xmin', 'gui_xmax', 'forcex_flag'];
+    for(var i = 0; i < keys.length; i++) {
+      if(srv[keys[i]] !== undefined && srv[keys[i]] !== null && isFinite(srv[keys[i]])) {
+        params.local[keys[i]] = Number(srv[keys[i]]);
+        if(params.original) params.original[keys[i]] = Number(srv[keys[i]]);
+      }
+    }
+    if(plot) {
+      var o = plot.getOptions();
+      o.xaxes[0].min = xmin;
+      o.xaxes[0].max = xmax;
+      plot.setupGrid();
+      plot.draw();
+    }
+    return true;
   }
 
   function config_del_storage(name){
@@ -4827,6 +5480,7 @@
       if(params.local[ config_params_keys[i] ]!= null )
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
+    configAddCaptureUi(tmp_storage_elem);  // v2.3.14: user scope settings during a capture, UI preferences
 
     var save_text = JSON.stringify(tmp_storage_elem);
     $('#btn_config_save_file')[0].download = filename_config;
@@ -4911,13 +5565,13 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.5)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.6)</h2>
     </div>
   </div>
   <div class="container">
     <div class="row">
       <div id="btn_toolbar" class="col-xs-12">
-        <button id="btn_autoscale_y" class="btn btn-primary btn-lg" data-autozoom="false" onclick="autoscaleY()">
+        <button id="btn_autoscale_y" class="btn btn-primary btn-lg" data-autozoom="false" onclick="autoscaleY()" title="Rescales the Y axis to the data on the screen (in this page only: the scope settings do not change). It is not AUTO: it does not end a Capture Lock, so it can be used on a frozen capture.">
           <span class="glyphicon glyphicon-resize-vertical"></span> Autoscale
         </button>
         <button class="btn btn-primary btn-lg" onclick="resetZoom()">
@@ -4943,7 +5597,7 @@
         <button id="btn_save" class="btn btn-primary btn-lg" onclick="showModalSave();">Save Data</button>
         <button id="btn_save" class="btn btn-primary btn-lg" onclick="showModalConfig();">Config</button>
         <button id="lock_osc_raw_mode" class="btn btn-primary btn-lg" data-checked="true" disabled>Raw&nbsp;Mode</button>
-        <button id="btn_auto" class="btn btn-primary btn-lg" onclick="serverAutoScale()">AUTO</button>
+        <button id="btn_auto" class="btn btn-primary btn-lg" onclick="serverAutoScale()" title="Auto-set of the scope in the controller: time range, trigger source/level and Y axis from the signals. It ends a Capture Lock (its scope settings, e.g. Ext Trig, are restored first). Not the same as Autoscale (Y axis only).">AUTO</button>
         <button id="btn_avg" class="btn btn-default btn-lg" onclick="setAvgAtDec()">Averaging</button>
       </div>
     </div>
@@ -6140,7 +6794,7 @@
                                   <option  value="1">64 ns</option>
                                   <option  value="2">512 ns</option>
                                   <option  value="3">8 us</option>
-                                  <option  value="4">6 us</option>
+                                  <option  value="4">65 us</option>
                                   <option  value="5">524 us</option>
                                   <option  value="6">8 ms</option>
                                   <option  value="7">67 ms</option>
@@ -6422,7 +7076,7 @@
                                   <option  value="1">64 ns</option>
                                   <option  value="2">512 ns</option>
                                   <option  value="3">8 us</option>
-                                  <option  value="4">6 us</option>
+                                  <option  value="4">65 us</option>
                                   <option  value="5">524 us</option>
                                   <option  value="6">8 ms</option>
                                   <option  value="7">67 ms</option>
@@ -6787,6 +7441,28 @@
                       </div>
                     </div>
 
+                    <div class="row">
+                      <div class="col-xs-12 text-center" title="Lock state, read from the FPGA (lock_status). OFF: manual enables; ARMED: waiting for the lock trigger; LOCKED: enables of the config section. Click Trigger Lock / Lock Now again to release the lock.">
+                        <span id="lock_status_label" class="label label-default">OFF</span>
+                        <small>&nbsp;locks:&nbsp;<span id="lock_status_count">-</span></small>
+                      </div>
+                    </div>
+
+                    <!-- v2.3.14: UI preferences of the lock requests (saved in the state and in the configs) -->
+                    <div class="row">
+                      <div class="col-xs-12 text-center">
+                        <form class="form-inline" role="form" onsubmit="return false;" novalidate>
+                          <label class="checkbox-inline" title="Each lock request from this page (Trigger Lock, Lock Now, Fire on click) captures the closing of the loop: the scope goes to Single with Ext Trig = Lock control trig and a window around the lock, and the trace stays frozen until trigger mode Auto or Normal, Single or the AUTO button (the scope settings are then restored). The Autoscale button only rescales the Y axis and keeps the capture.">
+                            <input type="checkbox" id="ui_capture_lock" checked> Capture Lock
+                          </label>
+                          <label class="checkbox-inline" title="A click on the graph with Choose from graph sets the time / level and fires Trigger Lock at once (an active lock is released and armed again with the new value).">
+                            <input type="checkbox" id="ui_fire_on_click" checked> Fire on click
+                          </label>
+                        </form>
+                        <small><span id="lock_capture_msg" class="label label-warning" style="display: none; white-space: normal;"></span></small>
+                      </div>
+                    </div>
+
                   </div>
 
                   <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
@@ -6880,7 +7556,7 @@
                         <div class="form-group">
                           <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295">
+                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295" title="Delay after the scan floor: 8 ns ticks (0 = OFF, up to 4294967295 = 34.36 s) or a time with units: s, ms, us, ns (e.g. 16.58 ms)">
                             <span style="display: none;" class="input-group-btn" id="lock_lock_trig_time_val_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
@@ -6897,7 +7573,7 @@
                         <div class="form-group">
                           <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
                           <div class="col-xs-4 col-sm-8">
-                            <input type="number" autocomplete="off" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191">
+                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191" title="Level: counts (-8192..8191, 1 V = 8192) or a voltage with units: V, mV (e.g. 0.1 V)">
                             <span style="display: none;" class="input-group-btn" id="lock_lock_trig_val_apply">
                               <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
                             </span>
@@ -6923,8 +7599,7 @@
                       <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                         <div class="form-group text-center">
                           <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
-                          <br>
-                          <input type="checkbox" id="btn_set_trig_auto_zoom" checked>Auto-zoom
+                          <div id="btn_set_trig_msg" style="padding-top: 4px;"></div>
                         </div>
                       </form>
                     </div>
@@ -6959,6 +7634,8 @@
         <div class="row">
           <div class="panel-body">
             <div id='mousepos'><p><label>Mouse position</label> <span id='hoverdata'></span></p></div>
+            <!-- v2.3.14: Capture Lock state (waiting / captured) -->
+            <div class="text-center"><span id="lock_capture_banner" class="label label-warning" style="display: none; white-space: normal; font-size: 90%;"></span></div>
           </div>
         </div>
         <!-- Bottom panel group -->

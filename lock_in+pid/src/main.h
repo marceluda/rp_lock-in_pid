@@ -150,7 +150,7 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_SLOW_OUT3_SW               92
 #define LOCK_SLOW_OUT4_SW               93
 #define LOCK_LOCK_CONTROL               94
-#define LOCK_LOCK_FEEDBACK              95
+#define LOCK_LOCK_STATUS                95
 #define LOCK_LOCK_TRIG_VAL              96
 #define LOCK_LOCK_TRIG_TIME_VAL         97
 #define LOCK_LOCK_TRIG_SW               98
@@ -317,11 +317,13 @@ int rp_copy_params(rp_app_params_t *src, rp_app_params_t **dst);
 /* cleans up memory of parameters structure */
 int rp_clean_params(rp_app_params_t *params);
 
-/* Updates all parameters (structure must be aligned with main parameter
- * structure - this includes also ready-only parameters. After the
-* parameters are updated it also changed the worker state machine.
+/* End of the auto-set: copies the scope parameters computed by the auto-set (v2.3.14: only those,
+ * see auto_set_params[] in main.c) to the main parameters and applies them (this also changes the
+ * worker state machine).
  */
 int rp_update_main_params(rp_app_params_t *params);
+/* v2.3.14: auto-set aborted by another state: clears auto_flag, copies nothing back */
+void rp_auto_set_aborted(void);
 void get_scales(rp_app_params_t *p, float *scale1, float *scale2, float *maxv);
 void transform_to_iface_units(rp_app_params_t *p);
 void transform_from_iface_units(rp_app_params_t *p);

@@ -74,6 +74,7 @@ class fpga_register():
         self.group       = group
         self.write_def   = True
         self.c_update    = None
+        self.c_block     = None   # if set: lines written as is in the FPGAUPDATE dock instead of 'g_lock_reg->name = c_update;'
         self.main_reg    = None
         self.reg_read    = False  # read from the copy <name>_reg (frozen by read_ctrl[0])
         self.rd_copy     = False  # read from the copy <name>_rd   (v2.2.5, registered only for the bus)
@@ -138,7 +139,8 @@ f.add( name="slow_out4_sw"       , group=grp , val=    0, rw=True ,  nbits= 4, m
 # Lock control
 grp='lock_control'
 f.add( name="lock_control"       , group=grp , val= 1148, rw=True ,  nbits=11, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control help" )
-f.add( name="lock_feedback"      , group=grp , val= 1148, rw=False,  nbits=11, min_val=          0, max_val=       2047, fpga_update=True , signed=False, desc="lock_control feedback" )
+# v2.2.6 (lock_in+pid_harmonic v2.3.13): lock_feedback (0x2C) replaced by the read only lock_status
+f.add( name="lock_status"        , group=grp , val=   28, rw=False,  nbits=16, min_val=          0, max_val=      65535, fpga_update=True , signed=False, desc="lock control status (read only): [lock_count(8),0,0,0,ramp_enable,pidA_enable,pidB_enable,locked,armed]" )
 f.add( name="lock_trig_val"      , group=grp , val=    0, rw=True ,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="if lock_control ?? , this vals sets the voltage threshold that turns on the lock" )
 f.add( name="lock_trig_time"     , group=grp , val=    0, rw=True ,  nbits=32, min_val=          0, max_val= 4294967295, fpga_update=True , signed=False, desc="if lock_control ?? , this vals sets the time threshold that turns on the lock" )
 f.add( name="lock_trig_sw"       , group=grp , val=    0, rw=True ,  nbits= 4, min_val=          0, max_val=         15, fpga_update=True , signed=False, desc="selects signal for trigger" )
@@ -223,8 +225,8 @@ f.add( name="oscA"               , group=grp , val=    0, rw=False,  nbits=14, m
 f.add( name="oscB"               , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="signal for Oscilloscope Channel B" )
 
 grp='product_signals'
-f.add( name="X_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_ref" )
-f.add( name="Y_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_ref" )
+f.add( name="X_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_ref (in phase)" )
+f.add( name="Y_28"               , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from sin_ref (quadrature)" )
 f.add( name="F1_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_1f" )
 f.add( name="F2_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_2f" )
 f.add( name="F3_28"              , group=grp , val=    0, rw=False,  nbits=28, min_val= -134217728, max_val=  134217727, fpga_update=True , signed=True , desc="Demodulated signal from cos_3f" )
@@ -296,7 +298,7 @@ for i in ['X_28', 'Y_28', 'F1_28', 'F2_28', 'F3_28', 'sqX_28', 'sqY_28', 'sqF_28
 # or registered in another module) are read by the bus from a registered copy <name>_rd
 # (always block "bus read copies" of lock.v), so the read mux of sys_rdata only has
 # registers at its inputs
-for i in ['lock_feedback', 'rl_state', 'signal_i', 'error_mean', 'error_std', 'ramp_A', 'ramp_B',
+for i in ['lock_status', 'rl_state', 'signal_i', 'error_mean', 'error_std', 'ramp_A', 'ramp_B',
           'sin_ref', 'cos_ref', 'cos_1f', 'cos_2f', 'cos_3f',
           'sq_ref_b', 'sq_quad_b', 'sq_phas_b', 'sq_ref', 'sq_quad', 'sq_phas',
           'in1', 'in2', 'out1', 'out2', 'slow_out1', 'slow_out2', 'slow_out3', 'slow_out4',
@@ -733,12 +735,13 @@ m.add( name="lock_slow_out3_sw"  , fpga_reg="slow_out3_sw"  , val=0    , rw=True
 m.add( name="lock_slow_out4_sw"  , fpga_reg="slow_out4_sw"  , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="outputs"        , desc="switch for muxer slow_out4")
 
 # group: lock_control
-m.add( name="lock_lock_control"  , fpga_reg="lock_control"  , val=1148 , rw=True , nbits=11, min_val=0         , max_val=2047      , fpga_update=True , signed=False, group="lock_control"   , desc="lock_control help")
-m.add( name="lock_lock_feedback" , fpga_reg="lock_feedback" , val=1148 , rw=False, nbits=11, min_val=0         , max_val=2047      , fpga_update=False, signed=False, group="lock_control"   , desc="lock_control feedback")
+# v2.2.6: lock_lock_control is a read only mirror of the register, which is composed from lock_ctrl_aux_*
+m.add( name="lock_lock_control"  , fpga_reg="lock_control"  , val=1148 , rw=False, nbits=11, min_val=0         , max_val=2047      , fpga_update=True , signed=False, group="lock_control"   , desc="lock_control (read only mirror, written from lock_ctrl_aux_*)")
+m.add( name="lock_lock_status"   , fpga_reg="lock_status"   , val=28   , rw=False, nbits=16, min_val=0         , max_val=65535     , fpga_update=False, signed=False, group="lock_control"   , desc="lock control status: [lock_count(8),0,0,0,ramp_enable,pidA_enable,pidB_enable,locked,armed]")
 m.add( name="lock_lock_trig_val" , fpga_reg="lock_trig_val" , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="lock_control"   , desc="if lock_control ?? , this vals sets the voltage threshold that turns on the lock")
 m.add( name="lock_lock_trig_time_val", fpga_reg="lock_trig_time", val=0    , rw=True , nbits=32, min_val=0         , max_val=4294967295, fpga_update=True , signed=False, group="lock_control"   , desc="if lock_control ?? , this vals sets the time threshold that turns on the lock")
 r.main_reg='lock_'+r.name
-r=f["lock_trig_time" ]; r.c_update='(int)params[{:30s}].value'.format( m['lock_lock_trig_time_val'].cdef )
+r=f["lock_trig_time" ]; r.c_update='lock_float_to_u32(params[{:s}].value)'.format( m['lock_lock_trig_time_val'].cdef )  # v2.2.6: unsigned 32 bits
 
 m.add( name="lock_lock_trig_sw"  , fpga_reg="lock_trig_sw"  , val=0    , rw=True , nbits=4 , min_val=0         , max_val=15        , fpga_update=True , signed=False, group="lock_control"   , desc="selects signal for trigger")
 
@@ -866,8 +869,8 @@ m.add( name="lock_oscA"          , fpga_reg="oscA"          , val=0    , rw=Fals
 m.add( name="lock_oscB"          , fpga_reg="oscB"          , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="inout"          , desc="signal for Oscilloscope Channel B")
 
 # group: product_signals
-m.add( name="lock_X_28"         , fpga_reg="X_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_ref")
-m.add( name="lock_Y_28"         , fpga_reg="Y_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_ref")
+m.add( name="lock_X_28"         , fpga_reg="X_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_ref (in phase)")
+m.add( name="lock_Y_28"         , fpga_reg="Y_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from sin_ref (quadrature)")
 m.add( name="lock_F1_28"         , fpga_reg="F1_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_1f")
 m.add( name="lock_F2_28"         , fpga_reg="F2_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_2f")
 m.add( name="lock_F3_28"         , fpga_reg="F3_28"         , val=0    , rw=False, nbits=28, min_val=-134217728, max_val=134217727 , fpga_update=False, signed=True , group="product_signals", desc="Demodulated signal from cos_3f")
@@ -937,27 +940,19 @@ m.add( name="lock_aux_B"         , fpga_reg="aux_B"         , val=0    , rw=True
 
 
 
-m.add(name="lock_ctrl_aux_lock_now"         , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_launch_lock_trig" , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_pidB_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_pidA_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_ramp_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_set_pidB_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_set_pidA_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_set_ramp_enable"  , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_trig_type"        , val=0 , max_val=3 , fpga_update=False, fpga_reg='lock_feedback')
-m.add(name="lock_ctrl_aux_lock_trig_rise"   , val=0 , max_val=1 , fpga_update=False, fpga_reg='lock_feedback')
-
-m['lock_ctrl_aux_lock_now'        ].c_update='(float) (( g_lock_reg->lock_feedback >> 0 ) & 0x01 )'
-m['lock_ctrl_aux_launch_lock_trig'].c_update='(float) (( g_lock_reg->lock_feedback >> 1 ) & 0x01 )'
-m['lock_ctrl_aux_pidB_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 2 ) & 0x01 )'
-m['lock_ctrl_aux_pidA_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 3 ) & 0x01 )'
-m['lock_ctrl_aux_ramp_enable_ctrl'].c_update='(float) (( g_lock_reg->lock_feedback >> 4 ) & 0x01 )'
-m['lock_ctrl_aux_set_pidB_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 5 ) & 0x01 )'
-m['lock_ctrl_aux_set_pidA_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 6 ) & 0x01 )'
-m['lock_ctrl_aux_set_ramp_enable' ].c_update='(float) (( g_lock_reg->lock_feedback >> 7 ) & 0x01 )'
-m['lock_ctrl_aux_trig_type'       ].c_update='(float) (( g_lock_reg->lock_feedback >> 8 ) & 0x03 )'
-m['lock_ctrl_aux_lock_trig_rise'  ].c_update='(float) (( g_lock_reg->lock_feedback >>10 ) & 0x01 )'
+# v2.2.6 (lock_in+pid_harmonic v2.3.13): bits of lock_control (command + configuration, never rewritten from
+# the FPGA state). Not refreshed in the PARAMSUPDATE dock: lock_update_status() (src/lock.c) copies them from
+# the register only when lock_control was written from outside the controller (Python, monitor).
+m.add(name="lock_ctrl_aux_lock_now"         , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_launch_lock_trig" , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_pidB_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_pidA_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_ramp_enable_ctrl" , val=1 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_set_pidB_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_set_pidA_enable"  , val=1 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_set_ramp_enable"  , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_trig_type"        , val=0 , max_val=3 , fpga_update=False, fpga_reg=None)
+m.add(name="lock_ctrl_aux_lock_trig_rise"   , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
 
 
 m.add(name="lock_mod_sq_on"       , val=0 , max_val=1 , fpga_update=False, fpga_reg=None)
@@ -993,6 +988,22 @@ for i,ii in enumerate([ 'lock_ctrl_aux_lock_now',
                         'lock_ctrl_aux_trig_type']):
     f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  + \n'.format(m[ii].cdef,2**i)
 f['lock_control'].c_update+=' '*43+'((int)params[{:30s}].value)   *  {:>4d}  ) '.format(m['lock_ctrl_aux_lock_trig_rise'].cdef,2**10)
+# v2.2.6 (lock_in+pid_harmonic v2.3.13): written only when the value composed from lock_ctrl_aux_* changes
+# (lock_control_written, src/lock.c), so an unrelated change does not rewrite a value written from outside
+f['lock_control'].c_block = ('{ /* v2.3.13: lock_control is command + configuration (doc/lock_control.md). Written only when\n'
+                             '   * the value composed from lock_ctrl_aux_* changes (keep this block if the dock is regenerated) */\n'
+                             '    uint32_t lc = (uint32_t) (\n'+
+                             ' +\n'.join( ' '*8+'((int)params[{:30s}].value) * {:>4d}'.format(m[ii].cdef,2**(i if i<9 else 10))
+                                         for i,ii in enumerate([ 'lock_ctrl_aux_lock_now', 'lock_ctrl_aux_launch_lock_trig',
+                                                                 'lock_ctrl_aux_pidB_enable_ctrl', 'lock_ctrl_aux_pidA_enable_ctrl',
+                                                                 'lock_ctrl_aux_ramp_enable_ctrl', 'lock_ctrl_aux_set_pidB_enable',
+                                                                 'lock_ctrl_aux_set_pidA_enable', 'lock_ctrl_aux_set_ramp_enable',
+                                                                 'lock_ctrl_aux_trig_type', 'lock_ctrl_aux_lock_trig_rise' ]) )+' );\n'
+                             '    if (lc != lock_control_written) {\n'
+                             '        g_lock_reg->lock_control = lc;\n'
+                             '        lock_control_written     = lc;\n'
+                             '    }\n'
+                             '}')
 
 
 
@@ -1017,7 +1028,10 @@ def main_update_params(indent=1):
 def main_update_fpga(indent=1):
     txt=txt_buff(n=indent)
     for r in f:
-        if r.rw:
+        if r.rw and r.c_block:
+            for line in r.c_block.split('\n'):
+                txt.add(line)
+        elif r.rw:
             txt.add('g_lock_reg->{:25s} = {:25s};'.format(r.name,r.c_update) )
         else:
             txt.add_comment('g_lock_reg->{:25s} = {:25s};'.format(r.name,r.c_update) )
@@ -1875,7 +1889,7 @@ if False:
                         'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
 
     h["lock_pidA_PSR"].control = select(idd="lock_pidA_PSR",items=['/1','/8','/64','/1024','/4096'])
-    h["lock_pidA_ISR"].control = select(idd="lock_pidA_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+    h["lock_pidA_ISR"].control = select(idd="lock_pidA_ISR",items=['8 ns','64 ns','512 ns','8 us','65 us','524 us','8 ms','67 ms','537 ms','9 s'])
     h["lock_pidA_DSR"].control = select(idd="lock_pidA_DSR",items=['7.5 ns','60 ns','480 ns','7.68 us','61.44 us','491.5 us'])
     h["lock_pidA_SAT"].control = select(idd="lock_pidA_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
@@ -1885,7 +1899,7 @@ if False:
                         'sq_fase','aux_A','aux_B','test14','IN1','IN2','IN1-IN2'])
 
     h["lock_pidB_PSR"].control = select(idd="lock_pidB_PSR",items=['/1','/8','/64','/1024','/4096'])
-    h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+    h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','512 ns','8 us','65 us','524 us','8 ms','67 ms','537 ms','9 s'])
     h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=['7.5 ns','60 ns','480 ns','7.68 us','61.44 us','491.5 us'])
     h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
@@ -1935,12 +1949,12 @@ h["lock_lpf_F3_order"   ].control = select(idd="lock_lpf_F3_order"    ,items=['O
 h["lock_lpf_sq_order"   ].control = select(idd="lock_lpf_sq_order"    ,items=['OFF', '1', '2'])
 
 h["lock_pidA_PSR"].control = select(idd="lock_pidA_PSR",items=['/1','/8','/64','/1024','/4096'])
-h["lock_pidA_ISR"].control = select(idd="lock_pidA_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+h["lock_pidA_ISR"].control = select(idd="lock_pidA_ISR",items=['8 ns','64 ns','512 ns','8 us','65 us','524 us','8 ms','67 ms','537 ms','9 s'])
 h["lock_pidA_DSR"].control = select(idd="lock_pidA_DSR",items=['7.5 ns','60 ns','480 ns','7.68 us','61.44 us','491.5 us'])
 h["lock_pidA_SAT"].control = select(idd="lock_pidA_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 
 h["lock_pidB_PSR"].control = select(idd="lock_pidB_PSR",items=['/1','/8','/64','/1024','/4096'])
-h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','512 ns','8 us','6 us','524 us','8 ms','67 ms','537 ms','9 s'])
+h["lock_pidB_ISR"].control = select(idd="lock_pidB_ISR",items=['8 ns','64 ns','512 ns','8 us','65 us','524 us','8 ms','67 ms','537 ms','9 s'])
 h["lock_pidB_DSR"].control = select(idd="lock_pidB_DSR",items=['7.5 ns','60 ns','480 ns','7.68 us','61.44 us','491.5 us'])
 h["lock_pidB_SAT"].control = select(idd="lock_pidB_SAT",items=['&plusmn;122uV','&plusmn;244uV','&plusmn;488uV','&plusmn;977uV','&plusmn;2mV','&plusmn;4mV','&plusmn;8mV','&plusmn;16mV','&plusmn;31mV','&plusmn;62mV','&plusmn;125mV','&plusmn;250mV','&plusmn;500mV','&plusmn;1 V'])
 

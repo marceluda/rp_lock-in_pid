@@ -1,6 +1,61 @@
 
 # Devbuild  changes
 
+## 2.2.6 - Lock control in the FPGA, Capture Lock, web UI fixes of lock_in+pid_harmonic 2.3.10-2.3.17
+Port of the lock / web UI / controller changes of lock_in+pid_harmonic v2.3.10 to v2.3.17 (see its CHANGELOG
+for the details of each one). New FPGA image. One step: those changes build on each other (Capture Lock, Fire on
+click, the trigger fields and Config -> load all use the lock_status of the FPGA), so they were ported in the order
+in which they were made and tested in lock_in+pid_harmonic.
+  - CHANGED: **The lock sequence runs entirely in the FPGA** (`lock_ctrl.v`, state machine OFF / ARMED / LOCKED,
+             from lock_in+pid_harmonic v2.3.13). `lock_control` (0x28) is command + configuration and is never
+             modified by the FPGA nor rewritten from its state: `[0]` lock now and `[1]` launch lock are requests
+             (0->1 edge locks / arms, `[1:0] = 00` releases). **0x2C is now `lock_status` (read only)**, replacing
+             `lock_feedback`: `[0]` armed, `[1]` locked, `[4:2]` effective ramp / PID A / PID B enables, `[15:8]`
+             lock counter. No other register moved. Fixes: after Trigger Lock `lock_control` kept launch_lock = 1
+             while the page showed 0 and a second click did not release the lock (testAgent 2026-10-10 01:00); the
+             lock was only "committed" after the page copied `lock_feedback` back. See `lock_in+pid/doc/lock_control.md`.
+  - CHANGED: C controller: `lock_lock_status` replaces `lock_lock_feedback`, `lock_lock_control` is a read-only
+             mirror; `lock_control` is written only when the user changes it, and the status (also of a lock
+             started from outside, e.g. Python) is read on every request. Web UI: Scan / PID A / PID B show the
+             effective enables, plus an OFF / ARMED / LOCKED label with the lock count; Trigger Lock / Lock Now stay
+             pressed while requested and a second click releases the lock. No POST while locked.
+  - CHANGED: `lock_ctrl.v` of this App registers its trigger inputs for timing: the ramp floor trigger (the counter
+             is loaded with 1 one clock later, so the Time trigger fires in the same clock as before) and the level
+             / time comparisons (the Level trigger fires 1 clock = 8 ns later; level+time keeps the time condition
+             aligned). Failing endpoints of `i_lock_ctrl` 49 -> 15: the 14 of its input register remain, because
+             the long path is upstream, in the lock-in chain (demodulation + LPF bypass), as for the PID and scope.
+  - CHANGED: **Lock time trigger: 32 bits end to end** (`lock_ctrl.v` counter/comparator; the controller converts
+             the parameter as unsigned, it saturated at 2^31 - 1 = 17.2 s). Up to 2^32 - 1 ticks (34.36 s).
+  - FEATURE: **Capture Lock** (each lock request from the page captures the closing of the loop in the scope,
+             triggered by Ext Trig = "Lock control trig", and freezes it until Auto / Single) and **Fire on click**
+             (a click with Choose from graph sets the value and fires Trigger Lock). See `lock_in+pid/doc/lock_capture.md`.
+  - BUGFIX: "Choose from graph" gave a wrong time with some zooms / offsets / time units; a click set both the time
+            and the level (now only those of the trigger type). The "Auto-zoom" option was removed (a warning appears
+            when the scope trigger is not Normal/Single + External + Scan floor).
+  - FEATURE: Time trigger / Level trigger fields accept units (`16.58 ms`, `20 s`, `0.1 V`, `120 mV`...); an emptied
+             number field is no longer sent as 0; the Time trigger is bounded to 4294967295 (float32 echo).
+  - BUGFIX: Config -> load applied the time window in the units of the server (a config saved in ms loaded with the
+            scope in us gave the same numbers in us; testAgent 2026-10-10 01:00): the window is converted from the
+            units of the config and applied after the load; `forcex_flag`, `time_units`, `time_range`, `gui_xmin`,
+            `gui_xmax` and the read-only params (`meas_*`, `lock_X`..., `lock_lock_status`) are not sent any more.
+  - BUGFIX: A Single click made while another POST was in flight was lost. The time scale is restored after a
+            Restart (saved in seconds). Transient lock requests (lock now / launch lock) are never saved nor loaded.
+  - BUGFIX: Every POST reset the scope (a Single waiting for its trigger was disarmed); AUTO after a lock capture left
+            Ext Trig on "Lock control trig" and dropped the other values of the AUTO POST; an aborted auto-set no
+            longer restarts itself; a zoom-out of more than 33x right after a change of time units was ignored.
+  - FEATURE: Scope time range 6: decimation 524288 (~68.7 s; 20-bit decimation of the FPGA of 2.2.5).
+  - CHANGED: PID integrator divider label "6 us" -> "65 us"; descriptions of X / Y (X from cos_ref, in phase;
+             Y from sin_ref, quadrature).
+  - FEATURE: `py/lock_from_registers.py` (arm / lock now / release / status writing only FPGA registers); `py/hugo.py`
+             `lock_status` and `osc.acq_done()`; `py/osc_trig.py` waits for the end of the acquisition with conf bit 4
+             (in the 2.0 FPGA `TrgSrc` keeps bit 5 after a trigger and never read 0); `control_hugo.py`:
+             `launch_lock()` / `lock_now()` always failed, new `release_lock()` and `lock_status()`.
+  - Tests (`lock_in+pid/test/`): xsim `lock_ctrl_sim.sh` (35 checks) and `lock_bus_read_sim.sh` (+ lock_status),
+    node `trig_from_graph_sim.js`, `lock_ctrl_ui_sim.js`, `lock_capture_ui_sim.js`, `trig_input_units_sim.js`,
+    `config_load_window_sim.js`, and `auto_set_c_sim/run.sh` (the real C controller on the PC).
+  - `resources/config_tool.py`: `lock_status`, read-only `lock_lock_control`, block of `lock_control` written only on
+    changes, `lock_float_to_u32()` for `lock_trig_time`, "65 us"; its output matches the sources.
+
 ## 2.2.5 - FPGA rebuilt with Vivado 2020.1 (Ecosystem 2.0), branch devel2.0
 First version of the 2.2.x series (branch `devel2.0`): v0.2.4 with the FPGA design ported to Vivado 2020.1,
 as done in lock_in+pid_harmonic v2.3.10-v2.3.17. The 0.2.x series (branch `master`, Vivado 2015.2) stays as

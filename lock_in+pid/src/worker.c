@@ -32,6 +32,13 @@ rp_osc_worker_state_t rp_osc_ctrl;
 rp_app_params_t       *rp_osc_params = NULL;
 int                   rp_osc_params_dirty;
 int                   rp_osc_params_fpga_update;
+/* v2.3.14 (Capture Lock): generation of the parameters given to the worker (incremented by
+ * rp_osc_worker_update_params()) and generation/state of the last acquisition the worker armed,
+ * so that rp_set_params() can apply a lock request only after the scope is armed
+ * (see rp_osc_worker_wait_armed()). Protected by rp_osc_ctrl_mutex. */
+static int                   rp_osc_params_gen  = 0;
+static int                   rp_osc_armed_gen   = -1;
+static rp_osc_worker_state_t rp_osc_armed_state = rp_osc_idle_state;
 
 pthread_mutex_t       rp_osc_sig_mutex = PTHREAD_MUTEX_INITIALIZER;
 float               **rp_osc_signals;
@@ -155,12 +162,66 @@ int rp_osc_worker_update_params(rp_app_params_t *params, int fpga_update)
     rp_copy_params(params, (rp_app_params_t **)&rp_osc_params);
     rp_osc_params_dirty       = 1;
     rp_osc_params_fpga_update = fpga_update;
+    rp_osc_params_gen++;
     rp_osc_params[PARAMS_NUM].name = NULL;
     rp_osc_params[PARAMS_NUM].value = -1;
 
     pthread_mutex_unlock(&rp_osc_ctrl_mutex);
 
     return 0;
+}
+
+
+/*----------------------------------------------------------------------------------*/
+/* v2.3.14: new parameters and the auto-set state under the same lock, so the worker always runs the
+ * auto-set with these parameters (it reads the state and the 'dirty' parameters together). */
+int rp_osc_worker_start_auto_set(rp_app_params_t *params, int fpga_update)
+{
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    rp_copy_params(params, (rp_app_params_t **)&rp_osc_params);
+    rp_osc_params_dirty       = 1;
+    rp_osc_params_fpga_update = fpga_update;
+    rp_osc_params_gen++;
+    rp_osc_params[PARAMS_NUM].name = NULL;
+    rp_osc_params[PARAMS_NUM].value = -1;
+    rp_osc_ctrl = rp_osc_auto_set_state;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+
+    return 0;
+}
+
+
+/*----------------------------------------------------------------------------------*/
+/* v2.3.14: generation of the last parameters given with rp_osc_worker_update_params() */
+int rp_osc_worker_params_gen(void)
+{
+    int gen;
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    gen = rp_osc_params_gen;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+    return gen;
+}
+
+
+/*----------------------------------------------------------------------------------*/
+/* v2.3.14: wait until the worker has armed the scope (trigger enabled, pre-trigger history
+ * loaded) with parameters of generation >= gen and in state 'state'.
+ * Returns 0 when armed, -1 on timeout (e.g. streaming owns the scope). */
+int rp_osc_worker_wait_armed(int gen, rp_osc_worker_state_t state, int timeout_us)
+{
+    const int step = 200; /* [us] */
+    while(1) {
+        int ok;
+        pthread_mutex_lock(&rp_osc_ctrl_mutex);
+        ok = (rp_osc_armed_gen >= gen) && (rp_osc_armed_state == state);
+        pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+        if(ok)
+            return 0;
+        if(timeout_us <= 0)
+            return -1;
+        usleep(step);
+        timeout_us -= step;
+    }
 }
 
 
@@ -232,6 +293,7 @@ void *rp_osc_worker_thread(void *args)
     int                   time_vect_update = 0;
     uint32_t              trig_source = 0;
     int                   params_dirty = 0;
+    int                   curr_gen = -1;       /* generation of curr_params (v2.3.14) */
 
     /* Long acquisition special function */
     int long_acq = 0; /* long_acq if acq_time > 1 [s] */
@@ -268,6 +330,7 @@ void *rp_osc_worker_thread(void *args)
             fpga_update = rp_osc_params_fpga_update;
 
             rp_osc_params_dirty = 0;
+            curr_gen = rp_osc_params_gen;
             dec_factor =
                 osc_fpga_cnv_time_range_to_dec(curr_params[TIME_RANGE_PARAM].value);
             time_vect_update = 1;
@@ -296,7 +359,7 @@ void *rp_osc_worker_thread(void *args)
 
         if(state == rp_osc_auto_set_state) {
             /* Auto-set algorithm was selected - run it */
-            rp_osc_auto_set(curr_params, ch1_max_adc_v, ch2_max_adc_v,
+            int auto_ret = rp_osc_auto_set(curr_params, ch1_max_adc_v, ch2_max_adc_v,
                             curr_params[GEN_DC_OFFS_1].value,
                             curr_params[GEN_DC_OFFS_2].value,
                             curr_params[PRB_ATT_CH1].value,
@@ -304,8 +367,17 @@ void *rp_osc_worker_thread(void *args)
                             curr_params[GAIN_CH1].value,
                             curr_params[GAIN_CH2].value,
                             curr_params[EN_AVG_AT_DEC].value);
-            /* Return calculated parameters to main module */
-            rp_update_main_params(curr_params);
+            if(auto_ret == 0) {
+                /* Return calculated parameters to main module (v2.3.14: only the auto-set ones) */
+                rp_update_main_params(curr_params);
+            } else {
+                /* v2.3.14: aborted. New parameters with the auto-set state: the loop runs it again
+                 * with them. Another state: nothing to copy back, only auto_flag is cleared. */
+                rp_osc_worker_state_t st;
+                rp_osc_worker_get_state(&st);
+                if(st != rp_osc_auto_set_state)
+                    rp_auto_set_aborted();
+            }
             continue;
         }
 
@@ -425,6 +497,11 @@ void *rp_osc_worker_thread(void *args)
         /* start working */
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         old_state = state = rp_osc_ctrl;
+        /* v2.3.14: the scope is armed now (new acquisition): publish it for rp_osc_worker_wait_armed() */
+        if((long_acq_idx == 0) && !rp_osc_params_dirty) {
+            rp_osc_armed_gen   = curr_gen;
+            rp_osc_armed_state = state;
+        }
         pthread_mutex_unlock(&rp_osc_ctrl_mutex);
         if((state == rp_osc_idle_state) || (state == rp_osc_abort_state)) {
             continue;

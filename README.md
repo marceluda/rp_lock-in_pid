@@ -21,7 +21,7 @@ some suggested applications.
 
 ## Version 2.2.x (Ecosystem 2.0)
 
-Current version: **2.2.5** (branch `devel2.0`).
+Current version: **2.2.6** (branch `devel2.0`).
 
 This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
 using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)
@@ -36,6 +36,10 @@ The 0.2.x series (branch `master`, FPGA with Vivado 2015.2) is the version for t
 - Web interface and C controller: those of v0.2.4 plus the changes needed by the 2.0 scope
   (still built with the Linaro toolchain).
 - Only the App itself is packaged (the `_DEBUG` and `_RELOAD` flavours were removed).
+- 2.2.6: lock control entirely in the FPGA (`lock_status` at 0x2C replaces `lock_feedback`, see
+  [lock_in+pid/doc/lock_control.md](lock_in+pid/doc/lock_control.md)), Capture Lock and Fire on click
+  ([lock_in+pid/doc/lock_capture.md](lock_in+pid/doc/lock_capture.md)), 32-bit lock time trigger, trigger fields with
+  units, Config -> load time window, and the other web UI fixes of lock_in+pid_harmonic 2.3.10-2.3.17.
 - See the [CHANGELOG](CHANGELOG.md).
 
 # Compile / implementation HELP

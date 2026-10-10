@@ -20,6 +20,7 @@ int lock_exit(void);
 
 int lock_update(rp_app_params_t *params);
 int lock_update_main(rp_app_params_t *params);
+int lock_update_status(rp_app_params_t *params);
 
 int lock_freeze_regs(void);
 int lock_restore_regs(void);

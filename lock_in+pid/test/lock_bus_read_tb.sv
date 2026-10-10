@@ -144,6 +144,14 @@ module lock_bus_read_tb;
         if (d !== 32'd100) begin $display("FAIL in2 read 0x%h (expected 100)", d); fails = fails + 1; end
         else $display("in2   0xfc: 100 OK");
 
+        // v2.2.6: lock_control (0x28) and the read only lock_status (0x2C) after reset: 1148 and 28
+        // (effective enables ramp/PID A/PID B = lock_control[4:2] = 111, not armed, not locked, count 0)
+        bus(1'b0, 32'h28, 32'h0, d, age);
+        if (d !== 32'd1148) begin $display("FAIL lock_control read %0d (expected 1148)", d); fails = fails + 1; end
+        bus(1'b0, 32'h2C, 32'h0, d, age);
+        if (d !== 32'd28) begin $display("FAIL lock_status read %0d (expected 28)", d); fails = fails + 1; end
+        else $display("lock_control 0x28 = 1148, lock_status 0x2c = 28 OK");
+
         read_fast(32'hF8, "in1");
         read_fast(32'h118, "oscA");
 

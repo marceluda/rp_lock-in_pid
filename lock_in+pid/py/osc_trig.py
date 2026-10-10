@@ -120,7 +120,9 @@ if __name__ == '__main__':
         if time.time()-tbuff > args.timeout:
             success=False
             break
-        if osc['TrgSrc'].val() == 0:
+        # v2.2.6: end of the acquisition as in the C controller (conf bit 4 in the 2.0 FPGA, where TrgSrc
+        # keeps bit 5 = trigger lock after a trigger and never reads 0)
+        if osc.acq_done():
             success=True
             break
     

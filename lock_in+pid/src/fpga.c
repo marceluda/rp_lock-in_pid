@@ -487,14 +487,14 @@ int osc_fpga_cnv_trig_source(int trig_imm, int trig_source, int trig_edge)
  * @brief Converts time_range parameter to decimation factor
  *
  *
- * @param[in] time_range        time range parameter [0..5]
+ * @param[in] time_range        time range parameter [0..6]
  * @retval    -1                failure, indicating invalid arguments are specified
- * @retval     1,8,64,1K,8K,64K decimation factor
+ * @retval     1,8,64,1K,8K,64K,512K decimation factor
  */
 int osc_fpga_cnv_time_range_to_dec(int time_range)
 {
-    /* Input: 0, 1, 2, 3, 4, 5 translates to:
-     * Output: 1x, 8x, 64x, 1kx, 8kx, 65kx */
+    /* Input: 0, 1, 2, 3, 4, 5, 6 translates to:
+     * Output: 1x, 8x, 64x, 1kx, 8kx, 65kx, 512kx (v2.2.6) */
     switch(time_range) {
     case 0:
         return 1;
@@ -513,6 +513,11 @@ int osc_fpga_cnv_time_range_to_dec(int time_range)
         break;
     case 5:
         return 64*1024;
+        break;
+    case 6:
+        /* v2.2.6: 512k (~68.7 s). Needs the 20-bit decimation register of the FPGA of v2.2.5
+         * (rp_scope_com widened to 20 bits, as in lock_in+pid_harmonic v2.3.10) */
+        return 512*1024;
         break;
     default:
         return -1;

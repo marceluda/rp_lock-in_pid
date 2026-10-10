@@ -20,6 +20,7 @@
 #include <stdlib.h>
 #include <math.h>
 #include <errno.h>
+#include <sys/time.h>
 
 #include "main.h"
 #include "version.h"
@@ -69,8 +70,9 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
        *    2 - 64x
        *    3 - 1kx
        *    4 - 8kx
-       *    5 - 65kx   */
-        "time_range", 0, 1, 1,         0,         5 },
+       *    5 - 65kx
+       *    6 - 512kx (v2.2.6, ~68.7 s; 20-bit decimation of the FPGA of v2.2.5) */
+        "time_range", 0, 1, 1,         0,         6 },
     { /* time_unit_used:
        *    0 - [us]
        *    1 - [ms]
@@ -314,8 +316,8 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_slow_out2_sw"             ,      0, 1, 0,            0,           15 }, /** switch for muxer slow_out2 **/
     { "lock_slow_out3_sw"             ,      0, 1, 0,            0,           15 }, /** switch for muxer slow_out3 **/
     { "lock_slow_out4_sw"             ,      0, 1, 0,            0,           15 }, /** switch for muxer slow_out4 **/
-    { "lock_lock_control"             ,   1148, 1, 0,            0,         2047 }, /** lock_control help **/
-    { "lock_lock_feedback"            ,   1148, 0, 1,            0,         2047 }, /** lock_control feedback **/
+    { "lock_lock_control"             ,   1148, 1, 1,            0,         2047 }, /** lock_control (read only mirror, written from lock_ctrl_aux_*) **/
+    { "lock_lock_status"              ,     28, 0, 1,            0,        65535 }, /** lock control status: [lock_count(8),0,0,0,ramp_enable,pidA_enable,pidB_enable,locked,armed] **/
     { "lock_lock_trig_val"            ,      0, 1, 0,        -8192,         8191 }, /** if lock_control ?? , this vals sets the voltage threshold that turns on the lock **/
     { "lock_lock_trig_time_val"       ,      0, 1, 0,            0,   0xffffffff }, /** if lock_control ?? , this vals sets the time threshold that turns on the lock **/
     { "lock_lock_trig_sw"             ,      0, 1, 0,            0,           15 }, /** selects signal for trigger **/
@@ -386,8 +388,8 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_slow_out4"                ,      0, 0, 1,        -2048,         2047 }, /** signal for RP slow DAC 4 **/
     { "lock_oscA"                     ,      0, 0, 1,        -8192,         8191 }, /** signal for Oscilloscope Channel A **/
     { "lock_oscB"                     ,      0, 0, 1,        -8192,         8191 }, /** signal for Oscilloscope Channel B **/
-    { "lock_X"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_ref **/
-    { "lock_Y"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_ref **/
+    { "lock_X"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_ref (in phase) **/
+    { "lock_Y"                        ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from sin_ref (quadrature) **/
     { "lock_F1"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_1f **/
     { "lock_F2"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_2f **/
     { "lock_F3"                       ,      0, 0, 1,   -134217728,    134217727 }, /** Demodulated signal from cos_3f **/
@@ -460,6 +462,26 @@ float forced_xmin = 0;
 float forced_xmax = 0;
 float forced_units = 0;
 float forced_delay = 0;
+
+/* v2.3.14: when the last forceX was issued. A GUI range more than 33x away from the forced one was
+ * always taken as a POST still in the old time units and ignored, so a real zoom-out of more than 33x
+ * right after a change of units (e.g. 100-400 us -> 0-64160 us) was lost: the server answered the
+ * forced range again. POSTs built before the GUI got the forced range arrive within ~1.1 s (rate
+ * limit of the UI: 1 s, queued POST: 100 ms); after FORCEX_STALE_MS the GUI range is always taken. */
+#define FORCEX_STALE_MS 1500
+static struct timeval forcex_tv;
+
+static void forcex_mark(void)
+{
+    gettimeofday(&forcex_tv, NULL);
+}
+
+static long forcex_age_ms(void)
+{
+    struct timeval now;
+    gettimeofday(&now, NULL);
+    return (now.tv_sec - forcex_tv.tv_sec) * 1000L + (now.tv_usec - forcex_tv.tv_usec) / 1000L;
+}
 
 
 const char *rp_app_desc(void)
@@ -594,8 +616,9 @@ int transform_acq_params(rp_app_params_t *p)
         ratio = 1.0 / ratio;
     }
 
-    /* Stop forcing if factor 33 of difference or less */
-    if (ratio > 0.03) {
+    /* Stop forcing if factor 33 of difference or less, or (v2.3.14) if the forceX is not recent: the GUI
+     * already has the new units, the range is a real zoom */
+    if ((ratio > 0.03) || (forcex_state && (forcex_age_ms() > FORCEX_STALE_MS))) {
         p[FORCEX_FLAG_PARAM].value  = 0;
         forcex_state = 0;
     }
@@ -621,14 +644,14 @@ int transform_acq_params(rp_app_params_t *p)
     }
 
     /* Find optimal decimation setting */
-    for (i = 0; i < 6; i++) {
+    for (i = 0; i < 7; i++) {      /* v2.2.6: up to 6 (512k) */
         dec = osc_fpga_cnv_time_range_to_dec(i);
         if (dec >= rdec) {
             break;
         }
     }
-    if (i > 5)
-        i = 5;
+    if (i > 6)
+        i = 6;
 
     /* Apply decimation parameter (time range), but not when forcing GUI client
      * or during reset zoom.
@@ -698,6 +721,7 @@ int transform_acq_params(rp_app_params_t *p)
     if ((time_unit != time_unit_gui)) {
         p[FORCEX_FLAG_PARAM].value = 1.0;
         forcex_state = 1;
+        forcex_mark();
 
         /* Other settings frozen until GUI recovers */
         forced_xmin = p[MIN_GUI_PARAM].value;
@@ -712,6 +736,7 @@ int transform_acq_params(rp_app_params_t *p)
     if (reset_zoom == 1) {
         p[FORCEX_FLAG_PARAM].value  = 1.0;
         forcex_state = 1;
+        forcex_mark();
 
         forced_xmin = 0.0;
         forced_xmax = 130.0;
@@ -792,6 +817,11 @@ int rp_set_params(rp_app_params_t *p, int len)
     int awg_params_change = 0;
     int pid_params_change = 0;
     int lock_params_change = 0;
+    int got_xmin = 0, got_xmax = 0;
+    /* v2.3.14 (Capture Lock): lock request bits before this call, to detect a 0->1 request */
+    int lock_req_old = 0, lock_req_rise = 0;
+    /* v2.3.14: this call armed a Single acquisition (generation of the worker params) */
+    int single_armed = 0, scope_gen = -1, arm_wait_us = 0;
 
 
     TRACE("%s()\n", __FUNCTION__);
@@ -804,6 +834,8 @@ int rp_set_params(rp_app_params_t *p, int len)
     }
 
     pthread_mutex_lock(&rp_main_params_mutex);
+    lock_req_old = ((int)rp_main_params[LOCK_CTRL_AUX_LOCK_NOW].value         ? 1 : 0) |
+                   ((int)rp_main_params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value ? 2 : 0);
     for(i = 0; i < len || p[i].name != NULL; i++) {
         int p_idx = -1;
         int j = 0;
@@ -830,8 +862,26 @@ int rp_set_params(rp_app_params_t *p, int len)
         if(rp_main_params[p_idx].read_only)
             continue;
 
-        if(rp_main_params[p_idx].value != p[i].value) {
+        if(p_idx == MIN_GUI_PARAM) got_xmin = 1;
+        if(p_idx == MAX_GUI_PARAM) got_xmax = 1;
+
+        /* v2.3.14: xmin/xmax are compared with the last GUI values (GUI_XMIN/GUI_XMAX, GUI units):
+         * after a change MIN/MAX_GUI_PARAM hold the worker window in seconds, so the xmin/xmax that
+         * the UI sends in every POST always looked changed, and every POST (any parameter) reset the
+         * scope: a Single acquisition waiting for its trigger was disarmed and cleared. */
+        float cmp_val = rp_main_params[p_idx].value;
+        if(params_init && (p_idx == MIN_GUI_PARAM))
+            cmp_val = rp_main_params[GUI_XMIN].value;
+        if(params_init && (p_idx == MAX_GUI_PARAM))
+            cmp_val = rp_main_params[GUI_XMAX].value;
+
+        if(cmp_val != p[i].value) {
             if(p_idx < PARAMS_AWG_PARAMS)
+                params_change = 1;
+            /* lock params that the scope worker uses (DC offset, raw/lock-in display): as before
+             * (when every POST reset the scope), they also update the worker */
+            if((p_idx == LOCK_OSCA_SW) || (p_idx == LOCK_OSCB_SW) ||
+               (p_idx == LOCK_OSC_RAW_MODE) || (p_idx == LOCK_OSC_LOCKIN_MODE))
                 params_change = 1;
             if ( (p_idx >= PARAMS_AWG_PARAMS) && (p_idx < PARAMS_PID_PARAMS) )
                 awg_params_change = 1;
@@ -854,6 +904,14 @@ int rp_set_params(rp_app_params_t *p, int len)
         rp_main_params[p_idx].value = p[i].value;
     }
     transform_from_iface_units(&rp_main_params[0]);
+    lock_req_rise = ( ((int)rp_main_params[LOCK_CTRL_AUX_LOCK_NOW].value         ? 1 : 0) |
+                      ((int)rp_main_params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value ? 2 : 0) ) & ~lock_req_old;
+    /* v2.3.14: no scope change, but the GUI sent back the forced X range: the GUI has answered the
+     * forceX command (what transform_acq_params() did when every POST was a scope change) */
+    if(!params_change && params_init && forcex_state && got_xmin && got_xmax) {
+        forcex_state = 0;
+        rp_main_params[FORCEX_FLAG_PARAM].value = 0;
+    }
     pthread_mutex_unlock(&rp_main_params_mutex);
 
 
@@ -862,7 +920,15 @@ int rp_set_params(rp_app_params_t *p, int len)
 
         pthread_mutex_lock(&rp_main_params_mutex);
         /* Xmin & Xmax public copy to be served to clients */
-        /* p may be a partial list (split POSTs): use the values already copied by name in the loop above */
+        /* p may be a partial list (split POSTs): use the values already copied by name in the loop above.
+         * v2.2.6 (lock_in+pid_harmonic v2.3.10): xmin/xmax not in this POST: after the previous rp_set_params()
+         * the MIN/MAX_GUI_PARAM slots hold the worker window in seconds (see "write back" below), not GUI
+         * units, and transform_acq_params() would read them as [time_units]. Use the last GUI values instead
+         * (GUI_XMIN/GUI_XMAX, in the current TIME_UNIT_PARAM). */
+        if(!got_xmin)
+            rp_main_params[MIN_GUI_PARAM].value = rp_main_params[GUI_XMIN].value;
+        if(!got_xmax)
+            rp_main_params[MAX_GUI_PARAM].value = rp_main_params[GUI_XMAX].value;
         rp_main_params[GUI_XMIN].value = rp_main_params[MIN_GUI_PARAM].value;
         rp_main_params[GUI_XMAX].value = rp_main_params[MAX_GUI_PARAM].value;
         transform_acq_params(rp_main_params);
@@ -901,7 +967,11 @@ int rp_set_params(rp_app_params_t *p, int len)
             forcex_state = 0;
 
             rp_osc_clean_signals();
-            rp_osc_worker_change_state(rp_osc_auto_set_state);
+            /* v2.3.14: the auto-set starts from the current parameters (this POST included). Before, only
+             * the state changed: the worker kept the parameters of the last scope change, and at the end
+             * rp_update_main_params() copied ALL of them back over rp_main_params (e.g. the Ext Trig 128
+             * "Lock control trig" of a Capture Lock came back after the restore + AUTO POST). */
+            rp_osc_worker_start_auto_set((rp_app_params_t *)&rp_main_params[0], fpga_update);
             /* AUTO_FLAG_PARAM is cleared when Auto-set algorithm finishes */
 
             /* Wait for auto-set algorithm to finish or timeout */
@@ -925,7 +995,10 @@ int rp_set_params(rp_app_params_t *p, int len)
 
             auto_in_progress = 0;
 
-            return 0;
+            /* v2.3.14: go on with the AWG / PID / lock part of this POST. It returned here before, so the
+             * non-scope changes sent with auto_flag (e.g. lock_trig_sw = Scan floor of the Capture Lock
+             * restore) never reached the FPGA. */
+            goto scope_done;
         }
 
         /* If AUTO trigger mode, reset trigger delay */
@@ -1038,7 +1111,23 @@ int rp_set_params(rp_app_params_t *p, int len)
             rp_main_params[SINGLE_BUT_PARAM].value = 0;
             rp_osc_clean_signals();
             rp_osc_worker_change_state(rp_osc_single_state);
+            /* v2.3.14: wait time for the worker to arm it: pre-trigger history (t_delay < 0) or the
+             * 5 ms of the long ranges, plus margin; at most 1.5 s (the UI POST timeout is 2 s) */
+            single_armed = 1;
+            scope_gen    = rp_osc_worker_params_gen();
+            arm_wait_us  = 100000 + ((t_delay < 0) ? (int)(-t_delay * 1e6) : 0) + ((time_range > 4) ? 5000 : 0);
+            if(arm_wait_us > 1500000)
+                arm_wait_us = 1500000;
         }
+    scope_done: ;
+    }
+
+    /* v2.3.14 (Capture Lock): a POST that arms a Single acquisition and requests a lock (0->1 of
+     * lock_now / launch_lock) applies the request only after the worker has armed the scope, so the
+     * scope (e.g. Ext Trig = "Lock control trig") is always waiting before the FPGA can lock */
+    if(single_armed && lock_req_rise && lock_params_change) {
+        if(rp_osc_worker_wait_armed(scope_gen, rp_osc_single_state, arm_wait_us) < 0)
+            fprintf(stderr, "rp_set_params: scope not armed after %d us, lock request applied anyway\n", arm_wait_us);
     }
 
     if(awg_params_change) {
@@ -1083,6 +1172,9 @@ int rp_get_params(rp_app_params_t **p)
         return -1;
 
     pthread_mutex_lock(&rp_main_params_mutex);
+    /* v2.3.13: lock control status (read only) on every request, also when the scope gets no
+     * triggers (lock_update_main() runs only with a complete acquisition) */
+    lock_update_status(&rp_main_params[0]);
     for(i = 0; i < PARAMS_NUM; i++) {
         int p_strlen = strlen(rp_main_params[i].name);
         p_copy[i].name = (char *)malloc(p_strlen+1);
@@ -1302,23 +1394,44 @@ int rp_clean_params(rp_app_params_t *params)
     return 0;
 }
 
+/* v2.3.14: the parameters that the auto-set (rp_osc_auto_set() + transform_to_iface_units()) computes.
+ * Only these are copied back to rp_main_params at the end of an AUTO: the rest of the worker copy may be
+ * older than rp_main_params (lock / PID / generator / UI params do not reach the worker on every POST,
+ * and a POST may arrive while the auto-set runs). */
+static const int auto_set_params[] = {
+    MIN_GUI_PARAM, MAX_GUI_PARAM, TRIG_MODE_PARAM, TRIG_SRC_PARAM, TRIG_DLY_PARAM, TRIG_LEVEL_PARAM,
+    TIME_RANGE_PARAM, TIME_UNIT_PARAM, AUTO_FLAG_PARAM, MIN_Y_PARAM, MAX_Y_PARAM, GUI_RST_Y_RANGE,
+    MIN_Y_NORM, MAX_Y_NORM
+};
+
+/* Called by the worker when the auto-set has finished: the scope parameters it found go to the main
+ * parameters, which are then applied (scope only: nothing else changes in this call). */
 int rp_update_main_params(rp_app_params_t *params)
 {
     TRACE("LOLO(rp_update_main_params): START\n");
-    int i = 0;
+    unsigned i;
     if(params == NULL)
         return -1;
 
     pthread_mutex_lock(&rp_main_params_mutex);
-    while(params[i].name != NULL) {
-        rp_main_params[i].value = params[i].value;
-        i++;
-    }
+    for(i = 0; i < sizeof(auto_set_params) / sizeof(auto_set_params[0]); i++)
+        rp_main_params[auto_set_params[i]].value = params[auto_set_params[i]].value;
     pthread_mutex_unlock(&rp_main_params_mutex);
     params_init = 0;
     rp_set_params(&rp_main_params[0], PARAMS_NUM);
 
     return 0;
+}
+
+/* v2.3.14: the auto-set was aborted by a change of the worker state (another POST): nothing is copied back
+ * (before, the whole stale worker copy was, with auto_flag still 1, and the rp_set_params() that followed
+ * started a new auto-set from the worker thread itself and waited 10 s for it). The flag is cleared so
+ * that the next scope change does not start an AUTO the user did not ask for. */
+void rp_auto_set_aborted(void)
+{
+    pthread_mutex_lock(&rp_main_params_mutex);
+    rp_main_params[AUTO_FLAG_PARAM].value = 0;
+    pthread_mutex_unlock(&rp_main_params_mutex);
 }
 
 int rp_update_meas_data(rp_osc_meas_res_t ch1_meas, rp_osc_meas_res_t ch2_meas)

@@ -185,6 +185,17 @@ class fpga_osc(fpga_regs):
                  base_addr=self.base_addr, dev_file=self.dev_file).val(1)
         self['TrgSrc'].val(self.trigVal)
 
+    def acq_done(self):
+        # v2.2.6: end of the armed acquisition, with the criterion of the C controller (src/fpga.c,
+        # osc_fpga_triggered()). 2.0 FPGA (v2.2.5 or later): conf bit 4 (post-trigger delay over, sticky until
+        # the next arm). 0.9x FPGA: trigger source back to 0 (bits [3:0]; in 2.0 bit 5 is the trigger lock)
+        # and conf bit 2 (delay running) = 0.
+        src  = self['TrgSrc'].val()
+        conf = self['conf'].val()
+        if conf & 0x10:
+            return True
+        return ((src & 0xf) == 0) and not (conf & 0x4)
+
     def set_dec(self,dec):
         if int(dec) in [0,1,8,64,1024,8192,65536,524288]:
             self['Dec'].val(int(dec))
@@ -258,7 +269,7 @@ li.add( fpga_reg(name='slow_out2_sw'       , index=  7, rw=True , nbits= 4,signe
 li.add( fpga_reg(name='slow_out3_sw'       , index=  8, rw=True , nbits= 4,signed=False) )
 li.add( fpga_reg(name='slow_out4_sw'       , index=  9, rw=True , nbits= 4,signed=False) )
 li.add( fpga_reg(name='lock_control'       , index= 10, rw=True , nbits=11,signed=False) )
-li.add( fpga_reg(name='lock_feedback'      , index= 11, rw=False, nbits=11,signed=False) )
+li.add( fpga_reg(name='lock_status'        , index= 11, rw=False, nbits=16,signed=False) )
 li.add( fpga_reg(name='lock_trig_val'      , index= 12, rw=True , nbits=14,signed=True ) )
 li.add( fpga_reg(name='lock_trig_time'     , index= 13, rw=True , nbits=32,signed=False) )
 li.add( fpga_reg(name='lock_trig_sw'       , index= 14, rw=True , nbits= 4,signed=False) )

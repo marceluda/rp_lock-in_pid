@@ -87,7 +87,7 @@ module lock(
     reg         [32-1:0] lock_trig_time;
     reg  signed [14-1:0] lock_trig_val,rl_signal_threshold,sf_jumpA,sf_jumpB;
     wire        [ 5-1:0] rl_state;
-    wire        [11-1:0] lock_feedback;
+    wire        [16-1:0] lock_status;
     
     // mix --------------------------
     reg  signed [14-1:0] aux_A,aux_B;
@@ -182,7 +182,6 @@ module lock(
     wire                 lock_trig_rise ;
     wire                 trig_val,trig_time,set_ramp_enable,set_pidA_enable,set_pidB_enable,ramp_enable_ctrl,pidA_enable_ctrl,pidB_enable_ctrl,launch_lock_trig,lock_now;
 
-    wire                 trigger_took_effect;
 
     // ERASE lolo // wire                 ramp_trig ;
 
@@ -214,7 +213,7 @@ module lock(
     reg  signed [14-1:0] sin_ref_rd,cos_ref_rd,cos_1f_rd,cos_2f_rd,cos_3f_rd,sq_ref_rd,sq_quad_rd,sq_phas_rd;
     reg  signed [32-1:0] error_mean_rd,error_std_rd;
     reg         [12-1:0] slow_out1_rd,slow_out2_rd,slow_out3_rd,slow_out4_rd;
-    reg         [11-1:0] lock_feedback_rd;
+    reg         [16-1:0] lock_status_rd;
     reg         [ 5-1:0] rl_state_rd;
     reg                  sq_ref_b_rd,sq_quad_b_rd,sq_phas_b_rd;
     wire        [50-1:0] cnt_next;
@@ -742,20 +741,13 @@ module lock(
         .ramp_enable          ( ramp_enable_ctrl   ),
         .pidA_enable          ( pidA_enable_ctrl   ),
         .pidB_enable          ( pidB_enable_ctrl   ),
-        .lock_ctrl_trig       ( lock_ctrl_trig     )
+        .lock_ctrl_trig       ( lock_ctrl_trig     ),
+        .lock_status          ( lock_status        )   // read only status (0x2C), replaces lock_feedback
     );
 
+    // v2.2.6 (lock_in+pid_harmonic v2.3.13): lock_control is command + configuration and is never rewritten
+    // from the FPGA state; the lock state machine lives in lock_ctrl and is published in lock_status
     assign lock_trig_rise      =  lock_control[10];
-    assign trigger_took_effect = &{ ~(ramp_enable_ctrl^lock_control[7]) , ~(pidA_enable_ctrl^lock_control[6]) , ~(pidB_enable_ctrl^lock_control[5]) } ;
-
-    wire  [2-1:0]  next_lock_cmd;
-    assign next_lock_cmd       = trigger_took_effect ? 2'b0 : lock_control[1:0] ;
-    assign lock_feedback =   { lock_control[10:5]  ,
-                               ramp_enable_ctrl ,
-                               pidA_enable_ctrl ,
-                               pidB_enable_ctrl ,
-                               next_lock_cmd
-                               };
 
     assign   trig_time        =   lock_control[8];
 
@@ -1009,7 +1001,7 @@ module lock(
         slow_out2_rd     <= slow_out2     ;
         slow_out3_rd     <= slow_out3     ;
         slow_out4_rd     <= slow_out4     ;
-        lock_feedback_rd <= lock_feedback ;
+        lock_status_rd   <= lock_status   ;
         rl_state_rd      <= rl_state      ;
     end
     //read_ctrl
@@ -1336,7 +1328,7 @@ module lock(
             if (sys_addr[19:0]==20'h00020)  slow_out3_sw          <=  sys_wdata[ 4-1: 0] ; // switch for muxer slow_out3
             if (sys_addr[19:0]==20'h00024)  slow_out4_sw          <=  sys_wdata[ 4-1: 0] ; // switch for muxer slow_out4
             if (sys_addr[19:0]==20'h00028)  lock_control          <=  sys_wdata[11-1: 0] ; // lock_control help
-          //if (sys_addr[19:0]==20'h0002C)  lock_feedback         <=  sys_wdata[11-1: 0] ; // lock_control feedback
+          //if (sys_addr[19:0]==20'h0002C)  lock_status           <=  sys_wdata[16-1: 0] ; // lock control status (read only): [lock_count(8),0,0,0,ramp_enable,pidA_enable,pidB_enable,locked,armed]
             if (sys_addr[19:0]==20'h00030)  lock_trig_val         <=  sys_wdata[14-1: 0] ; // if lock_control ?? , this vals sets the voltage threshold that turns on the lock
             if (sys_addr[19:0]==20'h00034)  lock_trig_time        <=  sys_wdata[32-1: 0] ; // if lock_control ?? , this vals sets the time threshold that turns on the lock
             if (sys_addr[19:0]==20'h00038)  lock_trig_sw          <=  sys_wdata[ 4-1: 0] ; // selects signal for trigger
@@ -1397,8 +1389,8 @@ module lock(
           //if (sys_addr[19:0]==20'h00114)  slow_out4             <=  sys_wdata[12-1: 0] ; // signal for RP slow DAC 4
           //if (sys_addr[19:0]==20'h00118)  oscA                  <=  sys_wdata[14-1: 0] ; // signal for Oscilloscope Channel A
           //if (sys_addr[19:0]==20'h0011C)  oscB                  <=  sys_wdata[14-1: 0] ; // signal for Oscilloscope Channel B
-          //if (sys_addr[19:0]==20'h00120)  X_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_ref
-          //if (sys_addr[19:0]==20'h00124)  Y_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_ref
+          //if (sys_addr[19:0]==20'h00120)  X_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_ref (in phase)
+          //if (sys_addr[19:0]==20'h00124)  Y_28                  <=  sys_wdata[28-1: 0] ; // Demodulated signal from sin_ref (quadrature)
           //if (sys_addr[19:0]==20'h00128)  F1_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_1f
           //if (sys_addr[19:0]==20'h0012C)  F2_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_2f
           //if (sys_addr[19:0]==20'h00130)  F3_28                 <=  sys_wdata[28-1: 0] ; // Demodulated signal from cos_3f
@@ -1468,7 +1460,7 @@ module lock(
                 20'h00020 : sys_rdata <= {  28'b0                   ,     slow_out3_sw  }; // switch for muxer slow_out3
                 20'h00024 : sys_rdata <= {  28'b0                   ,     slow_out4_sw  }; // switch for muxer slow_out4
                 20'h00028 : sys_rdata <= {  21'b0                   ,     lock_control  }; // lock_control help
-                20'h0002C : sys_rdata <= {  21'b0                   ,  lock_feedback_rd  }; // lock_control feedback
+                20'h0002C : sys_rdata <= {  16'b0                   ,   lock_status_rd  }; // lock control status (read only): [lock_count(8),0,0,0,ramp_enable,pidA_enable,pidB_enable,locked,armed]
                 20'h00030 : sys_rdata <= {  {18{lock_trig_val[13]}} ,    lock_trig_val  }; // if lock_control ?? , this vals sets the voltage threshold that turns on the lock
                 20'h00034 : sys_rdata <=                                lock_trig_time   ; // if lock_control ?? , this vals sets the time threshold that turns on the lock
                 20'h00038 : sys_rdata <= {  28'b0                   ,     lock_trig_sw  }; // selects signal for trigger
@@ -1529,8 +1521,8 @@ module lock(
                 20'h00114 : sys_rdata <= {  20'b0                   ,     slow_out4_rd  }; // signal for RP slow DAC 4
                 20'h00118 : sys_rdata <= {  {18{oscA_rd[13]}}       ,          oscA_rd  }; // signal for Oscilloscope Channel A
                 20'h0011C : sys_rdata <= {  {18{oscB_rd[13]}}       ,          oscB_rd  }; // signal for Oscilloscope Channel B
-                20'h00120 : sys_rdata <= {  { 4{X_28_reg[27]}}      ,         X_28_reg  }; // Demodulated signal from sin_ref
-                20'h00124 : sys_rdata <= {  { 4{Y_28_reg[27]}}      ,         Y_28_reg  }; // Demodulated signal from cos_ref
+                20'h00120 : sys_rdata <= {  { 4{X_28_reg[27]}}      ,         X_28_reg  }; // Demodulated signal from cos_ref (in phase)
+                20'h00124 : sys_rdata <= {  { 4{Y_28_reg[27]}}      ,         Y_28_reg  }; // Demodulated signal from sin_ref (quadrature)
                 20'h00128 : sys_rdata <= {  { 4{F1_28_reg[27]}}     ,        F1_28_reg  }; // Demodulated signal from cos_1f
                 20'h0012C : sys_rdata <= {  { 4{F2_28_reg[27]}}     ,        F2_28_reg  }; // Demodulated signal from cos_2f
                 20'h00130 : sys_rdata <= {  { 4{F3_28_reg[27]}}     ,        F3_28_reg  }; // Demodulated signal from cos_3f

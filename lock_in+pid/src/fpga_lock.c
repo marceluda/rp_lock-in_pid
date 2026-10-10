@@ -88,7 +88,7 @@ void reset_locks(void)
         g_lock_reg->slow_out3_sw         =      0;
         g_lock_reg->slow_out4_sw         =      0;
         g_lock_reg->lock_control         =   1148;
-        g_lock_reg->lock_feedback        =   1148;
+        g_lock_reg->lock_status          =     28;
         g_lock_reg->lock_trig_val        =      0;
         g_lock_reg->lock_trig_time       =      0;
         g_lock_reg->lock_trig_sw         =      0;
