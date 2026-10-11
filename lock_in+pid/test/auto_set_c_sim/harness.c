@@ -8,6 +8,9 @@
  *   2. forceX: zoom with a change of units, a POST in the old units right after it is still ignored,
  *      a zoom-out of more than 33x 1.6 s later is applied.
  *   3. A POST that changes the scope while the auto-set runs: no 10 s wait, auto_flag ends at 0.
+ *   4. v2.3.18: lock_trig_time / lock_trig_val / lock_trig_sw written from outside (Python) are copied to the
+ *      parameters (GET) and are not written back by a later change of another lock parameter.
+ *   5. v2.3.18: AUTO with only noise in the inputs: window of at least 1 us (it was 0...139 ns on the board).
  *
  * Build and run: test/auto_set_c_sim/run.sh [src dir]     (exit code 1 if a check fails)
  */
@@ -52,6 +55,11 @@ void *fake_mmap(void *addr, size_t len, int prot, int flags, int fd, off_t off)
 
 /* ---------------------------------------------------------------- scope FPGA */
 static volatile int fpga_run = 1;
+/* v2.3.18: 1 = "noise" instead of the sine: +-100 counts of white noise plus a 1200-count component with a period
+ * of 12.4 samples (99 ns), as the "period" of ~93 ns that the auto-set found in the noise on the board. -585: the
+ * default fe dc offset (calib.c, no EEPROM here), so that the corrected signal is centred at 0 (the period search
+ * of the auto-set compares raw samples with thresholds of corrected values: the amplitude must exceed the offset) */
+static volatile int sig_noise = 0;
 static void *fpga_thread(void *arg)
 {
     (void)arg;
@@ -67,7 +75,8 @@ static void *fpga_thread(void *arg)
             if(!cha)
                 osc_fpga_get_sig_ptr(&cha, &chb);
             for(i = 0; i < OSC_FPGA_SIG_LEN; i++) {    /* 3000 counts, period 2000 samples */
-                int v = (int)lround(3000.0 * sin(2 * M_PI * i / 2000.0));
+                int v = sig_noise ? (int)lround(1200.0 * sin(2 * M_PI * i / 12.4)) + (rand() % 201) - 100 - 585
+                                : (int)lround(3000.0 * sin(2 * M_PI * i / 2000.0));
                 cha[i] = v & 0x3fff;
                 chb[i] = (v / 2) & 0x3fff;
             }
@@ -246,6 +255,58 @@ int main(void)
         check("3.1 POST during the auto-set: both answered without the 10 s timeout, auto_flag 0",
               a.dt < 5 && dt < 5 && get("auto_flag") == 0,
               "AUTO POST %.3f s, other POST %.3f s, auto_flag %g", a.dt, dt, get("auto_flag"));
+    }
+
+    /* ---- 4. v2.3.18: lock trigger registers written from outside */
+    {
+        post("lock_lock_trig_time_val", 2256455.0, "lock_lock_trig_val", 100.0, "lock_lock_trig_sw", 0.0, NULL);
+        check("4.0 page values written", g_lock_reg->lock_trig_time == 2256455 && g_lock_reg->lock_trig_val == 100 &&
+              g_lock_reg->lock_trig_sw == 0, "time %u, val %d, sw %u", g_lock_reg->lock_trig_time,
+              (int)g_lock_reg->lock_trig_val, g_lock_reg->lock_trig_sw);
+        g_lock_reg->lock_trig_time = 12500000;       /* py/lock_from_registers.py --time 100ms --level -1234 --sw 5 */
+        g_lock_reg->lock_trig_val  = -1234;
+        g_lock_reg->lock_trig_sw   = 5;
+        check("4.1 GET shows the values written from outside", get("lock_lock_trig_time_val") == 12500000 &&
+              get("lock_lock_trig_val") == -1234 && get("lock_lock_trig_sw") == 5, "time %.0f, val %g, sw %g",
+              get("lock_lock_trig_time_val"), get("lock_lock_trig_val"), get("lock_lock_trig_sw"));
+        float pb = get("lock_ctrl_aux_set_pidB_enable");
+        post("lock_ctrl_aux_set_pidB_enable", (double)(1 - pb), NULL);   /* testAgent: a lock checkbox of the page */
+        check("4.2 change of another lock parameter: the registers keep the outside values",
+              g_lock_reg->lock_trig_time == 12500000 && g_lock_reg->lock_trig_val == -1234 && g_lock_reg->lock_trig_sw == 5 &&
+              ((g_lock_reg->lock_control >> 5) & 1) == (unsigned)(1 - pb), "time %u, val %d, sw %u, lock_control 0x%03x", g_lock_reg->lock_trig_time,
+              (int)g_lock_reg->lock_trig_val, g_lock_reg->lock_trig_sw, g_lock_reg->lock_control);
+        post("lock_lock_trig_time_val", 2072500.0, NULL);    /* the page changes the time again */
+        check("4.3 a later change of the time in the page is written (only the time)",
+              g_lock_reg->lock_trig_time == 2072500 && g_lock_reg->lock_trig_val == -1234 && g_lock_reg->lock_trig_sw == 5,
+              "time %u, val %d, sw %u", g_lock_reg->lock_trig_time, (int)g_lock_reg->lock_trig_val, g_lock_reg->lock_trig_sw);
+        g_lock_reg->lock_trig_time = 2147495993u;     /* 2**31 + 12345: not exact as float */
+        get("lock_lock_trig_time_val");
+        post("lock_pidA_kp", 77.0, "lock_ctrl_aux_set_pidB_enable", (double)pb, NULL);
+        check("4.4 value above 2**24 from outside kept exact in the register after other changes",
+              g_lock_reg->lock_trig_time == 2147495993u, "time %u (param %.0f)", g_lock_reg->lock_trig_time,
+              get("lock_lock_trig_time_val"));
+        g_lock_reg->lock_trig_time = 0xffffffffu;
+        get_data();                                   /* lock_update_main() + lock_update_status() */
+        post("lock_pidA_kp", 78.0, NULL);
+        check("4.5 2**32-1 from outside (and a complete acquisition): kept", g_lock_reg->lock_trig_time == 0xffffffffu &&
+              get("lock_lock_trig_time_val") >= 4294967040.0f, "time %u, param %.0f", g_lock_reg->lock_trig_time,
+              get("lock_lock_trig_time_val"));
+        post("lock_lock_trig_time_val", 1000.0, NULL);
+        check("4.6 then the page writes 1000", g_lock_reg->lock_trig_time == 1000, "time %u", g_lock_reg->lock_trig_time);
+    }
+
+    /* ---- 5. v2.3.18: AUTO with noise only */
+    {
+        sig_noise = 1;
+        post("trig_mode", 0.0, "xmin", 0.0, "xmax", 20.0, NULL);
+        usleep(50000);
+        dt = post("auto_flag", 1.0, NULL);
+        usleep(50000);
+        float tu5 = get("time_units"), x0 = get("xmin"), x1 = get("xmax");
+        double f5 = pow(10, 3 * (2 - tu5)), span = (x1 - x0) / f5;
+        check("5.1 AUTO with noise only: window >= 1 us", span >= 0.999e-6 && dt < 5,
+              "x %g..%g [units %g] = %.3g s, trig_mode %g, POST %.3f s", x0, x1, tu5, span, get("trig_mode"), dt);
+        sig_noise = 0;
     }
 
     fpga_run = 0;

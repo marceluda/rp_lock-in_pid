@@ -28,12 +28,17 @@ trigger registers (--time / --level / --sw), nothing is written (a request is [1
 If it is ARMED with the same request, nothing is written and it just waits for the lock. Use --force to
 release and arm (or lock) again anyway. A different request releases the current lock and arms the new one.
 
-lock_trig_sw (signal for the level trigger): 0 error, 1 X, 2 Y, 3 F1, 4 F2, 5 F3, 6 sqX, 7 sqY, 8 sqF, 9 signal_i,
-10 ramp_A, 11 aux_A, 12 in1, 13 in2, 14 in1-in2, 15 pidA_out (FPGA muxer of lock.v).
+--sw: FPGA register lock_trig_sw (0x38), the signal compared with the level trigger (web page: "Signal for
+trigger", parameter lock_lock_trig_sw; not the scope "Ext Trig" of the page, parameter lock_trig_sw, which is
+the FPGA register trig_sw 0x0C): 0 error, 1 Xo, 2 Yo, 3 F1o, 4 F2o, 5 F3o, 6 sqXo, 7 sqYo, 8 sqFo, 9 signal_i,
+10 Ramp A, 11 aux_A, 12 in1, 13 in2, 14 in1-in2, 15 PID A out (muxer of lock.v).
+--time: 8 ns ticks or a time with units (s, ms, us, ns), 0 .. 2**32-1 ticks (34.36 s; larger values are
+clamped, as in the web page). --level: counts (8192 = 1 V) or V / mV, clamped to -8192..8191.
 
-Note: the C controller (web UI) writes lock_control only when the user changes a lock control button or
-checkbox, so a value written here is kept. The other lock registers (lock_trig_time, lock_trig_val, ...)
-are rewritten by the controller with its copy of them when the user changes any lock parameter in the UI.
+Note: the C controller (web UI) writes lock_control and (2.2.7) lock_trig_time, lock_trig_val and lock_trig_sw
+only when the user changes them in the UI, and it copies the values written here to its parameters: the web page
+shows them (Lock control panel) and keeps them. Before 2.2.7 the trigger registers were not shown and were
+rewritten with the values of the page when the user changed any lock parameter in the UI.
 """
 
 from __future__ import print_function
@@ -57,13 +62,26 @@ def parse_enables(txt):
     return {n: int(n in names) for n in ENABLES}
 
 
+TRIG_TIME_MAX = 2**32 - 1      # lock_trig_time: 32-bit register (34.36 s)
+
+
 def parse_time(txt):
-    """time trigger: clock ticks (8 ns) or a value with units s, ms, us"""
-    t = txt.strip().lower()
-    for unit, factor in (('us', 1e-6), ('ms', 1e-3), ('s', 1.0)):
+    """time trigger: clock ticks (8 ns) or a value with units s, ms, us, ns; clamped to 0 .. 2**32-1 ticks
+    (v2.3.18: '40s' gave OverflowError in hugo.py; the web page clamps the same way)"""
+    t = txt.strip().lower().replace(' ', '').replace('\u00b5s', 'us')
+    v = None
+    for unit, factor in (('ns', 1e-9), ('us', 1e-6), ('ms', 1e-3), ('s', 1.0)):
         if t.endswith(unit):
-            return int(round(float(t[:-len(unit)]) * factor / 8e-9))
-    return int(t)
+            v = int(round(float(t[:-len(unit)]) * factor / 8e-9))
+            break
+    if v is None:
+        v = int(t)
+    if v < 0 or v > TRIG_TIME_MAX:
+        c = max(0, min(TRIG_TIME_MAX, v))
+        print('--time {:s}: {:d} ticks is out of 0..{:d}, clamped to {:d} ({:.3f} s)'.format(
+            txt, v, TRIG_TIME_MAX, c, c * 8e-9), file=sys.stderr)
+        v = c
+    return v
 
 
 def parse_level(txt):
@@ -112,9 +130,11 @@ def main():
     ap.add_argument('--release', action='store_true', help='clear the lock requests (bits [1:0]): back to the manual enables')
     ap.add_argument('--now', action='store_true', help='lock right now (lock_now) instead of arming the trigger')
     ap.add_argument('--trig', choices=sorted(TRIG_TYPES), default=None, help='trigger type (default: keep the current one)')
-    ap.add_argument('--time', type=parse_time, default=None, help='time trigger: ticks of 8 ns, or e.g. 16.58ms')
+    ap.add_argument('--time', type=parse_time, default=None,
+                    help='time trigger: ticks of 8 ns, or e.g. 16.58ms (0 .. 2**32-1 ticks = 34.36 s, clamped)')
     ap.add_argument('--level', type=parse_level, default=None, help='level trigger: -8192..8191, or e.g. 0.5V, 120mV')
-    ap.add_argument('--sw', type=int, default=None, help='signal for the level trigger (lock_trig_sw, 0..15)')
+    ap.add_argument('--sw', type=int, choices=range(16), metavar='0..15', default=None,
+                    help='signal for the level trigger (FPGA lock_trig_sw = "Signal for trigger" of the page; see below)')
     g = ap.add_mutually_exclusive_group()
     g.add_argument('--rise', dest='rise', action='store_const', const=1, default=None, help='level trigger on a rising crossing')
     g.add_argument('--fall', dest='rise', action='store_const', const=0, help='level trigger on a falling crossing')

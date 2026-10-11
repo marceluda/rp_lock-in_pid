@@ -106,10 +106,11 @@ Tested on RP2 with v2.2.6 and the page open: `--release`, `--trig time --time 16
 0.05 s), `--status`, `--now`, `--time 100ms` (stays ARMED); the page followed OFF / ARMED / LOCKED and the `set_*`
 in ≤ 1 s, with 0 POST (`testAgent.md` 2026-10-10 09:48).
 
-**A confirmar:** the trigger values written by the script (0x30, 0x34, 0x38) are not shown in the fields of the
-page, and if a lock parameter is then changed in the page the controller rewrites them with its own copy (on the
-board the lock then fired at 18 ms instead of 100 ms). Do not change lock parameters in the page while a lock armed
-from Python is waiting, or re-run the script after the change. See [Structure.md](Structure.md#lock-control).
+Since 2.2.7 the trigger values written by the script (0x30, 0x34, 0x38) are copied to the parameters of the page
+(shown in its fields and kept): the controller writes these registers only when the user changes them in the page
+(before 2.2.7 they were not shown and were rewritten with the page values at the next change of any lock parameter;
+on the board the lock then fired at 18 ms instead of 100 ms). `--time` is clamped to 0..2³²−1 ticks (34.36 s).
+See [Structure.md](Structure.md#lock-control).
 
 ### Oscilloscope: `osc_trig.py` and `osc_get_ch.py`
 

@@ -891,7 +891,7 @@ typedef struct lock_reg_t {
     uint32_t pidB_ctrl;
     
     /** @brief Offset 20'h001B0 - ctrl_B
-      *  control_B: pidA_out + ramp_B
+      *  control_B: pidB_out + ramp_B
       *
       *  bits [31:14] - Reserved
       *  bits [13: 0] - Data

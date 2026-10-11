@@ -114,17 +114,22 @@ txt=( "\nIn the future, you will not need to type the root password again for re
       "\nEn el futuro no necesitarás tipear nuevamente la clave SSH para root. \n")
 echo -e ${txt[$L]}
 
+# 2.2.7 (as lock_in+pid_harmonic v2.3.18): the file system is made writable with the rw script of the OS, as the
+# Makefile upload targets: /opt/redpitaya/sbin/rw in Ecosystem 2.0, /boot/sbin/rw in 0.9x (needs PATH_REDPITAYA).
+RP_RW='export PATH_REDPITAYA=/opt/redpitaya ; if [ -x /opt/redpitaya/sbin/rw ] ; then /opt/redpitaya/sbin/rw ; else /boot/sbin/rw ; fi'
+
 if $webonly ; then
 
-    ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP}/{index.html,js.css} "
+    ssh $RPIP $RPOPTS "${RP_RW} ; rm -rf /opt/redpitaya/www/apps/${APP}/{index.html,js,css} "
     echo -e "\n\n---------------------\n\n"
     scp  ${RPSCP} -r index.html css js root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
 
 else
  
-    ssh $RPIP $RPOPTS "PATH_REDPITAYA=/opt/redpitaya /boot/sbin/rw ; rm -rf /opt/redpitaya/www/apps/${APP} ; mkdir -p /opt/redpitaya/www/apps/${APP} "
+    ssh $RPIP $RPOPTS "${RP_RW} ; rm -rf /opt/redpitaya/www/apps/${APP} ; mkdir -p /opt/redpitaya/www/apps/${APP} "
     echo -e "\n\n---------------------\n\n"
     scp  ${RPSCP} -r controllerhf.so css js nginx.conf fpga.conf fpga.sh fpga.bit.bin index.html info py red_pitaya.bit  root@${RPIP}:/opt/redpitaya/www/apps/${APP}/
+    ssh $RPIP $RPOPTS "chmod 755 /opt/redpitaya/www/apps/${APP}/fpga.sh"   # Ecosystem 2.0 runs it with system()
 
 fi
 

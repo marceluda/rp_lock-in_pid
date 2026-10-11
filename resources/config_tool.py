@@ -268,7 +268,7 @@ f.add( name="pidB_kd"            , group=grp , val=    0, rw=True ,  nbits=14, m
 f.add( name="pidB_in"            , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB input" )
 f.add( name="pidB_out"           , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=True , signed=True , desc="pidB output" )
 f.add( name="pidB_ctrl"          , group=grp , val=    0, rw=True ,  nbits= 3, min_val=          0, max_val=          7, fpga_update=True , signed=False, desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]" )
-f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidA_out + ramp_B" )
+f.add( name="ctrl_B"             , group=grp , val=    0, rw=False,  nbits=14, min_val=      -8192, max_val=       8191, fpga_update=False, signed=True , desc="control_B: pidB_out + ramp_B" )
 
 # aux
 grp='mix'
@@ -930,7 +930,7 @@ if True:
     r=f["pidB_ctrl"]; r.c_update='(((int)params[{:s}].value)<<2) + (((int)params[{:s}].value)<<1) + ((int)params[{:s}].value)'.format( m["lock_pidB_ifreeze"].cdef, m["lock_pidB_freeze"].cdef, m["lock_pidB_irst"].cdef)
 else:
     m.add( name="lock_pidB_ctrl"     , fpga_reg="pidB_ctrl"     , val=0    , rw=True , nbits=3 , min_val=0         , max_val=7         , fpga_update=True , signed=False, group="pidB"           , desc="pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]")
-m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidA_out + ramp_B")
+m.add( name="lock_ctrl_B"        , fpga_reg="ctrl_B"        , val=0    , rw=False, nbits=14, min_val=-8192     , max_val=8191      , fpga_update=False, signed=True , group="pidB"           , desc="control_B: pidB_out + ramp_B")
 
 # group: mix
 m.add( name="lock_aux_A"         , fpga_reg="aux_A"         , val=0    , rw=True , nbits=14, min_val=-8192     , max_val=8191      , fpga_update=True , signed=True , group="mix"            , desc="auxiliar value of 14 bits")

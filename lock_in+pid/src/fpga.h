@@ -110,10 +110,9 @@ typedef struct osc_fpga_reg_mem_s {
     uint32_t trigger_delay;
 
     /** @brief  Data decimation
-     * bits [16: 0] - decimation factor, legal values:
-     *   1, 8, 64, 1024, 8192 65536
-     *   If other values are written data is undefined 
-     * bits [31:17] - reserved
+     * bits [19: 0] - decimation factor (20 bits in the 2.0 scope, rp_scope_cfg.v; it was 17 in 0.9x).
+     *   The App uses 1, 8, 64, 128, 256, 512, 1024, 8192, 65536 and 524288 (osc_fpga_cnv_time_range_to_dec())
+     * bits [31:20] - reserved
      */
     uint32_t data_dec;
 

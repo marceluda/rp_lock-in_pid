@@ -1425,7 +1425,7 @@ module lock(
           //if (sys_addr[19:0]==20'h001A4)  pidB_in               <=  sys_wdata[14-1: 0] ; // pidB input
           //if (sys_addr[19:0]==20'h001A8)  pidB_out              <=  sys_wdata[14-1: 0] ; // pidB output
             if (sys_addr[19:0]==20'h001AC)  pidB_ctrl             <=  sys_wdata[ 3-1: 0] ; // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidA_out + ramp_B
+          //if (sys_addr[19:0]==20'h001B0)  ctrl_B                <=  sys_wdata[14-1: 0] ; // control_B: pidB_out + ramp_B
             if (sys_addr[19:0]==20'h001B4)  aux_A                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
             if (sys_addr[19:0]==20'h001B8)  aux_B                 <=  sys_wdata[14-1: 0] ; // auxiliar value of 14 bits
         end
@@ -1557,7 +1557,7 @@ module lock(
                 20'h001A4 : sys_rdata <= {  {18{pidB_in_rd[13]}}    ,       pidB_in_rd  }; // pidB input
                 20'h001A8 : sys_rdata <= {  {18{pidB_out_rd[13]}}   ,      pidB_out_rd  }; // pidB output
                 20'h001AC : sys_rdata <= {  29'b0                   ,        pidB_ctrl  }; // pidB control: [ pidB_ifreeze: integrator freeze , pidB_freeze: output freeze , pidB_irst:integrator reset]
-                20'h001B0 : sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; // control_B: pidA_out + ramp_B
+                20'h001B0 : sys_rdata <= {  {18{ctrl_B_reg[13]}}    ,       ctrl_B_reg  }; // control_B: pidB_out + ramp_B
                 20'h001B4 : sys_rdata <= {  {18{aux_A[13]}}         ,            aux_A  }; // auxiliar value of 14 bits
                 20'h001B8 : sys_rdata <= {  {18{aux_B[13]}}         ,            aux_B  }; // auxiliar value of 14 bits
                 default   : sys_rdata <=  32'h0        ;

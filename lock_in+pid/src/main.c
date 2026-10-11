@@ -428,7 +428,7 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { "lock_pidB_irst"                ,      0, 1, 0,            0,            1 }, /** pidB_irst **/
     { "lock_pidB_freeze"              ,      0, 1, 0,            0,            1 }, /** pidB_freeze **/
     { "lock_pidB_ifreeze"             ,      0, 1, 0,            0,            1 }, /** pidB_ifreeze **/
-    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidA_out + ramp_B **/
+    { "lock_ctrl_B"                   ,      0, 0, 1,        -8192,         8191 }, /** control_B: pidB_out + ramp_B **/
     { "lock_aux_A"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_aux_B"                    ,      0, 1, 0,        -8192,         8191 }, /** auxiliar value of 14 bits **/
     { "lock_ctrl_aux_lock_now"        ,      0, 0, 0,            0,            1 }, /** todo **/

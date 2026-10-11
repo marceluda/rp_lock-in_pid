@@ -32,6 +32,7 @@ function braceFrom(i) {
 }
 function fnSrc(name) { const i = js.indexOf('function ' + name + '('); if(i < 0) throw new Error('no function ' + name); return braceFrom(i); }
 function varSrc(name) { const m = js.match(new RegExp('\\n\\s*var ' + name + ' = [\\s\\S]*?;\\s*(//.*)?\\n')); if(!m) throw new Error('no var ' + name); return m[0]; }
+function varSrcOpt(name) { try { return varSrc(name); } catch(e) { return ''; } }   // v2.3.18
 function handlerSrc(marker) {
   const i = js.indexOf(marker);
   if(i < 0) throw new Error('marker not found: ' + marker);
@@ -332,15 +333,19 @@ function makeEnv(rig, clock) {
   let code = ['sending', 'send_que', 'send_que_all', 'single_que', 'use_long_timeout', 'readonly_keys', 'display_keep_keys', 'unsent_base',
     'unsent_skip_keys', 'always_send_params', 'last_send_params', 'post_chunk_timeout', 'post_chunk_retries', 'long_timeout',
     'post_min_gap_ms', 'post_max_per_s', 'post_starts', 'post_rate_timer', 'post_rate_args', 'lock_enable_keys'].map(varSrc).join('\n');
+  // v2.3.18: Single poll and read-only keys of the send_all (absent in older pages)
+  code += '\n' + ['server_ro_keys', 'single_poll_ms', 'single_seq', 'single_seq_done'].map(varSrcOpt).join('\n');
   code += '\nvar params = {original:null, local:null};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n' +
           'var set_trigger_val = false, plot_time_units = null, update_timer = null, datasets = [];\n';
+  if(js.includes('function scheduleSinglePoll(')) code += fnSrc('scheduleSinglePoll') + '\n';
   code += ['unsentChanges', 'loadParams', 'updateTimeUnits', 'isParamChanged', 'splitParams', 'postParamsChunks', 'sendParams',
            'postEnd', 'sendableValue', 'isSendable', 'hasRealChange', 'lockStatus', 'lockSetBtn', 'lock_status_display',
            'doGetData', 'runStop', 'singleUpdate', 'serverAutoScale', 'onDropdownChange', 'timeUnitFactor', 'rampPeriodCycles',
            'clickToTrigTime', 'clickToTrigLevel', 'trigFromGraphTargets'].map(fnSrc).join('\n');
   code += '\n' + js.slice(js.indexOf('// [LOCK CAPTURE BEGIN]'), js.indexOf('// [LOCK CAPTURE END]'));
   // updateGraphData() without the 2.0 claim checks (not part of this test)
-  code += '\nfunction updateGraphData() { if(downloading) return; if(update_timer) { clearTimeout(update_timer); update_timer = null; }' +
+  // (v2.3.18: scope_stop = Stop button, as the real one)
+  code += '\nvar scope_stop = false;\nfunction updateGraphData() { if(downloading || scope_stop) return; if(update_timer) { clearTimeout(update_timer); update_timer = null; }' +
           ' downloading = true; doGetData(); }\n';
   code += '\nvar clickRequest = ' + handlerSrc("$('#lock_ctrl_aux_launch_lock_trig,#lock_ctrl_aux_lock_now').on('click'") + ';\n';
   code += '\nvar clickSetTrig = ' + handlerSrc("$('#btn_set_trig').on('click'") + ';\n';
@@ -707,6 +712,45 @@ for(const [name, init] of [['Time', {}], ['Level', { lock_ctrl_aux_trig_type: 2 
         /delete p\.ui_capture_lock/.test(fnSrc('restoreState')) && /delete p\.ui_fire_on_click/.test(fnSrc('restoreState')));
   check('6.7 config load: capture ended, ui of the config applied (code check)', /lockCaptureEnd\('none'\)/.test(fnSrc('config_load_storage')) &&
         /uiPrefsSet\(params\.storage\[num\]\.ui\)/.test(fnSrc('config_load_storage')));
+}
+
+// ---- 7. v2.3.18: light polling in Single, console reason of the end of a capture ------------------------------
+{
+  const E = setup({ capture: false });
+  E.select('trig_mode', 2); E.run(300);
+  const t0 = E.clock.t, g0 = E.rig.gets;
+  E.run(5000);
+  const g5 = E.rig.gets - g0;
+  check('7.1 Single (no click): GET /data keeps polling, about 1 per second (not 0, not fast)', g5 >= 3 && g5 <= 7, E, g5 + ' GET in 5 s');
+  const cap0 = E.shownCap() ? E.shownCap().id : 0, t1 = E.clock.t, c0 = E.rig.captures.length;
+  E.get('singleUpdate')(); E.run(400);
+  const cap1 = E.shownCap() ? E.shownCap().id : 0, newc = E.rig.captures.slice(c0);
+  check('7.2 Single click: its acquisition is fetched at once (fast polling while waiting)', newc.length == 1 && cap1 == newc[0].id && cap1 != cap0,
+        E, 'captures ' + newc.length + ', shown ' + cap1 + ' (before ' + cap0 + ')');
+  const g1 = E.rig.gets; E.run(4000);
+  const g4 = E.rig.gets - g1;
+  check('7.3 after the acquisition: back to the slow poll', g4 >= 2 && g4 <= 6, E, g4 + ' GET in 4 s');
+  E.select('trig_mode', 0); E.run(1000);
+  const ga = E.rig.gets; E.run(1000);
+  check('7.4 back to Auto: normal polling (one GET after another; 200 ms each without new data in this model)', E.rig.gets - ga >= 4, E, (E.rig.gets - ga) + ' GET in 1 s');
+  E.select('trig_mode', 2); E.run(300);
+  E.get('scope_stop = true'); E.run(1500);
+  const gs = E.rig.gets; E.run(3000);
+  check('7.5 Single with the plot stopped (Stop button): the poll chain ends', E.rig.gets - gs == 0, E, (E.rig.gets - gs) + ' GET in 3 s');
+  E.get('scope_stop = false');
+
+  const H = setup({});
+  H.click('lock_ctrl_aux_launch_lock_trig'); H.run(600);
+  H.get('serverAutoScale')(); H.run(100);
+  const G = setup({});
+  G.click('lock_ctrl_aux_launch_lock_trig'); G.run(600);
+  G.dom.ui_capture_lock = G.dom.ui_capture_lock || { cls: new Set(), prop: {} };
+  G.dom.ui_capture_lock.prop.checked = false;
+  G.get('changeCapture').call({ id: 'ui_capture_lock' }); G.run(300);
+  const msgs = H.log.concat(G.log).filter(l => l.kind == 'LOG' && /Capture Lock: ended by/.test(l.m)).map(l => l.m);
+  check('7.6 console: "Capture Lock: ended by AUTO" / "... by unchecking Capture Lock", never "ended by ,"',
+        msgs.some(m => /ended by AUTO,/.test(m)) && msgs.some(m => /ended by unchecking Capture Lock,/.test(m)) &&
+        !msgs.some(m => /ended by ,/.test(m)), null, JSON.stringify(msgs));
 }
 
 console.log('=== ' + n + ' checks, ' + fails + ' failed ===');

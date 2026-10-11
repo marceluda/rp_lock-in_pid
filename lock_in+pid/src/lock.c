@@ -52,6 +52,20 @@ float lock_error_var = 0 ;
  *    i.e. when it was written from outside (Python, c/lock, monitor). */
 static uint32_t lock_control_written = 0xffffffff ;
 
+/* v2.3.18: the lock trigger registers (this App: lock_trig_val 0x30, lock_trig_time 0x34, lock_trig_sw 0x38) follow the
+ * same rule as lock_control. Python (py/lock_from_registers.py --time/--level/--sw, control_finn.py) may write
+ * them: before, the web page never showed those values and lock_update() wrote its own copy back at the next
+ * change of any lock parameter (a lock armed from Python then fired at the time of the page).
+ *  - lock_update() writes each one only when the value derived from its parameter changes
+ *    (lock_trig_*_par: the derived value last seen);
+ *  - lock_update_status() reads them, and when a register differs from lock_trig_*_reg (the value written by
+ *    lock_update() or already taken from outside) copies it to its parameter.
+ * lock_trig_known = 0: nothing written yet (lock_init(), the first lock_update() writes all three). */
+static int      lock_trig_known    = 0 ;
+static int32_t  lock_trig_val_reg  = 0 , lock_trig_val_par  = 0 ;
+static uint32_t lock_trig_time_reg = 0 , lock_trig_time_par = 0 ;
+static uint32_t lock_trig_sw_reg   = 0 , lock_trig_sw_par   = 0 ;
+
 /**
  * GENERAL DESCRIPTION:
  *
@@ -74,6 +88,11 @@ static uint32_t lock_control_written = 0xffffffff ;
 
 int lock_init(void)
 {
+    /* v2.3.18: the registers are reset by fpga_lock_init(): nothing written by this controller yet
+     * (also if the library stays loaded between a stop and a start of the App) */
+    lock_control_written = 0xffffffff ;
+    lock_trig_known      = 0 ;
+
     if(fpga_lock_init() < 0) {
         return -1;
     }
@@ -141,9 +160,28 @@ int lock_update(rp_app_params_t *params)
         }
     }
   //g_lock_reg->lock_status               = (int)params[LOCK_LOCK_STATUS              ].value;
-    g_lock_reg->lock_trig_val             = (int)params[LOCK_LOCK_TRIG_VAL            ].value;
-    g_lock_reg->lock_trig_time            = lock_float_to_u32(params[LOCK_LOCK_TRIG_TIME_VAL].value);
-    g_lock_reg->lock_trig_sw              = (int)params[LOCK_LOCK_TRIG_SW             ].value;
+    { /* v2.3.18: lock trigger registers, written only when their parameter changes (see lock_trig_known;
+       * keep this block if the dock is regenerated) */
+        int32_t  tv = (int32_t)  params[LOCK_LOCK_TRIG_VAL ].value;
+        uint32_t tt = lock_float_to_u32(params[LOCK_LOCK_TRIG_TIME_VAL].value);
+        uint32_t ts = (uint32_t)(int)params[LOCK_LOCK_TRIG_SW  ].value;
+        if (!lock_trig_known || tv != lock_trig_val_par) {
+            g_lock_reg->lock_trig_val  = tv;
+            lock_trig_val_par  = tv;
+            lock_trig_val_reg  = (int32_t) g_lock_reg->lock_trig_val;    /* as the FPGA keeps it */
+        }
+        if (!lock_trig_known || tt != lock_trig_time_par) {
+            g_lock_reg->lock_trig_time = tt;
+            lock_trig_time_par = tt;
+            lock_trig_time_reg = g_lock_reg->lock_trig_time;
+        }
+        if (!lock_trig_known || ts != lock_trig_sw_par) {
+            g_lock_reg->lock_trig_sw   = ts;
+            lock_trig_sw_par   = ts;
+            lock_trig_sw_reg   = g_lock_reg->lock_trig_sw;
+        }
+        lock_trig_known = 1;
+    }
     g_lock_reg->rl_error_threshold        = (int)params[LOCK_RL_ERROR_THRESHOLD       ].value;
     g_lock_reg->rl_signal_sw              = (int)params[LOCK_RL_SIGNAL_SW             ].value;
     g_lock_reg->rl_signal_threshold       = (int)params[LOCK_RL_SIGNAL_THRESHOLD      ].value;
@@ -422,9 +460,10 @@ int lock_update_main(rp_app_params_t *params)
  * Copies the read only lock_status register (0x1C) to LOCK_LOCK_STATUS and lock_control to
  * LOCK_LOCK_CONTROL. If lock_control was written from outside the controller (it differs from
  * the last value written by lock_update()) its bits are copied to the LOCK_CTRL_AUX_* params,
- * so the web UI shows the commands/configuration written by Python. Nothing is ever written
- * to the FPGA here. Cheap (two register reads): called by rp_get_params() on every request
- * (also when the scope gets no triggers) and at the end of lock_update_main().
+ * so the web UI shows the commands/configuration written by Python. v2.3.18: the same for
+ * lock_trig_val, lock_trig_time and lock_trig_sw (LOCK_LOCK_TRIG_VAL, _TIME_VAL, _SW). Nothing
+ * is ever written to the FPGA here. Cheap (five register reads): called by rp_get_params() on
+ * every request (also when the scope gets no triggers) and at the end of lock_update_main().
  *
  * @param[in] params  Pointer to overall configuration parameters
  * @retval -1 FPGA not mapped
@@ -453,6 +492,30 @@ int lock_update_status(rp_app_params_t *params)
         params[LOCK_CTRL_AUX_TRIG_TYPE       ].value = (float) ((lc >>  8) & 0x03);
         params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value = (float) ((lc >> 10) & 0x01);
         lock_control_written = lc;
+    }
+
+    /* v2.3.18: lock trigger registers written from outside (see lock_trig_known) */
+    if(lock_trig_known) {
+        int32_t  tv = (int32_t) g_lock_reg->lock_trig_val;
+        uint32_t tt = g_lock_reg->lock_trig_time;
+        uint32_t ts = g_lock_reg->lock_trig_sw;
+        if(tv != lock_trig_val_reg) {
+            params[LOCK_LOCK_TRIG_VAL     ].value = (float) tv;
+            lock_trig_val_reg  = tv;
+            lock_trig_val_par  = (int32_t) params[LOCK_LOCK_TRIG_VAL].value;
+        }
+        if(tt != lock_trig_time_reg) {
+            /* float: above 2**24 ticks the parameter is rounded (<= 128 ticks, 1 us); the register keeps the
+             * exact value, lock_update() does not write it back unless the parameter changes */
+            params[LOCK_LOCK_TRIG_TIME_VAL].value = (float) tt;
+            lock_trig_time_reg = tt;
+            lock_trig_time_par = lock_float_to_u32(params[LOCK_LOCK_TRIG_TIME_VAL].value);
+        }
+        if(ts != lock_trig_sw_reg) {
+            params[LOCK_LOCK_TRIG_SW      ].value = (float) ts;
+            lock_trig_sw_reg   = ts;
+            lock_trig_sw_par   = (uint32_t)(int) params[LOCK_LOCK_TRIG_SW].value;
+        }
     }
 
     return 0;

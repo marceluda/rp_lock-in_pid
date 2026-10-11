@@ -12,6 +12,9 @@
 // forcex_flag 0 / time_units in a later chunk of the send_all ended the forceX, and the page kept the window in the
 // old units (x1000).
 //
+// v2.3.18: part 2 also checks that no read-only param of the server (read_only = 1 in src/main.c: meas_*, lock_X/Y,
+// lock_lock_status, lock_lock_control, ...) is sent by the send_all (testAgent 2026-10-10 19:35: 203-231 keys with them).
+//
 // Usage:  node test/config_load_window_sim.js [index.html] [--old]   (exit code 1 if a check fails)
 //         --old: an index.html of an older version; the checks are the same (they must fail), with more output.
 'use strict';
@@ -165,6 +168,10 @@ console.log('--- part 2: chunked send_all + server model (forceX handshake) + GE
 const SCOPE_KEYS = ['xmin', 'xmax', 'trig_mode', 'trig_source', 'trig_edge', 'trig_level', 'single_btn', 'en_avg_at_dec',
                     'auto_flag', 'min_y', 'max_y', 'forcex_flag', 'lock_oscA_sw', 'lock_oscB_sw', 'lock_osc_raw_mode', 'lock_osc_lockin_mode'];
 const READ_ONLY = ['trig_delay', 'time_range', 'time_units', 'gui_xmin', 'gui_xmax'];
+// v2.3.18: all the read-only params of src/main.c ({ "name", value, fpga_update, read_only = 1, min, max })
+const RO_MAIN = [...fs.readFileSync(path.join(__dirname, '..', 'src', 'main.c'), 'utf8')
+  .matchAll(/\{\s*(?:\/\*[^*]*\*+(?:[^/*][^*]*\*+)*\/\s*)?"([A-Za-z0-9_]+)"\s*,\s*[-+0-9.eE]+\s*,\s*[01]\s*,\s*1\s*,/g)].map(m => m[1]);
+if(RO_MAIN.length < 40) throw new Error('read-only params of src/main.c not found (' + RO_MAIN.length + ')');
 class Server {                      // rp_set_params() + transform_acq_params() (time range part) of src/main.c
   constructor(p) { this.P = Object.assign({}, p); this.fstate = 0; this.forced = null; this.posts = []; }
   set(chunk) {
@@ -227,6 +234,7 @@ function race(name, page, cfg, exp_s) {
   for(const k in P0) if(k.startsWith('lock_') && typeof P0[k] === 'number') P0[k] = P0[k] + 1;   // different values
   Object.assign(P0, { xmin: page.win[0], xmax: page.win[1], gui_xmin: page.win[0], gui_xmax: page.win[1], time_units: page.tu,
                       time_range: page.tu == 0 ? 0 : (page.tu == 1 ? 5 : 8), trig_mode: 1, trig_delay: 0 });
+  for(const k of RO_MAIN) if(!(k in P0)) P0[k] = 7;     // v2.3.18: the server answers all its params, read-only ones too
   // server order: xmin, xmax, scope params first, then the rest (as rp_main_params)
   const order = ['xmin', 'xmax', 'trig_mode', 'trig_source', 'trig_edge', 'trig_delay', 'trig_level', 'single_btn', 'time_range',
                  'time_units', 'en_avg_at_dec', 'auto_flag', 'min_y', 'max_y', 'forcex_flag'];
@@ -278,7 +286,8 @@ function race(name, page, cfg, exp_s) {
   const fns = ['timeUnitFactor', 'lockSetXWindow', 'configWindowSeconds', 'config_load_storage', 'sendParams', 'splitParams',
                'postParamsChunks', 'isParamChanged', 'hasRealChange', 'sendableValue', 'isSendable', 'updateTimeUnits', 'configLoadApplyX'];
   const opt = ['configWindowSeconds', 'configLoadApplyX', 'hasRealChange', 'sendableValue', 'isSendable'];
-  let src = ['always_send_params', 'last_send_params', 'send_all_skip', 'config_load_x_pending'].map(varSrc).join('\n');
+  let src = ['always_send_params', 'last_send_params', 'send_all_skip', 'config_load_x_pending', 'readonly_keys', 'display_keep_keys',
+             'server_ro_keys'].map(varSrc).join('\n');
   src += fns.map(f => fnSrc(f, !opt.includes(f))).join('\n');
   vm.runInContext(src, sb);
 
@@ -296,6 +305,8 @@ function race(name, page, cfg, exp_s) {
   const ax = sb.plotOpts.xaxes[0];
   const sent_bad = srv.posts.some(c => ['forcex_flag', 'time_units', 'time_range', 'gui_xmin', 'gui_xmax'].some(k => k in c));
   const chunks = srv.posts.length;
+  const ro_sent = [...new Set([].concat(...srv.posts.map(c => Object.keys(c).filter(k => RO_MAIN.includes(k)))))];
+  const n_keys = srv.posts.reduce((a, c) => a + Object.keys(c).length, 0);
   const fxk = srv.posts.findIndex(c => 'forcex_flag' in c);
   const checks = [
     [near(S.xmin / fS, exp_s[0]) && near(S.xmax / fS, exp_s[1]), `server ${S.xmin.toPrecision(7)}..${S.xmax.toPrecision(7)} ${U[S.time_units]}`],
@@ -303,6 +314,7 @@ function race(name, page, cfg, exp_s) {
      `page ${Number(L.xmin).toPrecision(7)}..${Number(L.xmax).toPrecision(7)} ${U[L.time_units]}`],
     [near(ax.min, L.xmin) && near(ax.max, L.xmax), `axes ${Number(ax.min).toPrecision(7)}..${Number(ax.max).toPrecision(7)}`],
     [!sent_bad, `${chunks} chunks, forcex_flag in chunk ${fxk < 0 ? '-' : fxk + 1}`],
+    [!ro_sent.length, `${n_keys} keys, read-only sent: ${ro_sent.length ? ro_sent.slice(0, 6).join(',') + (ro_sent.length > 6 ? ',...(' + ro_sent.length + ')' : '') : 'none'}`],
     [!errors.length, `errors ${errors.length}`],
   ];
   const ok = checks.every(c => c[0]);

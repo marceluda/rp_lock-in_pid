@@ -1321,8 +1321,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                 orig_params[TRIG_DLY_PARAM].value   = 0;
 
                 if (period > 0) {
-                    /* Period detected */
-                    const float c_min_t_span = 1e-7;
+                    /* Period detected. v2.3.18: minimum window 1 us (125 samples), it was 100 ns: with only
+                     * noise in the input (e.g. lock closed, ramp stopped) the "period" found in the noise
+                     * gave a window of 0...139 ns. A real signal of more than 1 MHz shows several periods. */
+                    const float c_min_t_span = 1e-6;
                     if (period < c_min_t_span / 1.5) {
                         period = c_min_t_span / 1.5;
                     }

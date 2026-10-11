@@ -1,6 +1,34 @@
 
 # Devbuild  changes
 
+## 2.2.7 - Minor fixes of lock_in+pid_harmonic 2.3.18 (no FPGA change)
+Port of the fixes of lock_in+pid_harmonic v2.3.18 that apply to this App (it has no streaming, no `control_finn.py`
+/ `example_usage.py`). The FPGA image is the one of 2.2.6 (only comments of `lock.v` changed). Comments that quote
+v2.3.18 refer to lock_in+pid_harmonic.
+  - BUGFIX: **lock trigger registers written from Python** (`py/lock_from_registers.py --time/--level/--sw`):
+            `lock_trig_val` (0x30), `lock_trig_time` (0x34) and `lock_trig_sw` (0x38) follow the rule of `lock_control`:
+            the C writes each one only when its parameter changes and copies a value written from outside to the
+            parameter, so the page shows it and keeps it (before, it was not shown and the page value was written
+            back at the next change of any lock parameter: on the board the lock fired at 18 ms instead of 100 ms).
+  - BUGFIX: Config -> load sent read-only parameters of the server (`meas_*`, `lock_X/Y/...`, `lock_lock_status`,
+            `lock_lock_control`, `trig_delay`, ...): skipped (`server_ro_keys`).
+  - BUGFIX: Single mode made no request at all after its acquisition (a `bazaar?stop` or another client was not
+            noticed, the lock label was not refreshed): 1 s polling in Single; an `AGAIN` answer starts the fast
+            polling only while a Single click waits for its acquisition.
+  - BUGFIX: console "Capture Lock: ended by , scope settings restored" (the reason is given); the mouse wheel on
+            Ramp period / limits, PID, modulation and lock trigger fields updates the text below them; X+ of the plot
+            range up to 68.72 s (it stopped at 10 s).
+  - BUGFIX: `py/lock_from_registers.py`: `--time` clamped to 0..2^32-1 ticks with a message (`40s` gave
+            `OverflowError`), `ns`/`us` accepted, `--sw` 0..15, docstring (`--sw` is "Signal for trigger"; here
+            6-8 are the real signals sqXo/sqYo/sqFo).
+  - BUGFIX: `upload_app.sh`: rw script of the OS as the Makefile, `-w` removed `{index.html,js.css}` (`js,css`),
+            `fpga.sh` exec bit.
+  - CHANGED: AUTO minimum window 1 us (was 100 ns: with noise only it gave 0...139 ns).
+  - CHANGED: texts: `ctrl_B` = pidB_out + ramp_B (`lock.v`, `fpga_lock.h`, `main.c`, `config_tool.py`); `src/fpga.h`
+            20-bit decimation; `doc/lock_control.md`, `doc/Remote.md` (trigger registers written from outside).
+  - TESTS: `test/minor_ui_sim.js` (new), `lock_capture_ui_sim.js` part 7 (Single polling), `config_load_window_sim.js`
+            (no read-only key sent), `auto_set_c_sim` parts 4 and 5.
+
 ## Documentation (after 2.2.6, not a new version)
   - FEATURE: `doc/` written for v2.2.6: `App.md` (instruments and technical data), `Usage.md` (web interface and
              procedures, screenshots in `doc/.Usage/`), `Structure.md` (layers and FPGA block diagrams, Mermaid),

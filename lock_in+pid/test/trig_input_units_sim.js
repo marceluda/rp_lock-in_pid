@@ -94,6 +94,10 @@ if(!OLD) src += varSrc('lock_trig_time_units') + '\n' + varSrc('lock_trig_level_
 for(const n of need.concat(OLD ? [] : needNew)) { const s = fnSrc(n); if(!s) throw new Error('not found: ' + n); src += s + '\n'; }
 if(!OLD) src += varSrc('input_unit_parsers') + '\n';
 src += 'var trig_time, trig_val, aux_trig_type;\n';
+// v2.3.18: wheel_text_update (assigned in the page load handler): the real assignment, other updaters as stubs
+src += 'var wheel_text_update = {};\nfunction lock_modulation_update() {}\nfunction lock_pidA_update() {}\n' +
+       'function lock_pidB_update() {}\nfunction lock_ramp_step_update() {}\n';
+{ const wi = js.indexOf('    wheel_text_update = {'); if(wi >= 0) src += braceFrom(wi) + ';\n'; }
 const si = js.indexOf('var ScrollIncrement = function');
 src += braceFrom(si) + ';\n';
 // lock_ctrl_update() ends with the switch of the containers (the original code uses the globals of the page)

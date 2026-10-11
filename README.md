@@ -14,7 +14,7 @@ the use of the App, its instruments and some suggested applications.
 
 ## Version 2.2.x (Ecosystem 2.0)
 
-Current version: **2.2.6** (branch `devel2.0`).
+Current version: **2.2.7** (branch `devel2.0`).
 
 This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
 using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)
@@ -31,6 +31,9 @@ The 0.2.x series (branch `master`, FPGA with Vivado 2015.2) is the version for t
   ([lock_in+pid/doc/lock_capture.md](lock_in+pid/doc/lock_capture.md)), 32-bit lock time trigger (up to 34.36 s),
   trigger fields with units, Config → load time window, scope time range up to 68.7 s, `py/lock_from_registers.py`,
   and the other web UI fixes of lock_in+pid_harmonic 2.3.10-2.3.17.
+- 2.2.7: the minor fixes of lock_in+pid_harmonic 2.3.18 (same FPGA): lock trigger registers written from Python
+  shown and kept by the page, Single mode keeps a slow poll, Config → load without read-only keys, X+ up to 68.7 s,
+  `lock_from_registers.py --time` clamped.
 - See the [CHANGELOG](CHANGELOG.md).
 
 ## Features
