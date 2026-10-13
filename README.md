@@ -14,7 +14,7 @@ the use of the App, its instruments and some suggested applications.
 
 ## Version 2.2.x (Ecosystem 2.0)
 
-Current version: **2.2.7** (branch `devel2.0`).
+Current version: **2.2.8** (branch `devel2.0`).
 
 This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
 using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)

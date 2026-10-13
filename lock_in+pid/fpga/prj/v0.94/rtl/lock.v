@@ -186,8 +186,10 @@ module lock(
     // ERASE lolo // wire                 ramp_trig ;
 
 
-    wire signed [14-1:0] Xo,Yo,F1o,F2o,F3o ;
-    wire signed [14-1:0] sqXo,sqYo,sqFo ;
+    // v2.2.8: Xo..F3o, sqXo..sqFo are registers (lock-in outputs, +2 clocks in total, see doc/lock_latency.md)
+    reg  signed [14-1:0] Xo=14'd0,Yo=14'd0,F1o=14'd0,F2o=14'd0,F3o=14'd0 ;
+    reg  signed [14-1:0] sqXo=14'd0,sqYo=14'd0,sqFo=14'd0 ;
+    wire signed [14-1:0] Xo_w,Yo_w,F1o_w,F2o_w,F3o_w,sqXo_w,sqYo_w,sqFo_w ;
 
 
     wire signed [14-1:0] slow_out1_14,slow_out2_14,slow_out3_14,slow_out4_14 ;
@@ -195,6 +197,9 @@ module lock(
     wire        [24-1:0] slow_out1_aux,slow_out2_aux,slow_out3_aux,slow_out4_aux ;
 
     wire signed [14-1:0] pidA_out_cache,pidB_out_cache ;
+    reg                  pidA_enable_d=1'b0,pidB_enable_d=1'b0 ;   // v2.2.8
+    wire signed [14-1:0] out1_w,out2_w ;                         // v2.2.8
+    reg  signed [14-1:0] out1_r=14'd0,out2_r=14'd0 ;             // v2.2.8
 
     wire signed [15-1:0] in1_m_in2,in1_m_in2_aux;
 
@@ -219,7 +224,8 @@ module lock(
     wire        [50-1:0] cnt_next;
     wire                 freeze ;
 
-    wire signed [14-1:0] sq_ref_mult14, sq_quad_mult14, sq_phas_mult14;
+    wire signed [14-1:0] sq_ref_mult14_w, sq_quad_mult14_w, sq_phas_mult14_w;
+    reg  signed [14-1:0] sq_ref_mult14=14'd0, sq_quad_mult14=14'd0, sq_phas_mult14=14'd0;   // v2.2.8
 
     // wires for signal processing
     wire signed  [ 28-1: 0]   sin_ref_mult,  cos_ref_mult,   cos_1f_mult,   cos_2f_mult,   cos_3f_mult,   sq_ref_mult,  sq_quad_mult,  sq_phas_mult;
@@ -364,7 +370,7 @@ module lock(
         .in15 ( aux_A             ), // in15
 
         // output
-        .out ( out1   )
+        .out ( out1_w )
     );
 
 
@@ -388,8 +394,18 @@ module lock(
         .in14 ( error             ), // in14
         .in15 ( aux_B             ), // in15
         // output
-        .out ( out2  )
+        .out ( out2_w )
     );
+
+    // v2.2.8: the outputs to the DACs are registered (+1 clock, 8 ns, for everything that goes out). The chain
+    // PID -> ctrl_A/B (+ ramp, saturation) -> out mux did not fit in one clock before the DAC registers
+    // (red_pitaya_top.sv) and the scope muxes. See doc/lock_latency.md.
+    always @(posedge clk) begin
+        out1_r <= out1_w ;
+        out2_r <= out2_w ;
+    end
+    assign out1 = out1_r ;
+    assign out2 = out2_r ;
 
 
     // test an debug
@@ -826,21 +842,52 @@ module lock(
 
 
     // signal_i multiplied by reference signal
-    mult_dsp_14  i_mult_dps_sin_ref (.CLK(clk), .A($signed(sin_ref)) , .B(signal_i), .P(sin_ref_mult));
-    mult_dsp_14  i_mult_dps_cos_ref (.CLK(clk), .A($signed(cos_ref)) , .B(signal_i), .P(cos_ref_mult));
-    mult_dsp_14  i_mult_dps_cos_1f  (.CLK(clk), .A($signed(cos_1f )) , .B(signal_i), .P(cos_1f_mult ));
-    mult_dsp_14  i_mult_dps_cos_2f  (.CLK(clk), .A($signed(cos_2f )) , .B(signal_i), .P(cos_2f_mult ));
-    mult_dsp_14  i_mult_dps_cos_3f  (.CLK(clk), .A($signed(cos_3f )) , .B(signal_i), .P(cos_3f_mult ));
+
+    // v2.2.8 (from lock_in+pid_harmonic v2.3.19): the references go to the multipliers of the lock-in 1 clock
+    // later than to the outputs (modulation). The outputs to the DACs got a register (+1 clock): with this one
+    // the reference and the signal that comes back through DAC -> system -> ADC keep the phase of before
+    // (the lock-in outputs: same latency from in1). See doc/lock_latency.md.
+    reg  signed [14-1:0] sin_ref_d=14'd0, cos_ref_d=14'd0, cos_1f_d=14'd0, cos_2f_d=14'd0, cos_3f_d=14'd0 ;
+    always @(posedge clk) begin
+        sin_ref_d <= sin_ref ;
+        cos_ref_d <= cos_ref ;
+        cos_1f_d <= cos_1f ;
+        cos_2f_d <= cos_2f ;
+        cos_3f_d <= cos_3f ;
+    end
+    mult_dsp_14  i_mult_dps_sin_ref (.CLK(clk), .A($signed(sin_ref_d)) , .B(signal_i), .P(sin_ref_mult));
+    mult_dsp_14  i_mult_dps_cos_ref (.CLK(clk), .A($signed(cos_ref_d)) , .B(signal_i), .P(cos_ref_mult));
+    mult_dsp_14  i_mult_dps_cos_1f  (.CLK(clk), .A($signed(cos_1f_d)) , .B(signal_i), .P(cos_1f_mult ));
+    mult_dsp_14  i_mult_dps_cos_2f  (.CLK(clk), .A($signed(cos_2f_d)) , .B(signal_i), .P(cos_2f_mult ));
+    mult_dsp_14  i_mult_dps_cos_3f  (.CLK(clk), .A($signed(cos_3f_d)) , .B(signal_i), .P(cos_3f_mult ));
 
 
     //mult_dsp_14  i_mult_dps_sq_ref  (.CLK(clk), .A($signed(sq_ref )) , .B(signal_i), .P(sq_ref_mult ));
     //mult_dsp_14  i_mult_dps_sq_quad (.CLK(clk), .A($signed(sq_quad)) , .B(signal_i), .P(sq_quad_mult));
     //mult_dsp_14  i_mult_dps_sq_phas (.CLK(clk), .A($signed(sq_phas)) , .B(signal_i), .P(sq_phas_mult));
 
+    // v2.2.8: the same 1 clock for the references of the square lock-in (see above)
+    reg  sq_ref_b_d=1'b0, sq_quad_b_d=1'b0, sq_phas_b_d=1'b0 ;
+    always @(posedge clk) begin
+        sq_ref_b_d  <= sq_ref_b  ;
+        sq_quad_b_d <= sq_quad_b ;
+        sq_phas_b_d <= sq_phas_b ;
+    end
 
-    sq_mult    i_sq_mult_sq_ref  (.clk(clk),.rst(rst), .ref( sq_ref_b   ), .in( signal_i ),.out( sq_ref_mult14   ) );
-    sq_mult    i_sq_mult_sq_quad (.clk(clk),.rst(rst), .ref( sq_quad_b  ), .in( signal_i ),.out( sq_quad_mult14  ) );
-    sq_mult    i_sq_mult_sq_phas (.clk(clk),.rst(rst), .ref( sq_phas_b  ), .in( signal_i ),.out( sq_phas_mult14  ) );
+
+    sq_mult    i_sq_mult_sq_ref  (.clk(clk),.rst(rst), .ref( sq_ref_b_d   ), .in( signal_i ),.out( sq_ref_mult14_w   ) );
+    sq_mult    i_sq_mult_sq_quad (.clk(clk),.rst(rst), .ref( sq_quad_b_d  ), .in( signal_i ),.out( sq_quad_mult14_w  ) );
+    sq_mult    i_sq_mult_sq_phas (.clk(clk),.rst(rst), .ref( sq_phas_b_d  ), .in( signal_i ),.out( sq_phas_mult14_w  ) );
+
+    // v2.2.8: the products of the square lock-in (sign change of signal_i, combinational in sq_mult) are
+    // registered (+1 clock, like the multipliers of the harmonic lock-in): signal_i -> sign change -> first LPF
+    // stage did not fit in 8 ns. The first LPF stage of these lines has no output register (.DREG(1) instead),
+    // so the square lock-in outputs also come 2 clocks later in total. See doc/lock_latency.md.
+    always @(posedge clk) begin
+        sq_ref_mult14   <= sq_ref_mult14_w  ;
+        sq_quad_mult14  <= sq_quad_mult14_w ;
+        sq_phas_mult14  <= sq_phas_mult14_w ;
+    end
 
     assign sq_ref_mult  = {   {6{sq_ref_mult14[13]}} , sq_ref_mult14  , 12'b0 } ;
     assign sq_quad_mult = {  {6{sq_quad_mult14[13]}} , sq_quad_mult14 , 12'b0 } ;
@@ -849,24 +896,24 @@ module lock(
 
 
     // multiplied signal " "_mult goes in LPF_?_A
-    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_A (.clk(clk), .rst(rst), .tau( lpf_X_A   ), .in( sin_ref_mult ), .out( sin_ref_lpf1 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_A (.clk(clk), .rst(rst), .tau( lpf_Y_A   ), .in( cos_ref_mult ), .out( cos_ref_lpf1 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_1f_A  (.clk(clk), .rst(rst), .tau( lpf_F1_A  ), .in( cos_1f_mult  ), .out( cos_1f_lpf1  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_2f_A  (.clk(clk), .rst(rst), .tau( lpf_F2_A  ), .in( cos_2f_mult  ), .out( cos_2f_lpf1  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_3f_A  (.clk(clk), .rst(rst), .tau( lpf_F3_A  ), .in( cos_3f_mult  ), .out( cos_3f_lpf1  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_A  (.clk(clk), .rst(rst), .tau( lpf_sqX_A ), .in( sq_ref_mult  ), .out( sq_ref_lpf1  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_A (.clk(clk), .rst(rst), .tau( lpf_sqY_A ), .in( sq_quad_mult ), .out( sq_quad_lpf1 ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_A (.clk(clk), .rst(rst), .tau( lpf_sqF_A ), .in( sq_phas_mult ), .out( sq_phas_lpf1 ) );
+    LP_filter3 #(.R(28),.OREG(1)) i_LP_filter_sin_ref_A (.clk(clk), .rst(rst), .tau( lpf_X_A   ), .in( sin_ref_mult ), .out( sin_ref_lpf1 ) );
+    LP_filter3 #(.R(28),.OREG(1)) i_LP_filter_cos_ref_A (.clk(clk), .rst(rst), .tau( lpf_Y_A   ), .in( cos_ref_mult ), .out( cos_ref_lpf1 ) );
+    LP_filter3 #(.R(28),.OREG(1)) i_LP_filter_cos_1f_A  (.clk(clk), .rst(rst), .tau( lpf_F1_A  ), .in( cos_1f_mult  ), .out( cos_1f_lpf1  ) );
+    LP_filter3 #(.R(28),.OREG(1)) i_LP_filter_cos_2f_A  (.clk(clk), .rst(rst), .tau( lpf_F2_A  ), .in( cos_2f_mult  ), .out( cos_2f_lpf1  ) );
+    LP_filter3 #(.R(28),.OREG(1)) i_LP_filter_cos_3f_A  (.clk(clk), .rst(rst), .tau( lpf_F3_A  ), .in( cos_3f_mult  ), .out( cos_3f_lpf1  ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_ref_A  (.clk(clk), .rst(rst), .tau( lpf_sqX_A ), .in( sq_ref_mult  ), .out( sq_ref_lpf1  ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_quad_A (.clk(clk), .rst(rst), .tau( lpf_sqY_A ), .in( sq_quad_mult ), .out( sq_quad_lpf1 ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_phas_A (.clk(clk), .rst(rst), .tau( lpf_sqF_A ), .in( sq_phas_mult ), .out( sq_phas_lpf1 ) );
 
     // LPF_A goes into LPF_?_B
-    LP_filter3 #(.R(28)) i_LP_filter_sin_ref_B (.clk(clk), .rst(rst), .tau( lpf_X_B   ), .in( sin_ref_lpf1 ), .out( sin_ref_lpf2 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_ref_B (.clk(clk), .rst(rst), .tau( lpf_Y_B   ), .in( cos_ref_lpf1 ), .out( cos_ref_lpf2 ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_1f_B  (.clk(clk), .rst(rst), .tau( lpf_F1_B  ), .in( cos_1f_lpf1  ), .out( cos_1f_lpf2  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_2f_B  (.clk(clk), .rst(rst), .tau( lpf_F2_B  ), .in( cos_2f_lpf1  ), .out( cos_2f_lpf2  ) );
-    LP_filter3 #(.R(28)) i_LP_filter_cos_3f_B  (.clk(clk), .rst(rst), .tau( lpf_F3_B  ), .in( cos_3f_lpf1  ), .out( cos_3f_lpf2  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_ref_B  (.clk(clk), .rst(rst), .tau( lpf_sqX_B ), .in( sq_ref_lpf1  ), .out( sq_ref_lpf2  ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_quad_B (.clk(clk), .rst(rst), .tau( lpf_sqY_B ), .in( sq_quad_lpf1 ), .out( sq_quad_lpf2 ) );
-    LP_filter2 #(.R(28)) i_LP_filter_sq_phas_B (.clk(clk), .rst(rst), .tau( lpf_sqF_B ), .in( sq_phas_lpf1 ), .out( sq_phas_lpf2 ) );
+    LP_filter3 #(.R(28),.DREG(1)) i_LP_filter_sin_ref_B (.clk(clk), .rst(rst), .tau( lpf_X_B   ), .in( sin_ref_lpf1 ), .out( sin_ref_lpf2 ) );
+    LP_filter3 #(.R(28),.DREG(1)) i_LP_filter_cos_ref_B (.clk(clk), .rst(rst), .tau( lpf_Y_B   ), .in( cos_ref_lpf1 ), .out( cos_ref_lpf2 ) );
+    LP_filter3 #(.R(28),.DREG(1)) i_LP_filter_cos_1f_B  (.clk(clk), .rst(rst), .tau( lpf_F1_B  ), .in( cos_1f_lpf1  ), .out( cos_1f_lpf2  ) );
+    LP_filter3 #(.R(28),.DREG(1)) i_LP_filter_cos_2f_B  (.clk(clk), .rst(rst), .tau( lpf_F2_B  ), .in( cos_2f_lpf1  ), .out( cos_2f_lpf2  ) );
+    LP_filter3 #(.R(28),.DREG(1)) i_LP_filter_cos_3f_B  (.clk(clk), .rst(rst), .tau( lpf_F3_B  ), .in( cos_3f_lpf1  ), .out( cos_3f_lpf2  ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_ref_B  (.clk(clk), .rst(rst), .tau( lpf_sqX_B ), .in( sq_ref_lpf1  ), .out( sq_ref_lpf2  ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_quad_B (.clk(clk), .rst(rst), .tau( lpf_sqY_B ), .in( sq_quad_lpf1 ), .out( sq_quad_lpf2 ) );
+    LP_filter2 #(.R(28),.DREG(1)) i_LP_filter_sq_phas_B (.clk(clk), .rst(rst), .tau( lpf_sqF_B ), .in( sq_phas_lpf1 ), .out( sq_phas_lpf2 ) );
 
 
     wire signed [37-1:0] Xo_37,Yo_37,F1o_37,F2o_37,F3o_37,sqXo_37,sqYo_37,sqFo_37;
@@ -1042,14 +1089,23 @@ module lock(
     assign sqFo_16 = $signed(sqFo_28[27-1:11]) + sqFo_28[10] ;
 
 
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_Xo    ( .in( Xo_16 ),     .out( Xo    ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_Yo    ( .in( Yo_16 ),     .out( Yo    ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F1o   ( .in( F1o_16 ),    .out( F1o   ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F2o   ( .in( F2o_16 ),    .out( F2o   ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F3o   ( .in( F3o_16 ),    .out( F3o   ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqXo  ( .in( sqXo_16 ),   .out( sqXo  ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqYo  ( .in( sqYo_16 ),   .out( sqYo  ) );
-    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqFo  ( .in( sqFo_16 ),   .out( sqFo  ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_Xo    ( .in( Xo_16 ),     .out( Xo_w    ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_Yo    ( .in( Yo_16 ),     .out( Yo_w    ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F1o   ( .in( F1o_16 ),    .out( F1o_w   ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F2o   ( .in( F2o_16 ),    .out( F2o_w   ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_F3o   ( .in( F3o_16 ),    .out( F3o_w   ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqXo  ( .in( sqXo_16 ),   .out( sqXo_w  ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqYo  ( .in( sqYo_16 ),   .out( sqYo_w  ) );
+    satprotect #(.Ri(16),.Ro(14),.SAT(14)) i_satprotect_sqFo  ( .in( sqFo_16 ),   .out( sqFo_w  ) );
+
+    // v2.2.8 (port of lock_in+pid_harmonic v2.3.19): the lock-in outputs are registered (+1 clock); with the
+    // output register of the first LPF stage (.OREG(1)) they come 2 clocks (16 ns) later than in v2.2.7.
+    // The chain LPF -> bypass -> shift -> saturation -> rounding -> PID / scope / lock_ctrl did not fit in 8 ns.
+    always @(posedge clk) begin
+        Xo   <= Xo_w  ;   Yo   <= Yo_w  ;
+        F1o  <= F1o_w ;   F2o  <= F2o_w ;   F3o  <= F3o_w ;
+        sqXo <= sqXo_w;   sqYo <= sqYo_w;   sqFo <= sqFo_w;
+    end
 
     /*
     // This is better, 2 factor to compensate the Amplitude / 2 lock-in measurement.
@@ -1184,7 +1240,10 @@ module lock(
       .int_rst_i    (  pidA_irst|(~pidA_enable_ctrl)    )   // integrator reset
     );
 
-    assign pidA_out = pidA_enable_ctrl ? pidA_out_cache : 14'b0 ;
+    // v2.2.8: the PID output is registered inside lock_pid_block (+1 clock); the enable that gates it is
+    // delayed by the same clock, so pidA_out is exactly the one of v2.2.7 one clock later
+    always @(posedge clk) pidA_enable_d <= pidA_enable_ctrl ;
+    assign pidA_out = pidA_enable_d ? pidA_out_cache : 14'b0 ;
 
     muxer5  #(.RES(14)) i_muxer5_pidB (
         // input
@@ -1233,7 +1292,8 @@ module lock(
       .int_rst_i    (  pidB_irst|(~pidB_enable_ctrl)    )   // integrator reset
     );
 
-    assign pidB_out = pidB_enable_ctrl ? pidB_out_cache : 14'b0 ;
+    always @(posedge clk) pidB_enable_d <= pidB_enable_ctrl ;
+    assign pidB_out = pidB_enable_d ? pidB_out_cache : 14'b0 ;
 
 
     /* end PIDs Blocks  ***********************************************/

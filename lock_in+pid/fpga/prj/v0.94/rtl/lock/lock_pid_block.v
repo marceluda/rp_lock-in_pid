@@ -158,6 +158,9 @@ wire  signed [   64-1: 0] int_sum,int_sum_sat; // error * ki + Memory
 reg   signed [   63-1: 0] int_reg       ;      // Memory
 wire  signed [   63-1: 0] int_shr       ;      // Memory / 2**ISR  ---> THIS GOES TO PID OUT
 reg   signed [   63-1: 0] int_shr_reg   ;      // Memory aux
+wire         [   64-1: 0] int_mask      ;      // v2.3.19: saturation of the integrator (see below)
+wire                      int_pos_sat, int_neg_sat ;
+wire  signed [   63-1: 0] int_shr_next  ;      // v2.3.19: next value of int_shr_reg
 //reg          [    5-1: 0] ISR_sat       ;      // Saturation aux
 
 //wire  signed [   47-1: 0] int_shr1       ;      //
@@ -184,18 +187,19 @@ always @(posedge clk_i) begin
       else
          begin
             int_reg     <= int_sum_sat[63-1: 0];
+            int_shr_reg <= int_shr_next;   // v2.3.19: = case (ISR) of int_sum_sat[63-1:0] (see below)
             case (ISR)
-               4'd0     : begin int_shr_reg <= int_sum_sat[63-1: 0];                               sat_int <= sat_i[8-1:0]+ 5'd0  ;        end
-               4'd1     : begin int_shr_reg <= {  {3{int_sum_sat[63-1]}} , int_sum_sat[63-1:3] };  sat_int <= sat_i[8-1:0]+ 5'd3  ;        end
-               4'd2     : begin int_shr_reg <= {  {6{int_sum_sat[63-1]}} , int_sum_sat[63-1:6] };  sat_int <= sat_i[8-1:0]+ 5'd6  ;        end
-               4'd3     : begin int_shr_reg <= { {10{int_sum_sat[63-1]}} , int_sum_sat[63-1:10]};  sat_int <= sat_i[8-1:0]+ 5'd10 ;        end
-               4'd4     : begin int_shr_reg <= { {13{int_sum_sat[63-1]}} , int_sum_sat[63-1:13]};  sat_int <= sat_i[8-1:0]+ 5'd13 ;        end
-               4'd5     : begin int_shr_reg <= { {16{int_sum_sat[63-1]}} , int_sum_sat[63-1:16]};  sat_int <= sat_i[8-1:0]+ 5'd16 ;        end
-               4'd6     : begin int_shr_reg <= { {20{int_sum_sat[63-1]}} , int_sum_sat[63-1:20]};  sat_int <= sat_i[8-1:0]+ 5'd20 ;        end
-               4'd7     : begin int_shr_reg <= { {23{int_sum_sat[63-1]}} , int_sum_sat[63-1:23]};  sat_int <= sat_i[8-1:0]+ 5'd23 ;        end
-               4'd8     : begin int_shr_reg <= { {26{int_sum_sat[63-1]}} , int_sum_sat[63-1:26]};  sat_int <= sat_i[8-1:0]+ 5'd26 ;        end
-               4'd9     : begin int_shr_reg <= { {30{int_sum_sat[63-1]}} , int_sum_sat[63-1:30]};  sat_int <= sat_i[8-1:0]+ 5'd30 ;        end
-               default  : begin int_shr_reg <= int_sum_sat[63-1: 0] ;                              sat_int <= sat_i[8-1:0]+ 5'd0  ;        end
+               4'd0     : begin sat_int <= sat_i[8-1:0]+ 5'd0  ;        end
+               4'd1     : begin sat_int <= sat_i[8-1:0]+ 5'd3  ;        end
+               4'd2     : begin sat_int <= sat_i[8-1:0]+ 5'd6  ;        end
+               4'd3     : begin sat_int <= sat_i[8-1:0]+ 5'd10 ;        end
+               4'd4     : begin sat_int <= sat_i[8-1:0]+ 5'd13 ;        end
+               4'd5     : begin sat_int <= sat_i[8-1:0]+ 5'd16 ;        end
+               4'd6     : begin sat_int <= sat_i[8-1:0]+ 5'd20 ;        end
+               4'd7     : begin sat_int <= sat_i[8-1:0]+ 5'd23 ;        end
+               4'd8     : begin sat_int <= sat_i[8-1:0]+ 5'd26 ;        end
+               4'd9     : begin sat_int <= sat_i[8-1:0]+ 5'd30 ;        end
+               default  : begin sat_int <= sat_i[8-1:0]+ 5'd0  ;        end
             endcase
          end
    end
@@ -205,7 +209,36 @@ assign int_sum     = $signed(ki_mult) + $signed(int_reg) ;
 assign int_shr     = int_shr_reg ;
 
 
-sat14 #(.RES(64)) i_sat14_int ( .in(int_sum), .lim( { 56'b0 , sat_int }  ), .out(int_sum_sat) );
+// v2.3.19: saturation of the integrator written out (it is the one of sat14 #(.RES(64)) with lim = sat_int,
+// see sat14.v) to use its two flags also for int_shr: up to v2.3.18 int_shr_reg was the shift by ISR
+// (case below) of the saturated sum, i.e. after the 64 bit sum, the saturation test and the selection.
+// The shift of each of the three possible values (sum, positive limit, negative limit) is made in
+// parallel and the flags select one: same value, fewer logic levels (timing, doc/lock_latency.md).
+
+assign int_mask    = {64{1'b1}} << { 56'b0 , sat_int } ;
+assign int_pos_sat = ( ~int_sum[64-1] ) & ( |(   int_sum  & int_mask ) ) ;
+assign int_neg_sat = (  int_sum[64-1] ) & ( |( (~int_sum) & int_mask ) ) ;
+assign int_sum_sat = int_pos_sat ? ~int_mask : int_neg_sat ? int_mask : int_sum ;
+
+function [63-1:0] isr_shift (input [63-1:0] v, input [4-1:0] isr);   // shift of int_shr_reg up to v2.3.18
+   case (isr)
+      4'd0     : isr_shift = v ;
+      4'd1     : isr_shift = {  {3{v[63-1]}} , v[63-1: 3] } ;
+      4'd2     : isr_shift = {  {6{v[63-1]}} , v[63-1: 6] } ;
+      4'd3     : isr_shift = { {10{v[63-1]}} , v[63-1:10] } ;
+      4'd4     : isr_shift = { {13{v[63-1]}} , v[63-1:13] } ;
+      4'd5     : isr_shift = { {16{v[63-1]}} , v[63-1:16] } ;
+      4'd6     : isr_shift = { {20{v[63-1]}} , v[63-1:20] } ;
+      4'd7     : isr_shift = { {23{v[63-1]}} , v[63-1:23] } ;
+      4'd8     : isr_shift = { {26{v[63-1]}} , v[63-1:26] } ;
+      4'd9     : isr_shift = { {30{v[63-1]}} , v[63-1:30] } ;
+      default  : isr_shift = v ;
+   endcase
+endfunction
+
+assign int_shr_next = int_pos_sat ? isr_shift( ~int_mask[63-1:0] , ISR ) :
+                      int_neg_sat ? isr_shift(  int_mask[63-1:0] , ISR ) :
+                                    isr_shift(  int_sum[63-1:0]  , ISR ) ;
 
 
 
@@ -293,7 +326,11 @@ assign dat_o_mem_next = pid_freeze ? dat_o_mem : $signed(pid_out[ 14-1: 0]) ;
 
 
 //assign dat_o = $signed(pid_out[ 14-1: 0]) ;
-assign dat_o = dat_o_mem_next ;
+// v2.3.19: registered output (+1 clock, 8 ns). Up to v2.3.18 dat_o was dat_o_mem_next (combinational
+// from kp_reg/int_shr_reg/kd_reg through the 64 bit sum and the saturation) and that chain went on to
+// ctrl_A/B, the scope muxes and the DAC without a register (timing, doc/lock_latency.md).
+// dat_o is now exactly the old dat_o one clock later.
+assign dat_o = dat_o_mem ;
 
 
 endmodule

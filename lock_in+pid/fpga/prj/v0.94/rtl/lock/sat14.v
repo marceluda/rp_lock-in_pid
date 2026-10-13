@@ -34,16 +34,16 @@ module sat14 #(
     output signed [RES-1:0] out    // output signal
     );
     
-    wire [RES-1:0] shifted_in_pos,shifted_in_neg, mask;
+    wire [RES-1:0] mask;
     wire pos_sat, neg_sat;
     
     assign mask = {RES{1'b1}}<<lim ;
     
-    assign shifted_in_pos = in>>lim  ;
-    assign shifted_in_neg = (~in)>>lim  ;
-    
-    assign pos_sat = ( 2'b01 == { in[RES-1] , |shifted_in_pos } ) ;
-    assign neg_sat = ( 2'b11 == { in[RES-1] , |shifted_in_neg } ) ;
+    // v2.3.19: |(in>>lim) == |(in & mask) (some bit of in at a position >= lim is 1; both 0 for
+    // lim >= RES): same result without the barrel shifter of RES bits in the path of the data
+    // (mask only depends on lim). Used in the integrator loop of lock_pid_block (timing).
+    assign pos_sat = ( ~in[RES-1] ) & ( |(   in  & mask ) ) ;
+    assign neg_sat = (  in[RES-1] ) & ( |( (~in) & mask ) ) ;
     
     
     assign out = pos_sat ?  ( ~mask )    : 

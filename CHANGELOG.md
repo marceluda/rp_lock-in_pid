@@ -1,6 +1,23 @@
 
 # Devbuild  changes
 
+## 2.2.8 - FPGA timing: pipeline registers (port of lock_in+pid_harmonic 2.3.19)
+The FPGA did not meet timing at 125 MHz (WNS -11.721 ns, TNS -12069 ns, 5431 failing endpoints). With the approval of
+the user to add latency, the long combinational chains of the loop get registers, as in lock_in+pid_harmonic v2.3.19:
+**WNS -1.794 ns, TNS -469 ns, 1234 endpoints** (adc_clk -> dac_clk_1x +3.858 ns). Same behaviour except for the
+latencies, checked bit by bit in simulation against 2.2.7. Details: `lock_in+pid/doc/lock_latency.md`.
+  - CHANGED (FPGA, added latency, 8 ns per clock): generator outputs +1 (`gen_mod2` wrapper with registered outputs);
+  harmonic lock-in outputs `Xo..F3o` +2 (register after the first LPF stage and after the gain / saturation / rounding);
+  square lock-in `sqXo..sqFo` +2 (the sign change of `sq_mult` registered, output register); bus `X_28..sqF_28` +1;
+  PID outputs +1; `out1`/`out2` +1. LOCK MODE loop (in1 -> Xo -> PID A -> out1) +32 ns.
+  - CHANGED (FPGA): the references reach the lock-in 1 clock later than the outputs, so the phase measured through
+  DAC -> system -> ADC does not change (lock_in+pid_harmonic 2.3.19 does not have this compensation: -0.14 deg at
+  49.6 kHz there; here it matters for the square modulation, up to 31.25 MHz).
+  - CHANGED (FPGA, same values): `sat14` without barrel shifter, PID integrator with the ISR shift in parallel,
+  `sum_div` of the second LPF stage in a register (LP_filter2/3 `.OREG` / `.DREG`).
+  - CHANGED: page title (`h2.page-title`) and `<title>` get the version of `info/info.json` at build time (Makefile).
+  - ADDED `test/lock_latency_sim.sh` + `test/lock_latency_tb.sv` (xsim, 418 checks against 2.2.7).
+
 ## 2.2.7 - Minor fixes of lock_in+pid_harmonic 2.3.18 (no FPGA change)
 Port of the fixes of lock_in+pid_harmonic v2.3.18 that apply to this App (it has no streaming, no `control_finn.py`
 / `example_usage.py`). The FPGA image is the one of 2.2.6 (only comments of `lock.v` changed). Comments that quote
