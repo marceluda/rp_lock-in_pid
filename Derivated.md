@@ -41,11 +41,12 @@ The new features are:
   - **Enhanced amplification**: The `X` and `Y` signals can now be amplified by `x524288` (`x512k`).
     This enables the possibility to measure signals that are far below the resolution limit (~`1V/8192`).
   - **NOW WORKS IN RP 2.0 ECOSYSTEM** since v0.3.9. Version 0.3.10 fixed some bugs related with the new 2.0 ecosystem.
+    Version 0.3.11 adds several fixes to the web interface (see the ChangeLog).
 
 The lower physical surface load may correct some cross-talking problems between signals that happened on some devices
 in the Lock-in+PID App.
 
-The source code can be found in the [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/tree/v0.3.10).
+The source code can be found in the [github rp_lock-in_pid_h repository](https://github.com/marceluda/rp_lock-in_pid_h/tree/v0.3.11).
 
 **Downloads:**
 
@@ -57,9 +58,9 @@ The source code can be found in the [github rp_lock-in_pid_h repository](https:/
 <div class="tab-content">
 <div id="h-now" class="tab-pane fade in active" markdown="1">
 
-Last release (v0.3.10):
+Last release (v0.3.11):
 
-{% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.tar.gz" label="v0.3.10-4" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.zip" label="v0.3.10-4" %}
+{% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.tar.gz" label="v0.3.11-17" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.zip" label="v0.3.11-17" %}
 
 </div>
 <div id="h-old" class="tab-pane fade" markdown="1">
@@ -68,6 +69,7 @@ Old releases:
 
 | Version | Downloads |
 |---------|-----------|
+| **v0.3.10** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.tar.gz" label="v0.3.10-4" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.zip" label="v0.3.10-4" %} |
 | **v0.3.9** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.9-0-devbuild.tar.gz" label="v0.3.9-0" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.9-0-devbuild.zip" label="v0.3.9-0" %} |
 | **v0.3.7** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-22-devbuild.tar.gz" label="v0.3.7-22" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-22-devbuild.zip" label="v0.3.7-22" %} |
 |            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-21-devbuild.tar.gz" label="v0.3.7-21" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-21-devbuild.zip" label="v0.3.7-21" %} |
