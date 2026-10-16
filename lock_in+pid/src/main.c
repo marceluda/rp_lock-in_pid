@@ -446,6 +446,12 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     
     // [MAINDEF DOCK END]
 
+    /* v2.3.23: read-only scope state (SCOPE_GEN_PARAM ..., see main.h). Keep them last, outside the docks */
+    { "scope_gen"                     ,      0, 0, 1,            0,     16777216 },
+    { "scope_acq_state"               ,      0, 0, 1,            0,            4 },
+    { "scope_acq_gen"                 ,      0, 0, 1,           -1,     16777216 },
+    { "sig_gen"                       ,      0, 0, 1,           -1,     16777216 },
+
     { /* Must be last! */
         NULL, 0.0, -1, -1, 0.0, 0.0 }
 };
@@ -820,8 +826,10 @@ int rp_set_params(rp_app_params_t *p, int len)
     int got_xmin = 0, got_xmax = 0;
     /* v2.3.14 (Capture Lock): lock request bits before this call, to detect a 0->1 request */
     int lock_req_old = 0, lock_req_rise = 0;
-    /* v2.3.14: this call armed a Single acquisition (generation of the worker params) */
-    int single_armed = 0, scope_gen = -1, arm_wait_us = 0;
+    /* v2.3.14: this call armed a Single acquisition (generation of the worker params).
+     * v2.3.23: arm_wait_s = time the worker needs to arm it (pre-trigger history): deadline of the held request */
+    int single_armed = 0, scope_gen = -1;
+    double arm_wait_s = 0;
 
 
     TRACE("%s()\n", __FUNCTION__);
@@ -1098,9 +1106,14 @@ int rp_set_params(rp_app_params_t *p, int len)
             rp_osc_worker_change_state(rp_osc_normal_state);
             break;
         case 2:
-            /* single - clear last ok buffer */
-            rp_osc_worker_change_state(rp_osc_idle_state);
-            rp_osc_clean_signals();
+            /* single - clear last ok buffer.
+             * v2.3.23: with single_btn the state goes to single directly (below), not idle -> single: the worker
+             * might see the idle in between and drop an acquisition it is still arming / waiting for (e.g. a
+             * POST sent again by the page after a timeout) */
+            if(rp_main_params[SINGLE_BUT_PARAM].value != 1) {
+                rp_osc_worker_change_state(rp_osc_idle_state);
+                rp_osc_clean_signals();
+            }
             break;
         default:
             return -1;
@@ -1111,23 +1124,30 @@ int rp_set_params(rp_app_params_t *p, int len)
             rp_main_params[SINGLE_BUT_PARAM].value = 0;
             rp_osc_clean_signals();
             rp_osc_worker_change_state(rp_osc_single_state);
-            /* v2.3.14: wait time for the worker to arm it: pre-trigger history (t_delay < 0) or the
-             * 5 ms of the long ranges, plus margin; at most 1.5 s (the UI POST timeout is 2 s) */
+            /* v2.3.14: time for the worker to arm it: pre-trigger history (t_delay < 0) or the 5 ms of
+             * the long ranges. v2.3.23: no wait here any more (it was capped at 1.5 s, see below); it is
+             * the deadline of the held lock request, plus 3 s of margin */
             single_armed = 1;
             scope_gen    = rp_osc_worker_params_gen();
-            arm_wait_us  = 100000 + ((t_delay < 0) ? (int)(-t_delay * 1e6) : 0) + ((time_range > 4) ? 5000 : 0);
-            if(arm_wait_us > 1500000)
-                arm_wait_us = 1500000;
+            arm_wait_s   = 3.0 + ((t_delay < 0) ? -t_delay : 0) + ((time_range > 4) ? 0.005 : 0);
         }
     scope_done: ;
     }
 
     /* v2.3.14 (Capture Lock): a POST that arms a Single acquisition and requests a lock (0->1 of
      * lock_now / launch_lock) applies the request only after the worker has armed the scope, so the
-     * scope (e.g. Ext Trig = "Lock control trig") is always waiting before the FPGA can lock */
+     * scope (e.g. Ext Trig = "Lock control trig") is always waiting before the FPGA can lock.
+     * v2.3.23: this POST does not wait for it any more (it waited at most 1.5 s: with the pre-trigger history
+     * of slow scans, |xmin| of 7-9 s, the request was applied before the trigger was enabled and the capture
+     * was lost; the POST took ~2 s and the page sent it again, which re-armed the scope). The request bits are
+     * held out of lock_control (lock_request_hold()) and the worker writes them as soon as it has enabled the
+     * trigger of this acquisition (lock_request_armed()), at most arm_wait_s later (lock_request_poll()). */
     if(single_armed && lock_req_rise && lock_params_change) {
-        if(rp_osc_worker_wait_armed(scope_gen, rp_osc_single_state, arm_wait_us) < 0)
-            fprintf(stderr, "rp_set_params: scope not armed after %d us, lock request applied anyway\n", arm_wait_us);
+        lock_request_hold((uint32_t)lock_req_rise, scope_gen, arm_wait_s);
+        /* (v2.3.23) the worker may have resumed an acquisition still armed with the same settings and said so
+         * before this hold existed */
+        if(rp_osc_worker_armed_gen(rp_osc_single_state) >= scope_gen)
+            lock_request_armed(scope_gen);
     }
 
     if(awg_params_change) {
@@ -1155,6 +1175,8 @@ int rp_set_params(rp_app_params_t *p, int len)
             return -1;
         }
     }
+    /* v2.3.23: the lock registers of this POST are written: a held request may go now (see lock.c) */
+    lock_request_commit();
 
     return 0;
 }
@@ -1171,10 +1193,22 @@ int rp_get_params(rp_app_params_t **p)
     if(p_copy == NULL)
         return -1;
 
+    /* v2.3.23: a lock request held for the scope past its deadline goes now (see lock.c) */
+    lock_request_poll();
+
     pthread_mutex_lock(&rp_main_params_mutex);
     /* v2.3.13: lock control status (read only) on every request, also when the scope gets no
      * triggers (lock_update_main() runs only with a complete acquisition) */
     lock_update_status(&rp_main_params[0]);
+    /* v2.3.23: scope state (read only, see main.h) */
+    {
+        int acq_state = 0, acq_gen = -1;
+        rp_osc_worker_acq_status(&acq_state, &acq_gen);
+        rp_main_params[SCOPE_GEN_PARAM      ].value = (float)rp_osc_worker_params_gen();
+        rp_main_params[SCOPE_ACQ_STATE_PARAM].value = (float)acq_state;
+        rp_main_params[SCOPE_ACQ_GEN_PARAM  ].value = (float)acq_gen;
+        rp_main_params[SIG_GEN_PARAM        ].value = (float)rp_osc_get_signals_gen();
+    }
     for(i = 0; i < PARAMS_NUM; i++) {
         int p_strlen = strlen(rp_main_params[i].name);
         p_copy[i].name = (char *)malloc(p_strlen+1);

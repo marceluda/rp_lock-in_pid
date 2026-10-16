@@ -12,6 +12,14 @@
 //              stop when the lock closes (set_ramp_enable = 0), scope triggers (Ext Trig: scan floor 2 or
 //              "Lock control trig" 128) and the captured window.
 //
+// v2.3.23: the C model is the one of v2.3.23 by default (the POST that arms the capture answers at once and the lock
+// request is applied when the worker enables the trigger; an acquisition is not armed again by a POST that does not
+// change it; read-only scope_gen / scope_acq_state / scope_acq_gen / sig_gen in the answers), opt c2322 the one of
+// v2.3.14-2.3.22 (the POST waits for the armed scope at most 1.5 s, the worker sleeps the pre-trigger history without
+// looking at new parameters and arms again after any scope POST). Long windows (>= 1.5 s) are read while they are
+// written: partial traces (status AGAIN) every 200 ms after the trigger. A POST answered after post_chunk_timeout
+// fails with 'timeout' (the server has applied it) and the page sends it again. Section 8: slow scan of 30 s.
+//
 // Usage: node test/lock_capture_ui_sim.js [index.html] [--runs N]     (exit code 1 if a check fails)
 'use strict';
 const fs = require('fs'), vm = require('vm'), path = require('path');
@@ -85,7 +93,12 @@ class Rig {
   constructor(clock, opt) {
     this.c = clock; this.o = opt;
     this.newC = opt.newC !== false;
+    this.c2322 = !!opt.c2322 || !this.newC;   // v2.3.23: C of 2.3.14-2.3.22 (or older): blocking wait, re-arm on POST
     this.autoOld = !!opt.autoOld;
+    this.gen = 0;                           // v2.3.23: scope_gen (+1 per scope POST)
+    this.acq = { state: 0, gen: -1 };       // v2.3.23: scope_acq_state / scope_acq_gen (armed acquisition)
+    this.cur = null;                        // v2.3.23: triggered long acquisition being read (partial traces)
+    this.postDelay = opt.postDelay || 0;    // extra ms before a POST is answered (busy nginx)
     this.P = opt.P;                         // ramp period [ms]
     this.phase = clock.t + opt.phase;       // a scan floor
     this.cross = opt.cross;                 // level crossing, ms after the floor
@@ -99,6 +112,7 @@ class Rig {
     this.lc = compose(this.p); this.lc_written = this.lc; this.last = this.lc & 0x1f;
     this.state = 0; this.lock_at = Infinity; this.count = 0; this.writes = 0; this.lock_write_t = [];
     this.sc = { mode: this.p.trig_mode, armed: null, single: false };   // armed: time it is armed (waiting)
+    if(this.p.trig_mode == 1) this.acq = { state: 1, gen: 0 };
     this.cap_id = 0; this.dirty = null; this.served = null; this.captures = [];
     this.posts = []; this.gets = 0;
     if(this.p.trig_mode == 1) this.sc.armed = clock.t;
@@ -154,20 +168,42 @@ class Rig {
   // ---- scope
   src() { const sw = this.fpga.lock_trig_sw; return this.p.trig_source == 2 ? (sw == 2 ? 'floor' : sw == 128 ? 'lock' : 'none') : 'none'; }
   xms(v) { return Number(v) * [1e-3, 1, 1e3][this.p.time_units]; }
+  isLong() { return this.xms(this.p.xmax) - this.xms(this.p.xmin) >= 1500; }
   advance(t) {     // acquisitions up to time t
     this.syncLock(t);
     for(let g = 0; g < 1000 && this.sc.armed !== null; g++) {
       const ta = this.sc.armed, src = this.src();
       const tr = src == 'floor' ? this.nextFloor(ta) : src == 'lock' ? (this.lock_at > ta ? this.lock_at : Infinity) : Infinity;
-      const x0 = this.xms(this.p.xmin), x1 = this.xms(this.p.xmax);
-      const ready = tr + Math.max(0, x1) + 1;
+      const x0 = this.xms(this.p.xmin), x1 = this.xms(this.p.xmax), long = this.isLong();
+      // end of the acquisition: the window after the trigger (+1 ms); long windows (read every 200 ms): v2.3.23 C at
+      // the end of the window + 2 ms, older C at the next read after the end of its 1024 points (+0.2 %)
+      const ready = !long ? tr + Math.max(0, x1) + 1
+                  : this.c2322 ? tr + Math.ceil((Math.max(0, x1 * 1.002) + 1) / 200) * 200
+                  : tr + Math.max(0, x1) + 2;
+      if(tr <= t && long) {
+        if(!this.cur || this.cur.tr !== tr)
+          this.cur = { tr, ready, gen: this.acq.gen, next: tr + 200, w: [tr + x0, tr + x1], src,
+                       has_lock: this.lock_at >= tr + x0 && this.lock_at <= tr + x1, lock_rel: this.lock_at - tr };
+      }
+      if(tr <= t && this.acq.state < 3 && this.sc.armed <= t) this.acq.state = 3;
       if(!(ready <= t)) break;
-      const cap = { id: ++this.cap_id, trig: tr, src, w: [tr + x0, tr + x1], ready,
+      const cap = { id: ++this.cap_id, trig: tr, src, w: [tr + x0, tr + x1], ready, gen: this.acq.gen,
                     has_lock: this.lock_at >= tr + x0 && this.lock_at <= tr + x1, lock_rel: this.lock_at - tr };
       this.captures.push(cap);
       this.dirty = cap;
-      this.sc.armed = (this.sc.mode == 1) ? ready + this.wd() : null;
+      this.cur = null;
+      this.acq.state = 4;
+      if(this.sc.mode == 1) { this.sc.armed = ready + this.wd(); this.acq = { state: 1, gen: this.gen }; }
+      else this.sc.armed = null;
     }
+    if(this.sc.armed !== null && this.acq.state == 1 && this.sc.armed <= t) this.acq.state = 2;
+  }
+  // GET: a partial trace of the long acquisition being read (v2.3.23 C: only from the trigger on, its own points)
+  partial(t) {
+    const c = this.cur;
+    if(!c || t < c.next || t >= c.ready) return null;
+    c.next = t + 200;
+    return { id: 'p' + c.tr, partial: true, trig: c.tr, src: c.src, w: c.w, gen: c.gen, has_lock: c.has_lock, lock_rel: c.lock_rel };
   }
   wd() {           // worker: notices the change (usleep(1000) polling) + pre-trigger history (t_delay < 0) / 5 ms
     const x0 = this.xms(this.p.xmin);
@@ -206,27 +242,54 @@ class Rig {
       scope = false;                                               // scope done; lock part below
     }
     if(scope) {
+      const same = ['xmin', 'xmax', 'trig_mode', 'trig_source', 'trig_edge', 'trig_delay', 'trig_level', 'time_range',
+                    'lock_trig_sw'].every(k => this.w[k] == this.p[k]);
       this.w = Object.assign({}, this.p);                         // rp_osc_worker_update_params()
       this.gui_xmin = this.p.xmin; this.gui_xmax = this.p.xmax;
+      this.gen++;
       this.sc.mode = this.p.trig_mode;
-      if(this.p.trig_mode == 1) this.sc.armed = t + this.wd();
-      else if(this.p.trig_mode == 2) { this.sc.armed = null; this.dirty = null; }
+      const pending = this.sc.armed !== null && this.sc.single;
+      if(this.p.trig_mode != 2) this.sc.single = false;
+      if(this.p.trig_mode == 1) { this.sc.armed = t + this.wd(); this.acq = { state: 1, gen: this.gen }; this.cur = null; }
+      else if(this.p.trig_mode == 2 && this.p.single_btn != 1) { this.sc.armed = null; this.dirty = null; this.cur = null; this.acq.state = 0; }
       if(this.p.single_btn == 1) {
-        this.p.single_btn = 0; this.dirty = null;
-        armed_at = t + this.wd();
-        this.sc.armed = armed_at;
+        this.p.single_btn = 0;
+        if(!this.c2322 && pending && same) {
+          // v2.3.23: the same Single again (e.g. the POST sent again after a timeout): the acquisition goes on
+          armed_at = this.sc.armed;
+          this.acq.gen = this.gen; if(this.cur) this.cur.gen = this.gen;
+        } else {
+          this.dirty = null; this.cur = null;
+          // v2.3.14-2.3.22: the worker sleeps the pre-trigger history without looking at new parameters: it arms
+          // again only after the sleep in progress
+          const busy = (this.c2322 && pending && this.sc.armed > t) ? this.sc.armed : t;
+          armed_at = busy + this.wd();
+          this.sc.armed = armed_at;
+          this.acq = { state: 1, gen: this.gen };
+        }
+        this.sc.single = true;
       }
     }
-    let t_done = t + t_auto + 0.3;
+    let t_done = t + t_auto + 0.3 + this.postDelay;
+    if(this.o.slowSingle && q.single_btn == 1 && !this.slowDone) { this.slowDone = true; t_done += this.o.slowSingle; }   // busy nginx once
     if(lockch) {
       for(const k in this.p) if(isLockReg(k)) this.fpga[k] = this.p[k];   // lock_update()
       const lc = compose(this.p);
       if(lc != this.lc_written) {
-        // v2.3.14: Single armed in this POST + 0->1 request: lock_control written once the scope is armed
-        const tw = (this.newC && armed_at !== null && rise) ? armed_at + 0.01 : t;
+        // Single armed in this POST + 0->1 request: lock_control written once the scope is armed.
+        // v2.3.14-2.3.22: the POST waits for it, at most 100 ms + |xmin| (+5 ms) and 1.5 s; v2.3.23: the POST answers
+        // at once and the worker writes it when it enables the trigger
+        let tw = t;
+        if(this.newC && armed_at !== null && rise) {
+          if(this.c2322) {
+            const x0 = this.xms(this.p.xmin);
+            const wait = Math.min(1500, 100 + (x0 < 0 ? -x0 : 0) + 5);
+            tw = Math.min(armed_at + 0.01, t + wait);
+            t_done = Math.max(t_done, tw + 0.1 + this.postDelay);
+          } else tw = armed_at + 0.01;
+        }
         this.lc_written = lc;
         this.c.at(tw, () => { this.advance(this.c.t); this.writeLock(lc, this.c.t); });
-        t_done = Math.max(t_done, tw + 0.1);
       }
     }
     return t_done;
@@ -236,6 +299,10 @@ class Rig {
     for(const k in this.fpga) this.p[k] = this.fpga[k];           // lock_update_main(): registers -> params
     const r = Object.assign({}, this.p);
     r.lock_lock_status = this.status(t); r.lock_lock_control = this.lc; r.single_btn = 0;
+    if(!this.c2322) {    // v2.3.23 read-only scope state
+      r.scope_gen = this.gen; r.scope_acq_state = this.acq.state; r.scope_acq_gen = this.acq.gen;
+      r.sig_gen = this.served ? this.served.gen : -1;
+    }
     return r;
   }
 }
@@ -288,10 +355,16 @@ function makeEnv(rig, clock) {
     const d = $.Deferred();
     if(o.type == 'POST') {
       const q = JSON.parse(o.data).datasets.params;
+      const t0 = clock.t;
       log.push({ t: clock.t, kind: 'POST', q });
+      // v2.3.23: answer later than o.timeout: the page gets 'timeout' (the server has applied the POST anyway)
+      let settled = false;
+      if(o.timeout) clock.at(t0 + o.timeout, () => { if(!settled) { settled = true; log.push({ t: clock.t, kind: 'TIMEOUT', q });
+                                                                     d.reject({}, 'timeout'); } });
       clock.after(LAT, () => {
         const tdone = rig.post(q, clock.t);
-        clock.at(tdone, () => { const r = rig.params(clock.t); clock.after(LAT, () => d.resolve({ app: { id: 'x' }, status: 'OK', datasets: { params: r, g1: [] } })); });
+        clock.at(tdone, () => { const r = rig.params(clock.t); clock.after(LAT, () => { if(settled) return; settled = true;
+          d.resolve({ app: { id: 'x' }, status: 'OK', datasets: { params: r, g1: [] } }); }); });
       });
     }
     else {
@@ -300,7 +373,9 @@ function makeEnv(rig, clock) {
       const t0 = clock.t + LAT;
       const tick = () => {       // nginx rp_data_get_signals(): up to 200 x 1 ms for new signals
         rig.advance(clock.t);
-        if(rig.dirty || clock.t >= t0 + 200) {
+        const part = rig.dirty ? null : rig.partial(clock.t);    // v2.3.23: partial trace (AGAIN, new data)
+        if(part) { rig.served = part; rig.partials = (rig.partials || 0) + 1; }
+        if(rig.dirty || part || clock.t >= t0 + 200) {
           const cap = rig.dirty, ok = !!cap;
           if(cap) { rig.served = cap; rig.dirty = null; }
           const c = rig.served, r = rig.params(clock.t);
@@ -335,6 +410,8 @@ function makeEnv(rig, clock) {
     'post_min_gap_ms', 'post_max_per_s', 'post_starts', 'post_rate_timer', 'post_rate_args', 'lock_enable_keys'].map(varSrc).join('\n');
   // v2.3.18: Single poll and read-only keys of the send_all (absent in older pages)
   code += '\n' + ['server_ro_keys', 'single_poll_ms', 'single_seq', 'single_seq_done'].map(varSrcOpt).join('\n');
+  // v2.3.23: plot_epoch (Reset zoom), absent in older pages
+  code += '\n' + (js.includes('var plot_epoch = 0') ? 'var plot_epoch = 0, plot_epoch_post = false;' : '') + '\n';
   code += '\nvar params = {original:null, local:null};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n' +
           'var set_trigger_val = false, plot_time_units = null, update_timer = null, datasets = [];\n';
   if(js.includes('function scheduleSinglePoll(')) code += fnSrc('scheduleSinglePoll') + '\n';
@@ -394,8 +471,9 @@ function setup(o) {
   o = o || {};
   const clock = new Clock();
   const init = Object.assign({}, base, o.init || {});
-  const rig = new Rig(clock, { P, phase: o.phase !== undefined ? o.phase : rnd() * P, cross: CROSS, init, newC: o.newC, slow: o.slow,
-                               autoOld: o.autoOld });
+  const rig = new Rig(clock, { P: o.P || P, phase: o.phase !== undefined ? o.phase : rnd() * (o.P || P), cross: o.cross !== undefined ? o.cross : CROSS,
+                               init, newC: o.newC, slow: o.slow, autoOld: o.autoOld, c2322: o.c2322, postDelay: o.postDelay,
+                               slowSingle: o.slowSingle });
   const E = makeEnv(rig, clock);
   E.get('ui_capture_lock = ' + (o.capture === false ? 0 : 1));
   E.get('ui_fire_on_click = ' + (o.fire === false ? 0 : 1));
@@ -751,6 +829,88 @@ for(const [name, init] of [['Time', {}], ['Level', { lock_ctrl_aux_trig_type: 2 
   check('7.6 console: "Capture Lock: ended by AUTO" / "... by unchecking Capture Lock", never "ended by ,"',
         msgs.some(m => /ended by AUTO,/.test(m)) && msgs.some(m => /ended by unchecking Capture Lock,/.test(m)) &&
         !msgs.some(m => /ended by ,/.test(m)), null, JSON.stringify(msgs));
+}
+
+
+// ---- 8. v2.3.23: slow scan, ramp period 30 s (testAgent 2026-10-15 on RP2: 2/7 captures) ----------------------------
+// Window of Reset zoom on the 30 s scan: 0 .. 29.4 s (0.98 T, units s, Dec 524288); lock at 7.608 s after the floor
+// (Time) or level crossing at 7.61 s (Level), Lock Now. Capture window: Time -7.608 .. 21.792 s, Level / Lock Now
+// -8.82 .. 20.58 s: the worker needs 7.6-8.8 s of pre-trigger history before the trigger is enabled.
+const SLOW = { xmin: 0, xmax: 29.4, time_units: 2, time_range: 9, lock_lock_trig_time_val: 7608 * CYC_MS };
+function slowRun(o) {
+  const init = Object.assign({}, SLOW, o.init || {});
+  const E = setup({ P: 30000, cross: 7610, init, phase: o.phase, c2322: o.c2322, slowSingle: o.slowSingle });
+  E.run(500);
+  const t0 = E.clock.t, sd0 = E.setdata();
+  E.click(o.lockNow ? 'lock_ctrl_aux_lock_now' : 'lock_ctrl_aux_launch_lock_trig');
+  const r = { E, late_while_acq: 0, late: 0, partial_draws: 0, t_lock: null, t_cap: null, banners: new Set() };
+  let lastSd = E.setdata();
+  for(let k = 0; k < 900 && E.get('lock_cap.state') !== 'captured'; k++) {   // up to 90 s
+    E.run(100);
+    const b = E.banner(), st = E.get('lock_cap.state');
+    r.banners.add(b.replace(/\(.*?\)/g, '()'));
+    if(E.rig.state == 2 && r.t_lock === null) r.t_lock = E.rig.lock_at;
+    const acquiring = E.rig.cur && E.rig.cur.src == 'lock';
+    if(/LOCKED but not captured/.test(b)) { r.late++; if(acquiring) r.late_while_acq++; }
+    if(st === 'waiting' && E.setdata() > lastSd && r.t_lock !== null) r.partial_draws++;
+    lastSd = E.setdata();
+  }
+  E.run(1000);
+  const cap = E.shownCap();
+  r.captured = E.get('lock_cap.state') === 'captured' && !!cap && !cap.partial && cap.has_lock && cap.src == 'lock';
+  r.t_cap = r.captured ? cap.ready - t0 : null;
+  r.timeouts = E.log.filter(l => l.kind == 'TIMEOUT' && l.t >= t0).length;
+  r.writes = E.rig.lock_write_t.filter(t => t >= t0);
+  return r;
+}
+function slowSummary(rs) {
+  return rs.filter(r => r.captured).length + '/' + rs.length + ' captured, late banner while acquiring ' +
+         rs.reduce((a, r) => a + r.late_while_acq, 0) + ' x 100 ms, partial draws ' + rs.map(r => r.partial_draws).join(',') +
+         ', POST timeouts ' + rs.reduce((a, r) => a + r.timeouts, 0);
+}
+{
+  const cases = [['Time (7.608 s)', {}], ['Level (7.61 s)', { init: { lock_ctrl_aux_trig_type: 2 } }], ['Lock Now', { lockNow: true }]];
+  for(const [name, o] of cases) {
+    const rs = [];
+    for(let i = 0; i < 8; i++) rs.push(slowRun(Object.assign({ phase: 1000 + i * 3700 }, o)));
+    check('8.1 slow scan 30 s, ' + name + ': 8/8 captured with the lock inside, never "LOCKED but not captured" while the capture is acquired',
+          rs.every(r => r.captured && r.late_while_acq == 0 && r.timeouts == 0), rs[0].E, slowSummary(rs));
+    check('8.2 slow scan 30 s, ' + name + ': partial traces of the capture drawn while it is acquired (after the lock)',
+          rs.every(r => r.partial_draws >= 20), null, slowSummary(rs));
+  }
+  const r = slowRun({ phase: 4100, init: { lock_ctrl_aux_trig_type: 2 } });
+  check('8.3 banner while waiting: history being loaded, then waiting / acquiring', [...r.banners].some(b => /loading the scope history/.test(b)) &&
+        [...r.banners].some(b => /acquiring the trace/.test(b)), r.E, [...r.banners].join(' | '));
+  // the POST of Single + request answered after 2.5 s once (busy nginx): the page sends it again, the C does not arm again
+  const rb = [];
+  for(let i = 0; i < 6; i++) rb.push(slowRun({ phase: 2000 + i * 4300, slowSingle: 2500, lockNow: i % 2 == 0,
+                                                init: i % 2 ? { lock_ctrl_aux_trig_type: 2 } : {} }));
+  check('8.4 slow scan, the arming POST answered after 2.5 s (timeout, sent again): 6/6 captured, request written once',
+        rb.every(r => r.captured && r.timeouts >= 1 && r.writes.length == 1), rb[0].E,
+        slowSummary(rb) + ', lock_control writes ' + rb.map(r => r.writes.length).join(','));
+  // a lock that the scope can not see (Ext Trig not on the lock event): the warning must still come
+  const M = slowRun({ phase: 3000, init: { lock_ctrl_aux_trig_type: 2 }, c2322: false });
+  {
+    const F = setup({ P: 30000, cross: null, init: Object.assign({}, SLOW, { lock_ctrl_aux_trig_type: 2 }) });
+    F.run(500);
+    F.click('lock_ctrl_aux_launch_lock_trig');
+    F.run(12000);                                          // armed, waiting (the level is never crossed)
+    const armed = F.get('lock_cap.state') == 'waiting' && !/LOCKED but not captured/.test(F.banner());
+    F.rig.fpga.lock_trig_sw = 0;                           // the scope does not see the lock event...
+    F.rig.state = 2; F.rig.lock_at = F.clock.t;            // ...and the lock closes (e.g. from Python)
+    F.run(1500);
+    const early = /LOCKED but not captured/.test(F.banner());
+    F.run(1500);
+    check('8.5 LOCKED and the capture scope still waiting for its trigger: "LOCKED but not captured" after 2 s (not before)',
+          armed && !early && /LOCKED but not captured/.test(F.banner()), F, F.banner());
+  }
+  void M;
+  // reproduction: the model of the C of 2.3.14-2.3.22 with this page loses captures of the slow scan (RP2: 2/7)
+  const ro = [];
+  for(const [name, o] of cases) for(let i = 0; i < 4; i++) ro.push(slowRun(Object.assign({ phase: 1000 + i * 7100, c2322: true }, o)));
+  const lost = ro.filter(r => !r.captured).length;
+  check('8.6 (model of the C of 2.3.14-2.3.22) reproduces the RP2 failure: captures lost with the slow scan', lost >= 4, null,
+        (ro.length - lost) + '/' + ro.length + ' captured');
 }
 
 console.log('=== ' + n + ' checks, ' + fails + ' failed ===');

@@ -91,10 +91,17 @@ Everything happens in the FPGA, in the same clock tick as the trigger (8 ns): th
 the PIDs start without any write from the PS. Trigger conditions are those of v2.3.12:
 
 - time: counter reset by the ramp floor trigger (`ramp_floor_trig`), fires when it equals
-  `lock_trig_time` (0x34);
+  `lock_trig_time` (0x34). v2.2.9 (as lock_in+pid_harmonic v2.3.23): only while the counter is valid (`cnt_ok`): from a floor of a ramp that has
+  been running since then. It is cleared while the ramp is stopped (effective ramp enable = status bit 4, or the
+  generator off / in reset) and set at the next floor, so a request armed after a stop (e.g. right after releasing a
+  lock: the ramp goes on from where it stopped) fires at the next floor + time, never mid-scan. The counter
+  saturates at 2^32-1 instead of wrapping every 34.4 s.
+  In this App the counter is loaded with 1 one clock after the floor (registered `ramp_trigger_r`, v2.2.6) and
+  `cnt_ok` is set in that same clock, so the time trigger fires at the same clock as before for any time ≥ 1 tick
+  (`time_eq` is compared with `lock_trig_time`−1 kept in a register, for timing: same value);
 - level: signal selected by `lock_trig_sw` (0x38) crosses `lock_trig_val` (0x30) in the direction
   of bit 10;
-- level+time: level crossing once the counter is ≥ `lock_trig_time`.
+- level+time: level crossing once the counter is ≥ `lock_trig_time` (and valid, v2.2.9).
 
 The pulse `lock_ctrl_trig` (oscilloscope trigger source "lock control") is emitted when the state
 enters LOCKED, as before. From v2.3.14 the web UI uses it to capture the lock ("Capture Lock", see

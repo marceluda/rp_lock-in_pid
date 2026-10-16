@@ -49,7 +49,7 @@ typedef struct rp_osc_meas_res_s {
 /* Parameters indexes - these defines should be in the same order as
  * rp_app_params_t structure defined in main.c */
 //define PARAMS_NUM        81
-#define PARAMS_NUM        221
+#define PARAMS_NUM        225   /* v2.2.9: + 4 read-only scope state params (SCOPE_GEN_PARAM ...) */
 #define MIN_GUI_PARAM     0
 #define MAX_GUI_PARAM     1
 #define TRIG_MODE_PARAM   2
@@ -278,6 +278,20 @@ typedef struct rp_osc_meas_res_s {
 #define LOCK_MOD_HARMONIC_ON            220
 
 // [MAINDEFH DOCK END]
+
+/* v2.2.9 (lock_in+pid_harmonic v2.3.23): read-only scope state, after the lock parameters (keep them last, outside the docks):
+ *  scope_gen       generation of the scope parameters given to the worker (+1 at each scope change / Single)
+ *  scope_acq_state state of the acquisition of the worker: 0 none (idle), 1 armed, loading the pre-trigger
+ *                  history (trigger not enabled yet), 2 waiting for the trigger, 3 triggered, being read
+ *                  (long acquisitions: partial traces), 4 complete
+ *  scope_acq_gen   generation of the parameters of that acquisition
+ *  sig_gen         generation of the parameters of the trace served with this answer (GET /data)
+ * The page uses them for Capture Lock (a trace of its acquisition, partial or complete, and the warning
+ * "LOCKED but not captured" only if the scope is still waiting for the trigger). */
+#define SCOPE_GEN_PARAM        221
+#define SCOPE_ACQ_STATE_PARAM  222
+#define SCOPE_ACQ_GEN_PARAM    223
+#define SIG_GEN_PARAM          224
 
 
 /* Defines from which parameters on are AWG parameters (used in set_param() to

@@ -16,6 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <pthread.h>
+#include <sys/time.h>
+#include <unistd.h>
 
 #include "lock.h"
 #include "fpga_lock.h"
@@ -51,6 +54,91 @@ float lock_error_var = 0 ;
  *  - lock_update_status() copies it to LOCK_CTRL_AUX_* only when it differs from this value,
  *    i.e. when it was written from outside (Python, c/lock, monitor). */
 static uint32_t lock_control_written = 0xffffffff ;
+
+/* v2.3.23 (Capture Lock with slow scans): lock request held back until the scope is armed.
+ * A POST that arms a Single acquisition and requests a lock (0->1 of lock_now / launch_lock) used to wait in
+ * rp_set_params() for the scope worker (at most 1.5 s): with windows of tens of seconds the worker needs |xmin|
+ * (the pre-trigger history) before it enables the trigger, the request was applied before that and the FPGA
+ * pulse "Lock control trig" came with the trigger still disabled (capture lost); the POST also took ~2 s and the
+ * page sent it again. Now the POST answers at once and the request bits (lock_ctrl_hold, 1 = lock_now,
+ * 2 = launch_lock_trig) are kept out of lock_control until:
+ *   - the scope worker has enabled the trigger of an acquisition armed with parameters of generation >=
+ *     lock_ctrl_hold_gen (lock_request_armed(), called by the worker), and
+ *   - rp_set_params() has written the other lock registers of that POST (lock_request_commit()),
+ * or the deadline is over (lock_request_poll(): never kept for ever).
+ * A held bit that is no longer requested (release) is simply dropped. lock_ctrl_mutex serialises the writes of
+ * lock_control (rp_set_params(), the worker thread, rp_get_params()).
+ *
+ * (A software ramp monitor that held time trigger requests until a scan floor was tried in build 55 and removed:
+ * the FPGA does it now, lock_ctrl.v cnt_ok.)
+ */
+static pthread_mutex_t lock_ctrl_mutex = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t lock_ctrl_hold        = 0 ;
+static int      lock_ctrl_hold_gen    = 0 ;
+static int      lock_ctrl_need_armed  = 0 ;   /* held for the scope (Capture Lock) */
+static int      lock_ctrl_hold_armed  = 0 ;   /* the worker has enabled the trigger (gen >= lock_ctrl_hold_gen) */
+static int      lock_ctrl_hold_commit = 0 ;   /* rp_set_params() has finished the lock part of the POST */
+static double   lock_ctrl_hold_until  = 0 ;   /* deadline [s] (lock_now_s()) */
+static rp_app_params_t *lock_ctrl_params = NULL ;   /* rp_main_params of the last lock_update() */
+
+static double lock_now_s(void)
+{
+    struct timeval tv;
+    gettimeofday(&tv, NULL);
+    return tv.tv_sec + tv.tv_usec * 1e-6;
+}
+
+static uint32_t lock_control_compose(rp_app_params_t *params)
+{
+    return (uint32_t) (
+            ((int)params[LOCK_CTRL_AUX_LOCK_NOW        ].value) *    1 +
+            ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value) *    2 +
+            ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value) *    4 +
+            ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value) *    8 +
+            ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value) *   16 +
+            ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value) *   32 +
+            ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value) *   64 +
+            ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value) *  128 +
+            ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value) *  256 +
+            ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value) * 1024 );
+}
+
+/* lock_ctrl_mutex held: writes lock_control (without the held request bits) if it changed */
+static void lock_control_write_locked(rp_app_params_t *params)
+{
+    uint32_t lc = lock_control_compose(params);
+    lock_ctrl_hold &= (lc & 3u);              /* a held request that is no longer requested is dropped */
+    if (!lock_ctrl_hold)
+        lock_ctrl_need_armed = 0;
+    lc &= ~lock_ctrl_hold;
+    if (lc != lock_control_written) {
+        g_lock_reg->lock_control = lc;
+        lock_control_written     = lc;
+    }
+}
+
+/* lock_ctrl_mutex held: the held request goes to the FPGA now */
+static void lock_request_apply_locked(const char *why)
+{
+    uint32_t held = lock_ctrl_hold;
+    lock_ctrl_hold = 0;
+    lock_ctrl_need_armed = 0;
+    if (held && lock_ctrl_params) {
+        lock_control_write_locked(lock_ctrl_params);
+        if (why)
+            fprintf(stderr, "lock: request 0x%x applied (%s)\n", held, why);
+    }
+}
+
+/* lock_ctrl_mutex held: applies the held request if nothing holds it any more */
+static void lock_request_try_locked(void)
+{
+    if (!lock_ctrl_hold || !lock_ctrl_hold_commit)
+        return;
+    if (lock_ctrl_need_armed && !lock_ctrl_hold_armed)
+        return;
+    lock_request_apply_locked(NULL);
+}
 
 /* v2.3.18: the lock trigger registers (this App: lock_trig_val 0x30, lock_trig_time 0x34, lock_trig_sw 0x38) follow the
  * same rule as lock_control. Python (py/lock_from_registers.py --time/--level/--sw, control_finn.py) may write
@@ -92,6 +180,10 @@ int lock_init(void)
      * (also if the library stays loaded between a stop and a start of the App) */
     lock_control_written = 0xffffffff ;
     lock_trig_known      = 0 ;
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    lock_ctrl_hold       = 0 ;
+    lock_ctrl_params     = NULL ;
+    pthread_mutex_unlock(&lock_ctrl_mutex);
 
     if(fpga_lock_init() < 0) {
         return -1;
@@ -142,22 +234,12 @@ int lock_update(rp_app_params_t *params)
     g_lock_reg->slow_out3_sw              = (int)params[LOCK_SLOW_OUT3_SW             ].value;
     g_lock_reg->slow_out4_sw              = (int)params[LOCK_SLOW_OUT4_SW             ].value;
     { /* v2.3.13: lock_control is command + configuration (doc/lock_control.md). Written only when
-       * the value composed from lock_ctrl_aux_* changes (keep this block if the dock is regenerated) */
-        uint32_t lc = (uint32_t) (
-            ((int)params[LOCK_CTRL_AUX_LOCK_NOW        ].value) *    1 +
-            ((int)params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value) *    2 +
-            ((int)params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value) *    4 +
-            ((int)params[LOCK_CTRL_AUX_PIDA_ENABLE_CTRL].value) *    8 +
-            ((int)params[LOCK_CTRL_AUX_RAMP_ENABLE_CTRL].value) *   16 +
-            ((int)params[LOCK_CTRL_AUX_SET_PIDB_ENABLE ].value) *   32 +
-            ((int)params[LOCK_CTRL_AUX_SET_PIDA_ENABLE ].value) *   64 +
-            ((int)params[LOCK_CTRL_AUX_SET_RAMP_ENABLE ].value) *  128 +
-            ((int)params[LOCK_CTRL_AUX_TRIG_TYPE       ].value) *  256 +
-            ((int)params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value) * 1024 );
-        if (lc != lock_control_written) {
-            g_lock_reg->lock_control = lc;
-            lock_control_written     = lc;
-        }
+       * the value composed from lock_ctrl_aux_* changes (keep this block if the dock is regenerated).
+       * v2.3.23: without the request bits held until the scope is armed (lock_ctrl_hold) */
+        pthread_mutex_lock(&lock_ctrl_mutex);
+        lock_ctrl_params = params;
+        lock_control_write_locked(params);
+        pthread_mutex_unlock(&lock_ctrl_mutex);
     }
   //g_lock_reg->lock_status               = (int)params[LOCK_LOCK_STATUS              ].value;
     { /* v2.3.18: lock trigger registers, written only when their parameter changes (see lock_trig_known;
@@ -476,11 +558,18 @@ int lock_update_status(rp_app_params_t *params)
     if(g_lock_reg == NULL)
         return -1;
 
+    pthread_mutex_lock(&lock_ctrl_mutex);
     lc = g_lock_reg->lock_control & 0x7ff;
     params[LOCK_LOCK_STATUS ].value = (float) (g_lock_reg->lock_status & 0xffff);
     params[LOCK_LOCK_CONTROL].value = (float) lc;
 
+    /* v2.3.23: a request held by the controller for the scope (Capture Lock) is shown as ARMED */
+    if(lock_ctrl_hold && !(g_lock_reg->lock_status & 2))
+        params[LOCK_LOCK_STATUS].value = (float) ((g_lock_reg->lock_status & 0xffff) | 1);
+
     if(lc != lock_control_written) {
+        lock_ctrl_hold = 0;          /* v2.3.23: written from outside: that value rules */
+        lock_ctrl_need_armed = 0;
         params[LOCK_CTRL_AUX_LOCK_NOW        ].value = (float) ((lc >>  0) & 0x01);
         params[LOCK_CTRL_AUX_LAUNCH_LOCK_TRIG].value = (float) ((lc >>  1) & 0x01);
         params[LOCK_CTRL_AUX_PIDB_ENABLE_CTRL].value = (float) ((lc >>  2) & 0x01);
@@ -493,6 +582,7 @@ int lock_update_status(rp_app_params_t *params)
         params[LOCK_CTRL_AUX_LOCK_TRIG_RISE  ].value = (float) ((lc >> 10) & 0x01);
         lock_control_written = lc;
     }
+    pthread_mutex_unlock(&lock_ctrl_mutex);
 
     /* v2.3.18: lock trigger registers written from outside (see lock_trig_known) */
     if(lock_trig_known) {
@@ -519,4 +609,64 @@ int lock_update_status(rp_app_params_t *params)
     }
 
     return 0;
+}
+
+
+/*----------------------------------------------------------------------------------*/
+/* v2.3.23: lock request held until the scope is armed (see lock_ctrl_hold) */
+
+/* rp_set_params(), before lock_update(): hold the request bits 'mask' (1 lock_now, 2 launch_lock_trig) until the
+ * worker enables the trigger of an acquisition of generation >= gen, at most timeout_s */
+void lock_request_hold(uint32_t mask, int gen, double timeout_s)
+{
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    lock_ctrl_hold       |= (mask & 3u);
+    lock_ctrl_need_armed  = 1;
+    lock_ctrl_hold_gen    = gen;
+    lock_ctrl_hold_armed  = 0;
+    lock_ctrl_hold_commit = 0;
+    lock_ctrl_hold_until  = lock_now_s() + timeout_s;
+    pthread_mutex_unlock(&lock_ctrl_mutex);
+}
+
+/* rp_set_params(), after lock_update(): the other lock registers of the POST are written */
+void lock_request_commit(void)
+{
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    lock_ctrl_hold_commit = 1;
+    lock_request_try_locked();
+    pthread_mutex_unlock(&lock_ctrl_mutex);
+}
+
+/* scope worker: the trigger of an acquisition armed with parameters of generation gen is enabled */
+void lock_request_armed(int gen)
+{
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    if (lock_ctrl_hold && lock_ctrl_need_armed && gen >= lock_ctrl_hold_gen) {
+        lock_ctrl_hold_armed = 1;
+        lock_request_try_locked();
+    }
+    pthread_mutex_unlock(&lock_ctrl_mutex);
+}
+
+/* any thread, often (rp_get_params(), worker loop): a held request past its deadline is applied anyway */
+void lock_request_poll(void)
+{
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    if (lock_ctrl_hold && lock_ctrl_hold_commit && lock_ctrl_need_armed && !lock_ctrl_hold_armed &&
+        lock_now_s() > lock_ctrl_hold_until) {
+        lock_ctrl_need_armed = 0;
+        lock_request_apply_locked("scope not armed in time");
+    }
+    pthread_mutex_unlock(&lock_ctrl_mutex);
+}
+
+/* request bits held now (0: none) */
+uint32_t lock_request_held(void)
+{
+    uint32_t h;
+    pthread_mutex_lock(&lock_ctrl_mutex);
+    h = lock_ctrl_hold;
+    pthread_mutex_unlock(&lock_ctrl_mutex);
+    return h;
 }

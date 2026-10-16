@@ -394,6 +394,38 @@ int osc_fpga_triggered(void)
 
 /*----------------------------------------------------------------------------*/
 /**
+ * @brief v2.3.23: the armed acquisition got its trigger (the post-trigger part may still be running).
+ *
+ *  - 2.0 (v0.94 scope): conf bit 2 (adc_trg_rd) is set at the trigger and stays set until the next arm/reset;
+ *  - 0.9x: conf bit 2 (adc_dly_do) is set from the trigger until the post-trigger delay is over, and then
+ *    osc_fpga_triggered() is true.
+ *
+ * @retval 1 trigger received, 0 still waiting for it
+ */
+int osc_fpga_trig_received(void)
+{
+    volatile osc_fpga_reg_mem_t *reg = g_osc_fpga_reg_mem;
+    if(reg->conf & OSC_FPGA_CONF_TRIG_ST_BIT)
+        return 1;
+    return osc_fpga_triggered();
+}
+
+
+/*----------------------------------------------------------------------------*/
+/**
+ * @brief v2.3.23: samples written since the last arm and before the trigger (register 0x2C, adc_we_cnt).
+ *
+ * The samples of the buffer older than these do not belong to the current acquisition (they were written
+ * before the arm, e.g. before a reset or a change of the decimation).
+ */
+uint32_t osc_fpga_get_we_cnt(void)
+{
+    return g_osc_fpga_reg_mem->we_cnt;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/**
  * @brief Retrieve the address of channel A,B memory buffers
  *
  * NOTE: no check is made if argumments are correctly specified.

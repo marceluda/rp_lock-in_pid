@@ -750,6 +750,7 @@ module lock(
         .lock_ctrl            ( lock_control[9:0]  ),
         .signal               ( lock_ctrl_signal   ),
         .ramp_trigger         ( ramp_floor_trig    ),
+        .ramp_run             ( ramp_enable & ~ramp_reset ),   // v2.2.9 (as lock_in+pid_harmonic v2.3.23): generator running (see lock_ctrl.v cnt_ok)
         .time_threshold       ( lock_trig_time     ),
         .level_threshold      ( lock_trig_val      ),
         .level_rising_trigger ( lock_trig_rise     ),

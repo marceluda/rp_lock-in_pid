@@ -52,6 +52,12 @@ int rp_osc_get_signals(float ***signals, int *sig_idx);
  * and marks it dirty 
  */
 int rp_osc_set_signals(float **source, int index);
+/* v2.3.23: the same, with the parameter generation of its acquisition; generation of the last trace
+ * copied out by rp_osc_get_signals(); state of the acquisition of the worker (scope_acq_state, see main.h) */
+int rp_osc_set_signals_gen(float **source, int index, int gen);
+int rp_osc_get_signals_gen(void);
+int rp_osc_worker_acq_status(int *state, int *gen);
+int rp_osc_worker_armed_gen(rp_osc_worker_state_t state);
 /* Fills the output measuremenet data with last measurements
  */
 int rp_osc_set_meas_data(rp_osc_meas_res_t ch1_meas, rp_osc_meas_res_t ch2_meas);
@@ -77,15 +83,8 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
                     float ch1_max_adc_v, float ch2_max_adc_v,
                     float ch1_user_dc_off, float ch2_user_dc_off);
 
-int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal, 
-                            float **chb_out_signal, int *chb_in_signal,
-                            float **time_out_signal, int *next_wr_ptr, 
-                            int last_wr_ptr, int step_wr_ptr, int next_out_idx,
-                            float t_start, int dec_factor, int time_unit,
-                            rp_osc_meas_res_t *ch1_meas,
-                            rp_osc_meas_res_t *ch2_meas,
-                            float ch1_max_adc_v, float ch2_max_adc_v,
-                            float ch1_user_dc_off, float ch2_user_dc_off);
+/* v2.3.23: rp_osc_decimate_partial() (RP 0.9x) replaced by the long acquisition reader of worker.c
+ * (rp_osc_long_rd_*(), static) */
 
 /* Auto-set algorithm */
 int rp_osc_auto_set(rp_app_params_t *orig_params, 

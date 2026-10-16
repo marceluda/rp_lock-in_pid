@@ -47,8 +47,8 @@ Use a single tab per board (see [Several clients and Restart](#several-clients-a
 
 Every change is sent to the board when the field loses focus or Enter is pressed (Escape cancels the edit).
 Only changed values are sent. A field left empty or with an invalid text is not sent; the last value comes back.
-The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **the wheel over the plot zooms the
-time axis** (it changes the acquisition window).
+The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **the wheel over the plot zooms it**
+(no key: both axes, SHIFT: time only, ALT: Y only; a time zoom changes the acquisition window, see the toolbar).
 
 ## Panels
 
@@ -57,7 +57,8 @@ time axis** (it changes the acquisition window).
 | Button | Action |
 |---|---|
 | Autoscale | Rescales the **Y axis** to the data on screen, only in the page. Does not end a lock capture. |
-| Reset zoom, zoom in/out, pan | Plot navigation. A zoom selects the time window of the acquisition; the decimation (time range 0..6, up to 68.7 s) is chosen from it. |
+| Reset zoom, zoom in/out, pan | Plot navigation. A zoom selects the time window of the acquisition; the decimation (time range 0..6, up to 68.7 s) is chosen from it. Reset zoom (v2.2.9) sets the window from t = 0 to one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod., 2520·(hp+1) clocks), one period of the square modulation (Ext Trig = Square mod., 2·(sqp+1) clocks; the harmonic period with sqp = 0) or one whole memory at the current decimation (otherwise), and Y to −1 … 1 V (raw mode −8192 … 8192). Periods of 1.5 s or more: 0.98 × the period, so that every scan is acquired. During a lock capture it first ends it, as AUTO, and uses the restored Ext Trig. The Raw Mode button rescales Y the same way. |
+| Mouse wheel on the plot (v2.2.9) | Zoom centred on the mouse, 1.5× per step. **No key:** both axes. **SHIFT** held: time axis only (the cursor becomes a horizontal double arrow ↔). **ALT** held: Y axis only (vertical double arrow ↕; in raw mode the Y range is in counts). The time window is sent to the controller once the wheel stops (250 ms), which chooses the decimation as for any zoom; it stays between 20 ns and 68.7 s. The Y zoom is only in the page (1/2048 … 1000 × full scale). During a lock capture the wheel zoom is only in the page; ending the capture restores the window saved before it. |
 | Channel 1 / Channel 2 | Show or hide each channel. |
 | Stop | Stops the acquisition. |
 | Save Data | Plot data as Python/Numpy, Matlab/Octave or CSV ([Saving data](#saving-data)). |

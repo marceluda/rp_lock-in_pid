@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.8)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.9)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -30,6 +30,11 @@
 
   <link rel="stylesheet" href="css/bootstrap.css" type="text/css">
   <link rel="stylesheet" href="css/style.css"     type="text/css">
+  <style>
+    /* v2.3.22: cursor of the scope while SHIFT (wheel: X only) or ALT (wheel: Y only) is down, see [PLOT WHEEL] */
+    #plot_holder.wheel-zoom-x, #plot_holder.wheel-zoom-x * { cursor: ew-resize !important; }
+    #plot_holder.wheel-zoom-y, #plot_holder.wheel-zoom-y * { cursor: ns-resize !important; }
+  </style>
 
   <!--  ERASE ON NEXT COMMIT
   For Cookies https://github.com/js-cookie/js-cookie/releases/tag/v2.1.4 >
@@ -74,7 +79,7 @@
   var meas_panel_dec = 5;                // Decimation for numerical measure panel to make it human readable
   var meas_panel_dec_mobdev = 1;         // Decimation for numerical measure panel for mobile devices
   var points_per_px = 5;                 // How many points per pixel should be drawn. Set null for unlimited (will disable client side decimation).
-  var xdecimal_places = 2;               // Number of decimal places for the xmin/xmax values. Maximum supported are 12.
+  var xdecimal_places = 2;               // Number of decimal places for the xmin/xmax values. Maximum supported are 12. v2.3.22: no longer used for xmin/xmax (xWindowToParams())
   var trigger_level_xdecimal_places = 4; // Number of decimal places for trigger level tooltip
   var range_offset = 1;                  // Percentages
 
@@ -88,7 +93,9 @@
     colors: ['#3276B1', '#D2322D', '#009900'],    // channel1, channel2, trigger line
     lines: { lineWidth: 1 },
     selection: { mode: 'xy' },
-    zoom: { interactive: true, trigger: null },
+    // v2.3.22: interactive false: the mouse wheel over the plot is handled by plotWheelEvent() (see [PLOT WHEEL]);
+    // plot.zoom()/zoomOut() of jquery.flot.navigate are still used by the zoom-out tool
+    zoom: { interactive: false, trigger: null },
     xaxis: { min: xmin, max: xmax },
     grid: { borderWidth: 0 , hoverable: true, clickable: true },
     legend: { noColumns: 2, margin: [0, 0], backgroundColor: 'transparent' },
@@ -181,7 +188,8 @@
                        'lock_in1,lock_in2,lock_out1,lock_out2,lock_slow_out1,lock_slow_out2,lock_slow_out3,lock_slow_out4,'+
                        'lock_oscA,lock_oscB,lock_X,lock_Y,lock_F1,lock_F2,lock_F3,lock_sqX,lock_sqY,lock_sqF,'+
                        'lock_cnt_clk,lock_cnt_clk2,lock_pidA_in,lock_pidA_out,lock_ctrl_A,lock_pidB_in,lock_pidB_out,'+
-                       'lock_ctrl_B').split(',');
+                       'lock_ctrl_B,'+
+                       'scope_gen,scope_acq_state,scope_acq_gen,sig_gen').split(',');  // v2.2.9: read-only scope state (lock_in+pid_harmonic 2.3.23)
   // Unsent user changes. A change made while a POST is in flight only sets send_que; the POST (or GET) response
   // then calls loadParams(), which used to overwrite params.local with the server values and the queued
   // sendParams() found nothing to send (the 2nd of two quick changes was lost). unsent_base holds the values
@@ -225,6 +233,10 @@
   // answer. "Choose from graph" converts the click with these units, not with params.local.time_units, which a
   // POST answer (zoom -> forceX) may change before the data in the new units arrive.
   var plot_time_units = null;
+  // v2.3.23: data of a GET /data started before the POST of a Reset zoom was answered are not drawn (plot_epoch: +1
+  // at the click and at that answer; plot_epoch_post: the next POST carries the Reset zoom). The C also replaces the
+  // trace of the old time units at once (src/worker.c): ~10 s of the old trace in ms were drawn on the new axis in s.
+  var plot_epoch = 0, plot_epoch_post = false;
   last_disp_units=false;
   lasttsp=Math.floor((new Date().getTime())/1000);
   last_unit_mode = 0 ;
@@ -1457,6 +1469,7 @@
     $(input_buttons).on('click', function() {
       $(this).toggleClass('btn-default btn-primary');
       params.local[this.id] = ($(this).is('.btn-primary') ? 1 : 0);
+      if(this.id === 'lock_osc_raw_mode') rawModeRescaleY();   // v2.3.21: Y in the new units
       sendParams();
     });
 
@@ -2939,6 +2952,96 @@
   }
   // [TRIG FROM GRAPH END]
 
+  // [RESET ZOOM BEGIN] v2.3.21 (pure functions, also run by test/reset_zoom_sim.js)
+  // Decimation of each scope time_range (src/fpga.c, osc_fpga_cnv_time_range_to_dec()) and length of one memory of
+  // the scope (16384 samples of 8 ns) at Dec 1, in seconds.
+  var scope_dec_list = [1, 8, 64, 128, 256, 512, 1024, 8192, 65536, 524288];
+  var scope_mem_s    = 16384 * 8e-9;
+  // Margin under the length of a memory: the server keeps xmin/xmax in float (32 bits) and takes the smallest Dec
+  // whose memory covers the window (src/main.c, transform_acq_params()), so a window of exactly one memory could
+  // round up and take the next Dec (x8 coarser).
+  var reset_zoom_margin = 1e-6;
+  // v2.3.23: slow scans. With a window of exactly one period the acquisition ended after the next scan floor (the
+  // server also makes the window a bit longer: 1024 points with an integer number of samples between them, e.g.
+  // 0..30 s -> 0..30.06 s at Dec 524288), so that floor was lost and the scope showed one scan of every two. For a
+  // period of reset_zoom_long_s or more (the long acquisitions of src/worker.c, read while they are written) the
+  // window ends reset_zoom_rearm_frac of the period before it (0.98 T), at least reset_zoom_rearm_min_s: the worker
+  // ends the acquisition at the end of the window of the user and arms the next one in time.
+  var reset_zoom_long_s = 1.5;
+  var reset_zoom_rearm_frac = 0.02;
+  var reset_zoom_rearm_min_s = 0.05;
+
+  // Period of the harmonic modulation (local oscillator of the lock-in) in FPGA clock cycles (8 ns), as gen_mod2.v:
+  // a table of 2520 values, each one held lock_gen_mod_hp+1 cycles (hp is 14 bits in the FPGA). 0 if unknown.
+  function modPeriodCycles(p) {
+    var hp = Math.round(Number(p.lock_gen_mod_hp));
+    if(!isFinite(hp) || hp < 0) return 0;
+    return 2520 * ((hp & 0x3FFF) + 1);
+  }
+
+  // v2.2.9: period of the square modulation (Fast square lock-in), trigger "Square mod." (square_trig of gen_mod2.v),
+  // in FPGA clock cycles: (lock_gen_mod_sqp+1)*2 (sqp = half period - 1). With sqp = 0 the square references follow
+  // the harmonic oscillator and square_trig comes once per harmonic period: modPeriodCycles(). Measured on the RTL by
+  // test/ramp_mod_period_tb.v. 0 if unknown.
+  function sqPeriodCycles(p) {
+    var sqp = Math.round(Number(p.lock_gen_mod_sqp));
+    if(!isFinite(sqp) || sqp < 0) return 0;
+    if(sqp === 0) return modPeriodCycles(p);
+    return 2 * (Math.min(sqp, 4294967295) + 1);
+  }
+
+  // Window of Reset Zoom, from the scope / lock params p (params.local) and the current scope time_range:
+  //  - Oscilloscope Ext Trig (lock_trig_sw) = Scan floor (2) or Scan ceil (4): one period of the ramp
+  //    (rampPeriodCycles(), as gen_ramp.v: sawtooth (high-low+1)*(step+1), triangle 2*(high-low)*(step+1) cycles);
+  //  - Ext Trig = harmonic mod. (8): one period of the modulation (modPeriodCycles(): 2520*(hp+1) cycles);
+  //  - v2.2.9: Ext Trig = Square mod. (16): one period of the square modulation (sqPeriodCycles(): 2*(sqp+1) cycles,
+  //    or the harmonic period with sqp = 0);
+  //  - otherwise (or if that period can not be computed): one whole memory of the scope at the current Dec,
+  //    16384 * 8 ns * Dec.
+  // The window starts at t = 0 (the trigger). The server picks the Dec from the window (the smallest one whose memory
+  // covers it): a period longer than the memory at the current Dec takes a larger Dec (coarser), a shorter one a
+  // smaller Dec (finer), as a zoom does. Windows longer than the longest memory (68.72 s, Dec 524288) are clamped
+  // to it. Y: -1 V .. +1 V, or -8192 .. 8192 (ADC counts) in raw mode.
+  // Returns { xmin_s, xmax_s, ymin, ymax, source: 'ramp' | 'mod' | 'square' | 'memory', period_s, dec, clamped }.
+  function resetZoomWindow(p, time_range) {
+    var tsw = Number(p.lock_trig_sw), cyc = 0, source = 'memory';
+    if(tsw == 2 || tsw == 4) { cyc = rampPeriodCycles(p); if(cyc > 0) source = 'ramp'; }
+    else if(tsw == 8)        { cyc = modPeriodCycles(p);  if(cyc > 0) source = 'mod';  }
+    else if(tsw == 16)       { cyc = sqPeriodCycles(p);   if(cyc > 0) source = 'square'; }   // v2.2.9
+    var tr = Math.round(Number(time_range));
+    if(!(tr >= 0 && tr < scope_dec_list.length)) tr = 0;
+    var period_s = (source === 'memory' ? scope_mem_s * scope_dec_list[tr] : cyc * 8e-9);
+    // v2.3.23: slow scan: the window ends a bit before the next trigger (see reset_zoom_long_s)
+    var win_s = period_s, rearm = false;
+    if(source !== 'memory' && period_s >= reset_zoom_long_s) {
+      win_s = period_s - Math.max(period_s * reset_zoom_rearm_frac, reset_zoom_rearm_min_s);
+      rearm = true;
+    }
+    // Dec that the server will take for this window
+    var i = 0;
+    while(i < scope_dec_list.length - 1 && scope_dec_list[i] * scope_mem_s < win_s * (1 - reset_zoom_margin)) i++;
+    var mem_s = scope_dec_list[i] * scope_mem_s;
+    var clamped = (win_s > mem_s * (1 + reset_zoom_margin));
+    var raw = !!Number(p.lock_osc_raw_mode);
+    return { xmin_s: 0, xmax_s: Math.min(win_s, mem_s * (1 - reset_zoom_margin)),
+             ymin: (raw ? -8192 : -1), ymax: (raw ? 8192 : 1),
+             source: source, period_s: period_s, dec: scope_dec_list[i], clamped: clamped, rearm: rearm };
+  }
+  // v2.3.23: clears the plotted trace and drops the data of the GET /data in flight and of those started before the
+  // answer of the next POST (plot_epoch)
+  function plotClearStale() {
+    plot_epoch++;
+    plot_epoch_post = true;
+    if(typeof datasets !== 'undefined') {
+      for(var i = 0; i < datasets.length; i++) datasets[i].data = [];
+      if(plot && datasets.length) {
+        plot.setData(filterData(datasets, plot.width()));
+        plot.draw();
+      }
+    }
+  }
+  // [RESET ZOOM END]
+
   // [LOCK CAPTURE BEGIN] v2.3.14: "Capture Lock" and "Fire on click" (doc/lock_capture.md). Also run by
   // test/lock_capture_ui_sim.js.
   // Capture Lock: a lock request from the UI (Trigger Lock, Lock Now, Fire on click) first sets the scope to
@@ -2958,7 +3061,20 @@
   var lock_cap = { state: 'off',         // 'off' | 'config' | 'arming' | 'waiting' | 'captured'
                    saved: null,          // scope settings before the capture (see lockCaptureSave())
                    offset_s: null,       // time of the lock after the scan floor [s] (Time trigger), else null
-                   t_armed: 0, late: false, seq: 0 };
+                   t_armed: 0, late: false, seq: 0,
+                   gen: null,            // v2.3.23: scope_gen of the arming POST (traces with sig_gen >= gen are its own)
+                   t_locked: 0,          // v2.3.23: when LOCKED was first seen while waiting
+                   acq: 0 };             // v2.3.23: scope_acq_state of the capture acquisition (src/main.h)
+  // v2.3.23: LOCKED this long while the scope of the capture still waits for its trigger (or is not armed): the
+  // capture was missed ("LOCKED but not captured"). A capture being acquired (scope_acq_state 3, the window after
+  // the lock: up to tens of seconds with slow scans) is never "late"; it used to be after 2 s of LOCKED.
+  var lock_cap_late_ms = 2000;
+  // v2.3.23: scope_gen of the last answer of the server (POST or GET /data), null if unknown (older server)
+  var server_scope_gen = null;
+  function serverScopeGen(dp) {
+    var g = Number(dp && dp.scope_gen);
+    if(dp && dp.scope_gen !== undefined && isFinite(g)) server_scope_gen = g;
+  }
 
   // Window of the capture, around the lock event (t = 0 of the scope = the lock).
   //   p:  params (lock_ctrl_aux_trig_type, lock_lock_trig_time_val in 8 ns cycles)
@@ -3030,6 +3146,9 @@
     lock_cap.saved = null;
     lock_cap.offset_s = null;
     lock_cap.late = false;
+    lock_cap.gen = null;
+    lock_cap.t_locked = 0;
+    lock_cap.acq = 0;
     lock_cap.seq++;                      // pending steps of an old request do nothing
     lockCaptureBanner();
     trigFromGraphMsg();
@@ -3082,6 +3201,9 @@
       lock_cap.state    = 'config';
       lock_cap.offset_s = w.offset_s;
       lock_cap.late     = false;
+      lock_cap.gen      = null;
+      lock_cap.t_locked = 0;
+      lock_cap.acq      = 0;
       if(update_timer) { clearTimeout(update_timer); update_timer = null; }
       params.local.trig_mode    = 2;
       params.local.trig_source  = 2;
@@ -3107,6 +3229,9 @@
         if(seq !== lock_cap.seq || lock_cap.state !== 'arming') return;
         lock_cap.state   = 'waiting';    // GET /data started from now on can only bring the capture
         lock_cap.t_armed = Date.now();
+        // v2.3.23: the arming POST has been answered: traces with sig_gen >= its scope_gen are of the capture
+        // acquisition (partial ones too: slow windows are drawn while they are acquired after the lock)
+        lock_cap.gen     = server_scope_gen;
         lockCaptureBanner();
         // A GET in flight from before is ignored (lockCaptureOnData()); polling goes on while the capture
         // is active (doGetData())
@@ -3133,23 +3258,60 @@
     sendParams();
   }
 
-  // GET /data answer during a capture. state0: lock_cap.state when that GET started. Returns true if the data
-  // may be drawn (no capture, or this is the capture), false to keep the plot (waiting / frozen).
-  function lockCaptureOnData(state0, status) {
+  // GET /data answer during a capture. state0: lock_cap.state when that GET started; dp: params of the answer.
+  // Returns true if the data may be drawn (no capture, or this is the capture), false to keep the plot (waiting /
+  // frozen). v2.3.23: with the scope state of the server (dp.sig_gen / scope_acq_state / scope_acq_gen) a trace is
+  // the capture only if it comes from the capture acquisition (sig_gen >= lock_cap.gen); its partial traces
+  // (status AGAIN, long windows read while they are written) are drawn while waiting.
+  function lockCaptureOnData(state0, status, dp) {
     if(lock_cap.state === 'off') return true;
-    if(lock_cap.state === 'waiting' && state0 === 'waiting' && status === 'OK') {
+    if(lock_cap.state !== 'waiting') return false;
+    var sg = Number(dp && dp.sig_gen);
+    var known = (lock_cap.gen !== null && !!dp && dp.sig_gen !== undefined && isFinite(sg));
+    var mine = (state0 === 'waiting') && (!known || sg >= lock_cap.gen);
+    if(mine && status === 'OK') {
       lock_cap.state = 'captured';
+      lock_cap.late = false;
       lockCaptureBanner();
       trigFromGraphMsg();
       console.log('Capture Lock: lock captured');
       return true;
     }
-    if(lock_cap.state === 'waiting') {
-      var st = lockStatus(params.original);
-      var late = !!(st && st.locked && Date.now() - lock_cap.t_armed > 2000);
-      if(late !== lock_cap.late) { lock_cap.late = late; lockCaptureBanner(); }
+    lockCaptureLate(dp, known);
+    return !!(mine && known && status === 'AGAIN');
+  }
+
+  // v2.3.23: state of the capture acquisition and "LOCKED but not captured" (see lock_cap_late_ms)
+  function lockCaptureLate(dp, known) {
+    var st = lockStatus(dp && dp.lock_lock_status !== undefined ? dp : params.original);
+    var now = Date.now();
+    var ag = Number(dp && dp.scope_acq_gen), as = Number(dp && dp.scope_acq_state);
+    var acq = (known && isFinite(ag) && isFinite(as) && ag >= lock_cap.gen) ? as : 0;
+    var late = false;
+    if(st && st.locked) {
+      if(!lock_cap.t_locked) lock_cap.t_locked = now;
+      if(known) {
+        // the scope of the capture still waits for (or loads the history before) its trigger
+        late = (acq <= 2) && (now - lock_cap.t_locked > lock_cap_late_ms);
+      } else {
+        // older server: the window after the lock + margin
+        var tu = Number(params.local.time_units), xmax_s = Number(params.local.xmax) / timeUnitFactor(isFinite(tu) ? tu : 0);
+        late = (now - lock_cap.t_locked > lock_cap_late_ms + Math.max(0, isFinite(xmax_s) ? xmax_s : 0) * 1000);
+      }
     }
-    return false;
+    else lock_cap.t_locked = 0;
+    if(late !== lock_cap.late || acq !== lock_cap.acq) {
+      lock_cap.late = late;
+      lock_cap.acq = acq;
+      lockCaptureBanner();
+    }
+  }
+
+  // v2.3.23: length of the history before the lock (-xmin of the capture window), for the banner
+  function lockCaptureHistoryTxt() {
+    if(!params.local) return '';
+    var tu = Number(params.local.time_units), x = -Number(params.local.xmin) / timeUnitFactor(isFinite(tu) ? tu : 0);
+    return (isFinite(x) && x > 0) ? format_oom(x, 's') : '';
   }
 
   // Frozen capture: GET /data only every lock_cap_poll_ms (lock state), without drawing
@@ -3169,8 +3331,14 @@
       txt = 'Capture Lock: arming the scope...';
     }
     else if(lock_cap.state === 'waiting') {
-      txt = 'Capture Lock: scope armed on the lock event, waiting for the lock...' +
-            (lock_cap.late ? ' (LOCKED but not captured: press Auto or Single)' : '');
+      if(lock_cap.late)
+        txt = 'Capture Lock: scope armed on the lock event, waiting for the lock... (LOCKED but not captured: press Auto or Single)';
+      else if(lock_cap.acq === 1)         // v2.3.23: the pre-trigger history (|xmin|) before the request is applied
+        txt = 'Capture Lock: loading the scope history before the lock (' + lockCaptureHistoryTxt() + '), then the lock is requested...';
+      else if(lock_cap.acq === 3)         // v2.3.23: locked, the window after the lock is being acquired
+        txt = 'Capture Lock: lock captured, acquiring the trace...';
+      else
+        txt = 'Capture Lock: scope armed on the lock event, waiting for the lock...';
     }
     else if(lock_cap.state === 'captured') {
       cls = 'label-success';
@@ -3439,6 +3607,7 @@
     var seq_get  = single_seq;        // v2.3.18: Single clicks before this GET
     var long_timeout_used = use_long_timeout;
     var cap_state0 = lock_cap.state;  // v2.3.14: capture state when this GET starts (lockCaptureOnData())
+    var get_epoch = plot_epoch;       // v2.3.23: see plot_epoch
 
     $.ajax({
       url: get_url,
@@ -3502,7 +3671,9 @@
 
         // v2.3.14 Capture Lock: while waiting for the capture or frozen on it, the data are not drawn
         // (the lock state still is: loadParams() below)
-        var cap_draw = lockCaptureOnData(cap_state0, dresult.status);
+        serverScopeGen(dresult.datasets.params);     // v2.3.23
+        var cap_draw = lockCaptureOnData(cap_state0, dresult.status, dresult.datasets.params);
+        if(get_epoch !== plot_epoch) cap_draw = false;   // v2.3.23: started before a Reset zoom was answered
         if(cap_draw) {
           datasets = [];
           // Units of the x values of these data (see plot_time_units)
@@ -3665,8 +3836,7 @@
         })
       );
 
-      params.local.xmin = parseFloat(ranges.xaxis.from.toFixed(xdecimal_places));
-      params.local.xmax = parseFloat(ranges.xaxis.to.toFixed(xdecimal_places));
+      xWindowToParams(ranges.xaxis.from, ranges.xaxis.to);   // v2.3.22 (build 50): no toFixed(2), see xWindowToParams()
 
       updateTriggerSlider();
       sendParams(true);
@@ -3684,15 +3854,174 @@
         zoompan_timer = null;
 
         var xaxis = plot.getAxes().xaxis;
-        params.local.xmin = parseFloat(xaxis.min.toFixed(xdecimal_places));
-        params.local.xmax = parseFloat(xaxis.max.toFixed(xdecimal_places));
+        xWindowToParams(xaxis.min, xaxis.max);   // v2.3.22 (build 50): no toFixed(2), see xWindowToParams()
 
         updateTriggerSlider();
         sendParams(true);
 
       }, 250);
     });
+
+    plotWheelBind();  // v2.3.22: mouse wheel over the plot (see [PLOT WHEEL])
   }
+
+  // [PLOT WHEEL BEGIN] v2.3.22: mouse wheel over the scope plot (also run by test/plot_wheel_sim.js)
+  //   - no key: zoom of both axes (X and the two Y axes), centred on the mouse position;
+  //   - SHIFT: X only, the cursor is a horizontal double arrow (ew-resize) while SHIFT is down over the plot;
+  //   - ALT: Y only (both Y axes), the cursor is a vertical double arrow (ns-resize). SHIFT + ALT: both axes.
+  // It replaces the wheel handler of jquery.flot.navigate (zoom.interactive: false in plot_options), which zoomed
+  // both axes whatever the keys. One wheel step zooms by plot_wheel_amount (1.5, as navigate did).
+  // X: the window goes to the server as before (event 'plotzoom' -> zoompan_timer, 250 ms debounce -> one
+  // sendParams(true), which picks the Dec and answers with forceX if the units change); it stays between 20 ns and
+  // one memory at the largest Dec (68.72 s), the limits of the X-/X+ buttons. Y is only local (no POST); it stays
+  // between 1/2048 and 1000 times the full scale (2 V, raw mode 16384 counts). During a lock capture (Capture Lock:
+  // waiting or frozen) the X zoom is local too: no POST, so the scope keeps its capture settings; ending the
+  // capture (AUTO, Reset zoom, ...) restores the window saved before it.
+  // SHIFT + wheel arrives as deltaX in Chrome (Linux/Windows) and in some Firefox versions: both are handled
+  // (jquery.mousewheel gives deltaY = -orig.deltaY but deltaX = +orig.deltaX, as in ScrollIncrement()).
+  // The wheel over the number fields (ScrollIncrement(): SHIFT x10, CTRL x100) is not affected: only #plot_holder.
+  var plot_wheel_amount = 1.5;
+  var plot_wheel_xlim = [20e-9, 16384 * 524288 * 8e-9];   // X window, seconds
+  var plot_wheel = { over: false, shift: false, alt: false, bound: false };
+
+  // v2.3.22 (build 50): X window of the plot (current time units) into params.local.xmin/xmax for the server. The
+  // zoom/pan/touch handler and the selection zoom of initPlot() used to round it with toFixed(xdecimal_places = 2)
+  // in the current units: a window under 0.01 units (e.g. -0.50..0.98 ms while the units were still s, after a quick
+  // zoom-in burst) was sent as xmin = xmax = 0 and the server answered 0..1 us. Now 12 significant digits (only to
+  // drop float noise such as 0.30000000000000004), and never xmax <= xmin (then the unrounded values).
+  function xWindowToParams(min, max) {
+    min = Number(min); max = Number(max);
+    var a = parseFloat(min.toPrecision(12)), b = parseFloat(max.toPrecision(12));
+    if(!(b > a)) { a = min; b = max; }
+    if(!(b > a)) b = a + Math.max(Math.abs(a) * 1e-9, 1e-12);
+    params.local.xmin = a;
+    params.local.xmax = b;
+  }
+
+  // 'x' (SHIFT), 'y' (ALT) or 'xy' (no key, or both)
+  function plotWheelMode(shift, alt) {
+    if(shift && !alt) return 'x';
+    if(alt && !shift) return 'y';
+    return 'xy';
+  }
+
+  // [min, max] of an axis zoomed by 'amount' (> 1 in, < 1 out) around the value v0 (kept where it is on the screen),
+  // with the range kept in [lo, hi]. A range already out of [lo, hi] can only come back towards it. null: no change.
+  function wheelZoomRange(min, max, v0, amount, lo, hi) {
+    min = Number(min); max = Number(max);
+    var range = max - min;
+    if(!(range > 0) || !isFinite(range) || !(amount > 0) || !isFinite(v0)) return null;
+    v0 = Math.min(Math.max(v0, min), max);          // mouse over the axis labels: the nearest edge
+    var nr = range / amount;
+    if(amount < 1 && hi > 0) nr = Math.min(nr, Math.max(hi, range));
+    if(amount > 1 && lo > 0) nr = Math.max(nr, Math.min(lo, range));
+    if(!(nr > 0) || nr === range) return null;
+    var a = range / nr;
+    return { min: v0 - (v0 - min) / a, max: v0 + (max - v0) / a };
+  }
+
+  // Y range limits in the units of the Y axes (V, or counts in raw mode)
+  function plotWheelYLimits() {
+    var raw = !!(params.local && Number(params.local.lock_osc_raw_mode));
+    var full = (raw ? 16384 : 2);
+    return [full / 2048, full * 1000];
+  }
+
+  // Zooms the plot around the pixel (cx, cy) of the plot area; returns which axes changed
+  function plotWheelZoom(mode, cx, cy, zoom_in) {
+    var res = { x: false, y: false };
+    if(!plot) return res;
+    var axes = plot.getAxes(), o = plot.getOptions();
+    var amount = (zoom_in ? plot_wheel_amount : 1 / plot_wheel_amount);
+    if(mode !== 'y') {
+      var tu = Number(params.local.time_units), f = timeUnitFactor(isFinite(tu) ? tu : 0);
+      var xr = wheelZoomRange(axes.xaxis.min, axes.xaxis.max, axes.xaxis.c2p(cx), amount,
+                              plot_wheel_xlim[0] * f, plot_wheel_xlim[1] * f);
+      if(xr) { o.xaxes[0].min = xr.min; o.xaxes[0].max = xr.max; res.x = true; }
+    }
+    if(mode !== 'x') {
+      var yl = plotWheelYLimits();
+      var yr = wheelZoomRange(axes.yaxis.min, axes.yaxis.max, axes.yaxis.c2p(cy), amount, yl[0], yl[1]);
+      if(yr) {
+        o.yaxes[0].min = yr.min; o.yaxes[0].max = yr.max;
+        if(o.yaxes[1]) { o.yaxes[1].min = yr.min; o.yaxes[1].max = yr.max; }   // a second Y axis follows the first one (v2.2.9: this App has only one)
+        res.y = true;
+      }
+    }
+    if(res.x || res.y) {
+      plot.setupGrid();
+      plot.draw();
+    }
+    return res;
+  }
+
+  // jquery.mousewheel handler of #plot_holder
+  function plotWheelEvent(event, delta) {
+    event.preventDefault();      // no page scroll, no history navigation of ALT + wheel (Firefox)
+    event.stopPropagation();
+    plot_wheel.over = true;
+    plot_wheel.shift = !!event.shiftKey;
+    plot_wheel.alt = !!event.altKey;
+    plotWheelCursor();
+    if(!plot) return false;
+    var dir = event.deltaY || -event.deltaX || delta || 0;
+    if(!dir) return false;
+    var off = plot.offset();
+    var r = plotWheelZoom(plotWheelMode(event.shiftKey, event.altKey), event.pageX - off.left, event.pageY - off.top, dir > 0);
+    if(r.x || r.y) {
+      updateRanges();
+      updateTriggerSlider();
+    }
+    // X window to the server (debounced, see initPlot()), except during a lock capture
+    if(r.x && !lockCaptureActive()) $('#plot_holder').trigger('plotzoom');
+    return false;
+  }
+
+  // Cursor of the plot: double arrow while SHIFT or ALT is down with the mouse over the plot
+  function plotWheelCursor() {
+    var mode = (plot_wheel.over ? plotWheelMode(plot_wheel.shift, plot_wheel.alt) : 'xy');
+    $('#plot_holder').toggleClass('wheel-zoom-x', mode === 'x').toggleClass('wheel-zoom-y', mode === 'y');
+  }
+
+  // Modifier keys from any key or mouse event (keyup of SHIFT gives shiftKey false, keydown of ALT altKey true)
+  function plotWheelMods(e) {
+    var shift = !!e.shiftKey, alt = !!e.altKey;
+    if(shift !== plot_wheel.shift || alt !== plot_wheel.alt) {
+      plot_wheel.shift = shift;
+      plot_wheel.alt = alt;
+      plotWheelCursor();
+    }
+  }
+
+  function plotWheelKey(e) {
+    plotWheelMods(e);
+    // ALT alone over the plot: no default action (Firefox shows its menu bar when ALT is released, and the menu
+    // takes the next keys). Only the ALT key itself: ALT + another key (shortcuts) is not touched.
+    if(plot_wheel.over && (e.key === 'Alt' || e.keyCode === 18)) e.preventDefault();
+  }
+
+  // Window or tab without focus: the keyup may never come, back to the normal cursor
+  function plotWheelReset() {
+    plot_wheel.shift = false;
+    plot_wheel.alt = false;
+    plotWheelCursor();
+  }
+
+  function plotWheelBind() {
+    if(plot_wheel.bound) return;
+    plot_wheel.bound = true;
+    $('#plot_holder')
+      .on('mousewheel', plotWheelEvent)
+      .on('mouseenter mousemove', function(e) {
+        if(!plot_wheel.over) { plot_wheel.over = true; plotWheelCursor(); }
+        plotWheelMods(e);
+      })
+      .on('mouseleave', function() { plot_wheel.over = false; plotWheelCursor(); });
+    $(document).on('keydown keyup', plotWheelKey);
+    $(window).on('blur', plotWheelReset);
+    $(document).on('visibilitychange', function() { if(document.hidden) plotWheelReset(); });
+  }
+  // [PLOT WHEEL END]
 
   function onDropdownChange(that, param_name, do_get) {
 
@@ -4368,6 +4697,8 @@
     if(apply_config_x) config_load_x_pending = false;
     params.local.single_btn = (single_btn === true ? 1 : 0);
     use_long_timeout = !!auto_flag;
+    var epoch_post = plot_epoch_post;      // v2.3.23: this POST carries a Reset zoom (see plot_epoch)
+    plot_epoch_post = false;
 
     // Send only the params that changed (same comparison as isParamChanged()), plus always_send_params.
     // Ecosystem 2.0 hangs with big POST bodies (E3), so all the ~220 params can not be sent every time.
@@ -4391,6 +4722,8 @@
     .done(function(dresult) {
       // OK: Load the params received as POST result
       if(dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
+        serverScopeGen(dresult.datasets.params);     // v2.3.23
+        if(epoch_post) plot_epoch++;                 // v2.3.23: GET /data started before this answer are not drawn
 
         // Use the provided min/max values only once after AUTO button was clicked
         if(auto_flag == 1 && dresult.datasets.params.min_y !== dresult.datasets.params.max_y) {
@@ -4707,27 +5040,60 @@
 
     $('#btn_ch1, #btn_ch2').data('checked', true).removeClass('btn-default').addClass('btn-primary');
 
-    var ymax = params.original.gui_reset_y_range / 2;
-    var ymin = ymax * -1;
+    // v2.3.21 (build 48): a lock capture ends first, as with AUTO (the scope settings saved before it are restored,
+    // Ext Trig included), and the window follows the restored Ext Trig
+    var restored = lockCaptureLeave('', 'Reset zoom');
 
-    $.extend(true, plot_options, {
-      xaxis: { min: null, max: null },
-      yaxis: { min: ymin, max: ymax }
-    });
+    // v2.3.21: the window depends on the Ext Trig of the scope (resetZoomWindow()): one period of the ramp (Scan
+    // floor / Scan ceil), one period of the modulation (harmonic mod.; v2.2.9: of the square modulation with Square mod.)
+    // or one whole memory at the current Dec;
+    // Y -1..1 V (raw mode -8192..8192). Before, X went to 0..130 us (Dec 1, server reset of xmin/xmax = -1e6/1e6)
+    // and Y to +-gui_reset_y_range/2 also in raw mode (+-1 count).
+    var tr = (params.original && isFinite(params.original.time_range) ? params.original.time_range : params.local.time_range);
+    var w = resetZoomWindow(params.local, tr);
+    console.log('Reset zoom: ' + (w.source === 'ramp' ? 'ramp period' : (w.source === 'mod' ? 'modulation period' :
+                (w.source === 'square' ? 'square modulation period' : 'one memory of the scope'))) + ' ' + w.period_s.toPrecision(6) + ' s -> window 0 .. ' +
+                w.xmax_s.toPrecision(6) + ' s (Dec ' + w.dec + ')' + (w.clamped ? ', clamped to the longest memory' : '') +
+                (w.rearm && !w.clamped ? ' (slow scan: it ends before the next trigger, so that every scan is acquired)' : ''));
 
+    // v2.3.23: the trace on the plot (other window / time units) is cleared and GET /data started before the answer
+    // of this POST are not drawn (see plot_epoch)
+    plotClearStale();
+
+    resetZoomY(w.ymin, w.ymax);
+
+    // params.local.xmin/xmax and the plot x axis, in the current time units; the server picks the Dec from them and,
+    // if the units change, answers with forceX in the new ones (as a zoom, Choose from graph or Config load)
+    lockSetXWindow(w.xmin_s, w.xmax_s);
+
+    $.extend(true, plot_options, { xaxis: { min: params.local.xmin, max: params.local.xmax } });
+
+    updateRanges();
+    updateTriggerSlider();
+    sendParams(true, true);
+    if(restored) runStop();
+  }
+
+  // v2.3.21: Y axes of the plot (and of plot_options) to ymin..ymax, without drawing (the caller does)
+  function resetZoomY(ymin, ymax) {
     var options = plot.getOptions();
-    options.xaxes[0].min = null;
-    options.xaxes[0].max = null;
     options.yaxes[0].min = ymin;
     options.yaxes[0].max = ymax;
+    // v2.2.9: this App has one Y axis only (no y2axis)
+    if(options.yaxes[1]) { options.yaxes[1].min = ymin; options.yaxes[1].max = ymax; }
+    $.extend(true, plot_options, { yaxis: { min: ymin, max: ymax } });
+  }
 
+  // v2.3.21 (build 48): Raw Mode switched by the user: Y to the range of Reset zoom in the new units (-8192..8192 or
+  // -1..1 V); X does not change
+  function rawModeRescaleY() {
+    if(!plot || !params.local) return;
+    var raw = !!Number(params.local.lock_osc_raw_mode);
+    resetZoomY(raw ? -8192 : -1, raw ? 8192 : 1);
     plot.setupGrid();
     plot.draw();
-
-    params.local.xmin = xmin;
-    params.local.xmax = xmax;
-
-    sendParams(true, true);
+    updateRanges();
+    updateTriggerSlider();
   }
 
   function updateZoom() {
@@ -5614,7 +5980,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.8)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.9)</h2>
     </div>
   </div>
   <div class="container">
@@ -5623,7 +5989,7 @@
         <button id="btn_autoscale_y" class="btn btn-primary btn-lg" data-autozoom="false" onclick="autoscaleY()" title="Rescales the Y axis to the data on the screen (in this page only: the scope settings do not change). It is not AUTO: it does not end a Capture Lock, so it can be used on a frozen capture.">
           <span class="glyphicon glyphicon-resize-vertical"></span> Autoscale
         </button>
-        <button class="btn btn-primary btn-lg" onclick="resetZoom()">
+        <button class="btn btn-primary btn-lg" onclick="resetZoom()" title="X: one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod.), one period of the square modulation (Ext Trig = Square mod.) or one whole memory of the scope at the current Dec (otherwise), from t = 0. Y: -1 V .. 1 V (raw mode: -8192 .. 8192)">
           <span class="glyphicon glyphicon-retweet"></span> Reset zoom
         </button>
         <div id="selzoompan" class="btn-group" data-toggle="buttons">

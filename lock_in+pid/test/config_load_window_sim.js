@@ -259,6 +259,7 @@ function race(name, page, cfg, exp_s) {
     downloading: false, post_inflight: 0, post_url: '/data', post_max_bytes: 600, last_unit_mode: 0, app_id: 'lock_in+pid_harmonic',
     plotOpts: { xaxes: [ { min: page.win[0], max: page.win[1] } ], yaxes: [ {}, {} ] },
     setTimeout: (f, ms) => { timers.push(f); return 1; },
+    plot_epoch: 0, plot_epoch_post: false, serverScopeGen() {},   // v2.3.23 (sendParams())
   };
   sb.params.local.lock_osc_raw_mode = 0;
   sb.plot = { getOptions: () => sb.plotOpts, setupGrid() {}, draw() {} };

@@ -1,6 +1,43 @@
 
 # Devbuild  changes
 
+## 2.2.9 - Reset zoom, mouse wheel on the scope and slow scans (port of lock_in+pid_harmonic 2.3.21-2.3.23)
+Port of lock_in+pid_harmonic v2.3.21 (Reset zoom), v2.3.22 (mouse wheel) and v2.3.23 (slow scans, FPGA `lock_ctrl.v`);
+see its CHANGELOG for the details and the board tests. New FPGA image. Comments that quote v2.3.2x refer to
+lock_in+pid_harmonic. What is specific to this App:
+  - FEATURE: **Reset zoom** sets X from t = 0 to one period of the ramp (Ext Trig = Scan floor / Scan ceil, always a
+             triangle here: 2·(high−low)·(step+1) clocks), of the **harmonic modulation** (harmonic mod., 2520·(hp+1)
+             clocks), of the **square modulation** (Square mod., 2·(sqp+1) clocks; with sqp = 0 the square
+             references follow the harmonic oscillator and the trigger comes once per harmonic period) or one whole
+             memory at the current Dec (other Ext Trig); periods ≥ 1.5 s: 0.98 × the period (at least 50 ms before
+             the next trigger). Y to −1 … 1 V (raw mode −8192 … 8192). During a lock capture it first ends it (as
+             AUTO); the Raw Mode button rescales Y. Periods measured on the RTL (`test/ramp_mod_period_sim.sh`).
+  - FEATURE: **mouse wheel on the scope**: no key zooms both axes, SHIFT only time (cursor ↔), ALT only Y (cursor ↕,
+             no POST); this App has one Y axis. X window 20 ns … 68.7 s; local zoom during a lock capture; xmin/xmax
+             sent without rounding to 2 decimals (a fast zoom from s to ms sent 0/0).
+  - BUGFIX: **slow scans** (windows ≥ 1.5 s): new long-acquisition reader in `src/worker.c` (`rp_osc_long_rd_*`, never
+            a sample of an older lap of the scope memory or from before the history, `adc_we_cnt` register 0x2C of
+            the scope, OK only when complete, ends at the window of the user); Capture Lock holds the lock request
+            until the scope has enabled its trigger (`lock_request_hold/commit/armed/poll` in `src/lock.c`, the POST
+            answers at once, a resumed acquisition publishes its arm); read-only params `scope_gen`,
+            `scope_acq_state`, `scope_acq_gen`, `sig_gen` (`PARAMS_NUM` 221 -> 225); page: capture recognised by
+            `sig_gen`, partial traces drawn, banners (loading history / acquiring), real "LOCKED but not captured";
+            Reset zoom clears stale traces (`plot_epoch`); a change of time units replaces the old trace at once.
+  - BUGFIX (FPGA, `lock_ctrl.v`): the time trigger counter is valid (`cnt_ok`) only from a floor of a ramp that has
+            been running since then (cleared with the effective ramp enable off or the generator stopped / in reset,
+            new input `ramp_run` = `ramp_enable & ~ramp_reset`), and it saturates instead of wrapping every 34.4 s: a
+            time (or level+time) request armed after a stop (e.g. right after a release) fires at the next floor +
+            time, never mid-scan. Adapted to the registered trigger inputs of this App (v2.2.6): `cnt_ok` is set
+            with `ramp_trigger_r` (the clock where the counter is loaded with 1) and delayed once for level+time;
+            with the ramp running the lock fires in the same clock as before. `time_eq` is built from `lock_trig_time`−1
+            and two flags in registers (cnt == thr−1, or thr == 1 at a floor, or thr == 2^32−1 when saturated): with the
+            saturation inside `cnt_next` the comparison was −0.26 ns (first build); same value every clock (checked
+            by `lock_ctrl_tb.v` against `cnt_next == lock_trig_time`).
+  - TESTS: new `test/reset_zoom_sim.js` (36, incl. Square mod.), `test/plot_wheel_sim.js` (59, one Y axis),
+           `test/ramp_mod_period_sim.sh` + `_tb.v` (14: triangle, harmonic and square periods); `lock_capture_ui_sim.js`
+           section 8 (79), `auto_set_c_sim` sections 6-9 (44), `lock_ctrl_tb.v` cases 16-19 and the time_eq monitor (46; the old `lock_ctrl.v`
+           fails 7).
+
 ## 2.2.8 - FPGA timing: pipeline registers (port of lock_in+pid_harmonic 2.3.19)
 The FPGA did not meet timing at 125 MHz (WNS -11.721 ns, TNS -12069 ns, 5431 failing endpoints). With the approval of
 the user to add latency, the long combinational chains of the loop get registers, as in lock_in+pid_harmonic v2.3.19:

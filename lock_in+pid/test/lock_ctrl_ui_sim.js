@@ -191,6 +191,8 @@ function makeEnv(server) {
     'post_min_gap_ms', 'post_max_per_s', 'post_starts', 'post_rate_timer', 'post_rate_args', 'lock_enable_keys',
     'send_all_skip', 'config_load_x_pending', 'server_ro_keys'].map(varSrc).join('\n');
   code += '\nvar params = {original:null, local:null};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n';
+  // v2.3.23: plot_epoch (Reset zoom) of the page, used by sendParams()
+  if(js.includes('var plot_epoch = 0')) code += 'var plot_epoch = 0, plot_epoch_post = false;\n';
   code += ['unsentChanges', 'loadParams', 'updateTimeUnits', 'isParamChanged', 'splitParams', 'postParamsChunks', 'sendParams',
            'postEnd', 'sendableValue', 'isSendable', 'hasRealChange', 'lockStatus', 'lockSetBtn', 'lock_status_display']
           .map(fnSrc).join('\n');

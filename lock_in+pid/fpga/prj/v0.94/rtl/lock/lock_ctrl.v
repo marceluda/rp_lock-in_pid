@@ -31,6 +31,7 @@ module lock_ctrl
     input         [10-1:0] lock_ctrl,
     input  signed [14-1:0] signal,
     input                  ramp_trigger,
+    input                  ramp_run,        // v2.2.9 (lock_in+pid_harmonic v2.3.23): ramp generator enabled and not in reset (ramp_enable & ~ramp_reset of lock.v)
     input         [32-1:0] time_threshold,
     input  signed [14-1:0] level_threshold,
     input                  level_rising_trigger,
@@ -105,8 +106,34 @@ module lock_ctrl
         if (rst) cnt  <=   32'b0   ;
         else     cnt  <=  cnt_next ;
 
-    // counter is synchronized with gen_ramp signal
-    assign cnt_next = ramp_trigger_r ? 32'd1 : cnt+1'b1 ;
+    // counter is synchronized with gen_ramp signal.
+    // lock_in+pid v2.2.9 (lock_in+pid_harmonic v2.3.23): it saturates at 2**32-1 instead of wrapping (every 34.4 s without a
+    // floor it passed the threshold again, at any point of the scan)
+    assign cnt_next = ramp_trigger_r ? 32'd1 : ( (&cnt) ? cnt : cnt+1'b1 ) ;
+
+    // lock_in+pid v2.2.9 (lock_in+pid_harmonic v2.3.23): cnt_ok = the counter measures the time from a floor of a ramp that
+    // has been running since then. It is cleared while the ramp is stopped (effective enable of this module: LOCKED
+    // with set_ramp_enable = 0, manual ramp off; or the generator disabled / in reset: ramp_run = 0) and set again
+    // at the next floor. Before, after a release the ramp went on from where it had stopped while cnt still counted
+    // from the old floor, and a time trigger armed then fired in the middle of the scan (lock_in+pid_harmonic on RP2,
+    // 2026-10-15: 4.4 s after the request, far from the peak). The time trigger (and level after time) now needs
+    // cnt_ok: a request armed after a stop waits for the next floor and fires at floor + time, as in a scan that
+    // never stopped.
+    // Here it is set with ramp_trigger_r, in the clock where cnt is loaded with 1 (the counter of this registered
+    // version): cnt_ok is 1 from cnt = 1 on, and the first clock after a floor (cnt still counting from the old one)
+    // never fires. cnt_ok_d is aligned with time_ge_d (level + time).
+    reg           cnt_ok, cnt_ok_d ;
+    wire          ramp_running ;
+    assign ramp_running = ramp_run & ramp_enable ;
+
+    always @(posedge clk)
+        if      (rst)            cnt_ok  <=  1'b0 ;
+        else if (~ramp_running)  cnt_ok  <=  1'b0 ;
+        else if (ramp_trigger_r) cnt_ok  <=  1'b1 ;
+
+    always @(posedge clk)
+        if (rst) cnt_ok_d  <=  1'b0 ;
+        else     cnt_ok_d  <=  cnt_ok ;
 
 
 
@@ -133,6 +160,22 @@ module lock_ctrl
     reg           time_eq, time_ge, time_ge_d ;// cnt == / >= time_threshold (same clock as cnt), time_ge delayed
     reg  signed   [14-1:0] sig_trig_now, sig_trig_last;   // values compared in ge_now / ge_last (simulation)
 
+    // lock_in+pid v2.2.9: time_eq without the saturation mux of cnt_next in its path (cnt -> &cnt mux -> 32-bit == was -0.26 ns
+    // after the port of the saturating counter):  cnt_next == thr  <=>  ramp_trigger_r ? thr == 1 :
+    // ( &cnt ? thr == 2**32-1 : cnt == thr-1 ). thr-1 and the two flags are registered: they follow a write of
+    // lock_trig_time 1 clock later (a static setting, written well before a request).
+    reg  [32-1:0] thr_m1 ;
+    reg           thr_is_1, thr_is_max ;
+    wire          time_eq_next ;
+
+    always @(posedge clk) begin
+        thr_m1      <=  time_threshold - 32'd1 ;
+        thr_is_1    <=  (time_threshold == 32'd1) ;
+        thr_is_max  <=  (&time_threshold) ;
+    end
+
+    assign time_eq_next = ramp_trigger_r ? thr_is_1 : ( (&cnt) ? thr_is_max : (cnt == thr_m1) ) ;
+
     always @(posedge clk) begin
         if (rst) begin
             ge_now        <=  1'b0 ;
@@ -146,7 +189,7 @@ module lock_ctrl
         else begin
             ge_now        <=  (signal_now >= level_threshold) ;
             ge_last       <=  ge_now ;
-            time_eq       <=  (cnt_next == time_threshold) ;
+            time_eq       <=  time_eq_next ;          // = (cnt_next == time_threshold), see thr_m1
             time_ge       <=  (cnt_next >= time_threshold) ;
             time_ge_d     <=  time_ge ;
             sig_trig_now  <=  signal_now ;
@@ -159,7 +202,7 @@ module lock_ctrl
     wire  trigger,time_trigger,level_trigger,both_trigger;
 
     // Time trigger
-    assign time_trigger  = time_eq & seek_time_trig & (~seek_level_trig) ;
+    assign time_trigger  = time_eq & cnt_ok & seek_time_trig & (~seek_level_trig) ;
 
     /* Level trigger: if signal is equal or greater (less) than threshold
                       and was less (equal or greater) in the last value
@@ -169,7 +212,7 @@ module lock_ctrl
                               & seek_level_trig ;
 
     // time+level trigger: if time trigger condition was already met, then fire trigger when level condition is met
-    assign both_trigger     = level_trigger & time_ge_d & seek_time_trig;
+    assign both_trigger     = level_trigger & cnt_ok_d & time_ge_d & seek_time_trig;
 
     assign trigger          = time_trigger | (level_trigger&(~seek_time_trig)) | both_trigger;
 
@@ -235,6 +278,7 @@ lock_ctrl NAME (
     .lock_ctrl            ( lock_state         ),
     .signal               ( lock_ctrl_signal   ),
     .ramp_trigger         ( ramp_trig          ),
+    .ramp_run             ( ramp_run           ),
     .time_threshold       ( lock_trig_time_val ),
     .level_threshold      ( lock_trig_val      ),
     .level_rising_trigger ( lock_trig_rise     ),

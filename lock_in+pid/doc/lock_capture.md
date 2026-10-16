@@ -199,3 +199,40 @@ Running `py/*.py` on the board (e.g. `lock_from_registers.py`, which imports `hu
 `py/__pycache__/` in the App folder. That is fine: it is only a cache, and the Makefile removes
 `__pycache__` and `*.pyc` from `target/` and from the packages, so it is never distributed. It can be
 deleted at any time.
+
+## v2.2.9 (lock_in+pid_harmonic v2.3.23): slow scans (windows of 1.5 s or more)
+
+Test of 2026-10-15 (30 s ramp, v2.3.22): 2 of 7 captures. With a 30 s window the capture needs |xmin| = 7.6-9 s
+of pre-trigger history: the worker arms, waits that long, and only then enables the trigger. The v2.3.14 wait of
+`rp_set_params()` was capped at 1.5 s, so the request reached the FPGA first and the lock pulse came with the
+trigger disabled; the POST took ~2 s (timeout of the page), was sent again, and re-armed the scope.
+
+- **Held request** (`src/lock.c`, `lock_request_hold/commit/armed/poll`): the POST that arms the Single and requests
+  the lock answers at once; the request bits (lock_now / launch) are kept out of `lock_control` until the worker has
+  enabled the trigger of an acquisition armed with that parameter generation (`lock_request_armed()`) and the POST
+  has written the other lock registers (`lock_request_commit()`). Deadline: history + 3 s (`lock_request_poll()`,
+  called by `rp_get_params()` and the worker). A release drops it. `rp_osc_worker_wait_armed()` is no longer used.
+- **Worker** (`src/worker.c`): the pre-trigger wait and the reads sleep in steps of 10 ms and look at the state and
+  new parameters; new parameters that do not change the acquisition (same window, trigger, Dec, gains, display
+  mode) resume it (the same POST sent again does not re-arm). The trigger is detected with the trigger status bit.
+- **Long acquisitions** are read sample by sample counted from the trigger (see the comment of
+  `rp_osc_long_rd_*()`): never a sample of another lap or from before the history; the acquisition ends at the end
+  of the window of the user.
+- **Scope state for the page**: `scope_gen`, `scope_acq_state` (0 none, 1 loading history, 2 waiting trigger,
+  3 triggered/being read, 4 complete), `scope_acq_gen`, `sig_gen` (generation of the served trace). The page takes
+  `lock_cap.gen = scope_gen` of the arming POST: traces with `sig_gen >= gen` are the capture (its partial ones are
+  drawn while waiting); "LOCKED but not captured" only when LOCKED for 2 s with the capture acquisition still at
+  state <= 2. Banners: loading the history / waiting for the lock / acquiring the trace.
+- Lock Now with Capture Lock therefore locks after the history (30 % of the window) is loaded.
+
+### Time trigger after a stopped ramp, resumed acquisition (after the retest of build 51)
+
+- `lock_ctrl.v` reset the time counter only at a scan floor; it kept counting while the ramp was stopped and
+  wrapped every 34.4 s. After a lock/release the ramp continues from where it stopped, so a time request armed
+  before the next floor fired mid-scan. Fixed in the FPGA: `cnt_ok` (cleared while the effective ramp enable or
+  the generator, input `ramp_run` = `ramp_enable & ~ramp_reset`, is off; set at the next floor) gates the time
+  and level-after-time triggers, and the counter saturates. Covers the page, Python and direct register writes.
+  (Build 55 had tried a software ramp monitor in `lock.c` instead; removed.)
+- A resumed acquisition (same settings, still waiting for its trigger) publishes the arm again and calls
+  `lock_request_armed()`; `rp_set_params()` also checks `rp_osc_worker_armed_gen()` right after holding (the worker
+  may have resumed first). A triggered acquisition is never resumed.

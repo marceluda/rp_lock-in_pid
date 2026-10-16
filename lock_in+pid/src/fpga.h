@@ -137,8 +137,12 @@ typedef struct osc_fpga_reg_mem_s {
      * bits [31:1] - reserved
      */
     uint32_t other;
-    
-    uint32_t reseved;
+
+    /** @brief Offset 0x2C (R) - v2.3.23: number of samples written into the buffer since the last arm and
+     * before the trigger (adc_we_cnt of rp_bram_sm.v / red_pitaya_scope.v, saturates at 2**32-1). It is the
+     * pre-trigger history of the current acquisition that really belongs to it (see osc_fpga_get_we_cnt()).
+     */
+    uint32_t we_cnt;
     
     /** @brief ChA Equalization filter
      * bits [17:0] - AA coefficient (pole)
@@ -236,6 +240,9 @@ int   osc_fpga_set_trigger_delay(uint32_t trig_delay);
 int   osc_fpga_triggered(void);
 int   osc_fpga_get_sig_ptr(int **cha_signal, int **chb_signal);
 int   osc_fpga_get_wr_ptr(int *wr_ptr_curr, int *wr_ptr_trig);
+/* v2.3.23 */
+int   osc_fpga_trig_received(void);
+uint32_t osc_fpga_get_we_cnt(void);
 
 int   osc_fpga_cnv_trig_source(int trig_imm, int trig_source, int trig_edge);
 int   osc_fpga_cnv_time_range_to_dec(int time_range);

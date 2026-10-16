@@ -20,9 +20,11 @@
 #include <math.h>
 #include <stdlib.h>
 #include <limits.h>
+#include <time.h>
 
 #include "worker.h"
 #include "fpga.h"
+#include "lock.h"         /* v2.2.9: lock_request_*() (Capture Lock, from lock_in+pid_harmonic 2.3.23) */
 
 pthread_t *rp_osc_thread_handler = NULL;
 void *rp_osc_worker_thread(void *args);
@@ -39,11 +41,19 @@ int                   rp_osc_params_fpga_update;
 static int                   rp_osc_params_gen  = 0;
 static int                   rp_osc_armed_gen   = -1;
 static rp_osc_worker_state_t rp_osc_armed_state = rp_osc_idle_state;
+/* v2.3.23: state of the acquisition of the worker (scope_acq_state, see main.h) and its parameter generation.
+ * Protected by rp_osc_ctrl_mutex. */
+static int                   rp_osc_acq_state   = 0;
+static int                   rp_osc_acq_gen     = -1;
 
 pthread_mutex_t       rp_osc_sig_mutex = PTHREAD_MUTEX_INITIALIZER;
 float               **rp_osc_signals;
 int                   rp_osc_signals_dirty = 0;
 int                   rp_osc_sig_last_idx = 0;
+/* v2.3.23: parameter generation of the published trace (rp_osc_set_signals_gen()) and of the last one copied
+ * out by rp_osc_get_signals() (sig_gen, see main.h). Protected by rp_osc_sig_mutex. */
+static int            rp_osc_sig_pub_gen    = -1;
+static int            rp_osc_sig_served_gen = -1;
 float               **rp_tmp_signals; /* used for calculation, only from worker */
 
 /* Signals directly pointing at the FPGA mem space */
@@ -51,6 +61,33 @@ int                  *rp_fpga_cha_signal, *rp_fpga_chb_signal;
 
 /* Calibration parameters read from EEPROM */
 rp_calib_params_t *rp_calib_params = NULL;
+
+/* v2.3.23: reader of a long acquisition (rp_osc_long_rd_*(), see there) */
+typedef struct rp_osc_long_rd_s {
+    int       trig_ptr;     /* buffer address of the trigger sample (s = 0) */
+    int       last_cur;     /* last write pointer read */
+    long long written;      /* samples written from the trigger on: s = 0 .. written-1 */
+    long long pre_valid;    /* samples before the trigger that belong to this acquisition */
+    int       s0, step;     /* sample of the point 0 and samples between points */
+    int       n_pts;        /* points up to the end of the window of the user (the others: after it) */
+    int       next;         /* next point to read */
+    int       first_valid;  /* first point with data (-1: none yet) */
+    long long meas_n;       /* raw samples in the measurements */
+    double    smpl_us;      /* sample period [us] */
+} rp_osc_long_rd_t;
+
+static void rp_osc_long_rd_start(rp_osc_long_rd_t *rd, int s0, int step, int n_pts, long long pre_sw, float smpl_period);
+static void rp_osc_long_rd_update(rp_osc_long_rd_t *rd);
+static long long rp_osc_long_rd_wait_us(const rp_osc_long_rd_t *rd);
+static int rp_osc_long_rd_read(rp_osc_long_rd_t *rd, int done,
+                               float **cha_out_signal, int *cha_in_signal,
+                               float **chb_out_signal, int *chb_in_signal,
+                               float **time_out_signal,
+                               float t_start, int dec_factor, int time_unit,
+                               rp_osc_meas_res_t *ch1_meas, rp_osc_meas_res_t *ch2_meas,
+                               float ch1_max_adc_v, float ch2_max_adc_v,
+                               float ch1_user_dc_off, float ch2_user_dc_off);
+static void rp_osc_long_rd_fill_tail(const rp_osc_long_rd_t *rd, float **sig);
 
 
 /*----------------------------------------------------------------------------------*/
@@ -204,6 +241,19 @@ int rp_osc_worker_params_gen(void)
 
 
 /*----------------------------------------------------------------------------------*/
+/* v2.3.23: generation of the parameters of the last acquisition whose trigger the worker enabled (-1: none),
+ * only while it still waits for that trigger in that state */
+int rp_osc_worker_armed_gen(rp_osc_worker_state_t state)
+{
+    int g;
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    g = (rp_osc_armed_state == state && rp_osc_acq_state == 2) ? rp_osc_armed_gen : -1;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+    return g;
+}
+
+
+/*----------------------------------------------------------------------------------*/
 /* v2.3.14: wait until the worker has armed the scope (trigger enabled, pre-trigger history
  * loaded) with parameters of generation >= gen and in state 'state'.
  * Returns 0 when armed, -1 on timeout (e.g. streaming owns the scope). */
@@ -251,6 +301,7 @@ int rp_osc_get_signals(float ***signals, int *sig_idx)
     memcpy(&s[2][0], &rp_osc_signals[2][0], sizeof(float)*SIGNAL_LENGTH);
 
     *sig_idx = rp_osc_sig_last_idx;
+    rp_osc_sig_served_gen = rp_osc_sig_pub_gen;
 
     rp_osc_signals_dirty = 0;
     pthread_mutex_unlock(&rp_osc_sig_mutex);
@@ -259,9 +310,28 @@ int rp_osc_get_signals(float ***signals, int *sig_idx)
 
 
 /*----------------------------------------------------------------------------------*/
+/* v2.3.23: parameter generation of the last trace copied out by rp_osc_get_signals() (-1: none) */
+int rp_osc_get_signals_gen(void)
+{
+    int g;
+    pthread_mutex_lock(&rp_osc_sig_mutex);
+    g = rp_osc_sig_served_gen;
+    pthread_mutex_unlock(&rp_osc_sig_mutex);
+    return g;
+}
+
+
+/*----------------------------------------------------------------------------------*/
 int rp_osc_set_signals(float **source, int index)
 {
+    return rp_osc_set_signals_gen(source, index, -1);
+}
+
+/* v2.3.23: the same, with the parameter generation of the acquisition (sig_gen) */
+int rp_osc_set_signals_gen(float **source, int index, int gen)
+{
     pthread_mutex_lock(&rp_osc_sig_mutex);
+    rp_osc_sig_pub_gen = gen;
 
     memcpy(&rp_osc_signals[0][0], &source[0][0], sizeof(float)*SIGNAL_LENGTH);
     memcpy(&rp_osc_signals[1][0], &source[1][0], sizeof(float)*SIGNAL_LENGTH);
@@ -284,25 +354,120 @@ int rp_osc_set_meas_data(rp_osc_meas_res_t ch1_meas, rp_osc_meas_res_t ch2_meas)
 
 
 /*----------------------------------------------------------------------------------*/
+/* v2.3.23: monotonic time [us] (the waits of the worker must not follow NTP steps of the clock) */
+static long long rp_osc_now_us(void)
+{
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (long long)ts.tv_sec * 1000000LL + ts.tv_nsec / 1000;
+}
+
+/* v2.3.23: state of the acquisition of the worker, for rp_get_params() (scope_acq_state / scope_acq_gen) */
+static void rp_osc_acq_set(int state, int gen)
+{
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    rp_osc_acq_state = state;
+    rp_osc_acq_gen   = gen;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+}
+
+int rp_osc_worker_acq_status(int *state, int *gen)
+{
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    if(state) *state = rp_osc_acq_state;
+    if(gen)   *gen   = rp_osc_acq_gen;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+    return 0;
+}
+
+/* v2.3.23: the state or the parameters of the worker changed */
+static int rp_osc_worker_changed(rp_osc_worker_state_t state)
+{
+    int changed;
+    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+    changed = (rp_osc_ctrl != state) || rp_osc_params_dirty;
+    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+    return changed;
+}
+
+/* v2.3.23: sleeps until t_end_us (rp_osc_now_us()) in steps of at most 10 ms. Returns 1 at once if the state
+ * or the parameters change meanwhile (the caller goes back to the top of the loop, where an acquisition with
+ * the same settings is resumed, not armed again), 0 when the time is over. */
+static int rp_osc_worker_sleep_until(long long t_end_us, rp_osc_worker_state_t state)
+{
+    while(1) {
+        long long d;
+        if(rp_osc_worker_changed(state))
+            return 1;
+        d = t_end_us - rp_osc_now_us();
+        if(d <= 0)
+            return 0;
+        usleep((useconds_t)(d > 10000 ? 10000 : d));
+    }
+}
+
+/* v2.3.23: parameters that define an acquisition (FPGA settings, window, conversions of the trace). A new copy
+ * of the parameters with all of them unchanged (e.g. the same Single POST sent again by the page, or
+ * single_btn alone) does not abort the acquisition in progress: it is resumed. */
+static const int rp_osc_acq_keys[] = {
+    MIN_GUI_PARAM, MAX_GUI_PARAM, TRIG_MODE_PARAM, TRIG_SRC_PARAM, TRIG_EDGE_PARAM, TRIG_DLY_PARAM,
+    TRIG_LEVEL_PARAM, TIME_RANGE_PARAM, TIME_UNIT_PARAM, EN_AVG_AT_DEC, PRB_ATT_CH1, GAIN_CH1, PRB_ATT_CH2,
+    GAIN_CH2, GEN_DC_OFFS_1, GEN_DC_OFFS_2, LOCK_OSCA_SW, LOCK_OSCB_SW, LOCK_OSC_RAW_MODE, LOCK_OSC_LOCKIN_MODE,
+    -1 };
+
+static int rp_osc_acq_params_same(const rp_app_params_t *a, const rp_app_params_t *b)
+{
+    int i;
+    if(!a || !b)
+        return 0;
+    for(i = 0; rp_osc_acq_keys[i] >= 0; i++)
+        if(a[rp_osc_acq_keys[i]].value != b[rp_osc_acq_keys[i]].value)
+            return 0;
+    return 1;
+}
+
+/* v2.3.23: trace with no data (all the points on (t_start, 0)): replaces a trace in other time units, which the
+ * page would draw on the new axis (e.g. ms values on an axis in s after Reset zoom), until the next one comes */
+static void rp_osc_publish_empty(float t_start_units, int gen)
+{
+    int i;
+    for(i = 0; i < SIGNAL_LENGTH; i++) {
+        rp_tmp_signals[0][i] = t_start_units;
+        rp_tmp_signals[1][i] = 0;
+        rp_tmp_signals[2][i] = 0;
+    }
+    rp_osc_set_signals_gen(rp_tmp_signals, 0, gen);
+}
+
+
+/*----------------------------------------------------------------------------------*/
 void *rp_osc_worker_thread(void *args)
 {
-    rp_osc_worker_state_t old_state, state;
+    rp_osc_worker_state_t state;
     rp_app_params_t      *curr_params = NULL;
+    rp_app_params_t      *prev_params = NULL;  /* v2.3.23: copy before the last new parameters */
     int                   fpga_update = 0;
     int                   dec_factor = 0;
     int                   time_vect_update = 0;
     uint32_t              trig_source = 0;
-    int                   params_dirty = 0;
     int                   curr_gen = -1;       /* generation of curr_params (v2.3.14) */
 
-    /* Long acquisition special function */
-    int long_acq = 0; /* long_acq if acq_time > 1 [s] */
-    int long_acq_idx = 0;
-    int long_acq_first_wr_ptr = 0;
-    int long_acq_last_wr_ptr = 0;
-    int long_acq_step = 0;
-    int long_acq_init_trig_ptr;
+    /* Long acquisition: windows of 1.5 s or more are read while the FPGA writes them (partial traces) */
+    int long_acq = 0;
+    rp_osc_long_rd_t rd;
 
+    /* v2.3.23: acquisition in progress. It is kept (resumed) across new parameters that do not change it
+     * (rp_osc_acq_params_same()) and across a change of the state back to the same one: before, any POST
+     * that reached the worker (e.g. the Single + lock request POST sent again by the page after a timeout)
+     * re-armed the scope and waited the whole pre-trigger history again. */
+    int acq_armed = 0;                  /* FPGA armed for it */
+    int acq_trig_set = 0;               /* its trigger source is enabled */
+    int acq_trig = 0;                   /* its trigger was received */
+    int acq_published = 0;              /* (non-long) acq. state 3 published */
+    rp_osc_worker_state_t acq_state = rp_osc_idle_state;   /* worker state it was armed in */
+    long long acq_arm_us = 0, acq_trig_set_us = 0, acq_pre_wait_us = 0, acq_next_rd_us = 0;
+    /* time units of the last published trace (rp_osc_publish_empty()) */
+    float pub_units = -1;
 
     rp_osc_meas_res_t ch1_meas, ch2_meas;
     float ch1_max_adc_v = 1, ch2_max_adc_v = 1;
@@ -312,28 +477,32 @@ void *rp_osc_worker_thread(void *args)
     int32_t  fe_ch1_dc_offs=0;
     int32_t  fe_ch2_dc_offs=0;
 
+    (void)args;
+    memset(&rd, 0, sizeof(rd));
+    rp_osc_meas_clear(&ch1_meas);
+    rp_osc_meas_clear(&ch2_meas);
+
     pthread_mutex_lock(&rp_osc_ctrl_mutex);
-    old_state = state = rp_osc_ctrl;
+    state = rp_osc_ctrl;
     pthread_mutex_unlock(&rp_osc_ctrl_mutex);
 
     while(1) {
-        /* update states - we save also old state to see if we need to reset
-         * FPGA
-         */
-        old_state = state;
+        int new_params = 0;
+
         pthread_mutex_lock(&rp_osc_ctrl_mutex);
         state = rp_osc_ctrl;
 
-
         if(rp_osc_params_dirty) {
+            if(curr_params)
+                rp_copy_params(curr_params, (rp_app_params_t **)&prev_params);
             rp_copy_params(rp_osc_params, (rp_app_params_t **)&curr_params);
             fpga_update = rp_osc_params_fpga_update;
 
             rp_osc_params_dirty = 0;
             curr_gen = rp_osc_params_gen;
+            new_params = 1;
             dec_factor =
                 osc_fpga_cnv_time_range_to_dec(curr_params[TIME_RANGE_PARAM].value);
-            time_vect_update = 1;
 
             uint32_t fe_fsg1 = (curr_params[GAIN_CH1].value == 0) ?
                     rp_calib_params->fe_ch1_fs_g_hi :
@@ -353,11 +522,16 @@ void *rp_osc_worker_thread(void *args)
         /* request to stop worker thread, we will shut down */
         if(state == rp_osc_quit_state) {
             rp_clean_params(curr_params);
+            rp_clean_params(prev_params);
             return 0;
         }
 
+        /* v2.3.23: lock request held for the scope past its deadline (lock.c) */
+        lock_request_poll();
 
         if(state == rp_osc_auto_set_state) {
+            acq_armed = 0;
+            rp_osc_acq_set(0, curr_gen);
             /* Auto-set algorithm was selected - run it */
             int auto_ret = rp_osc_auto_set(curr_params, ch1_max_adc_v, ch2_max_adc_v,
                             curr_params[GEN_DC_OFFS_1].value,
@@ -378,6 +552,13 @@ void *rp_osc_worker_thread(void *args)
                 if(st != rp_osc_auto_set_state)
                     rp_auto_set_aborted();
             }
+            /* the auto-set left the FPGA with its own settings */
+            fpga_update = 1;
+            continue;
+        }
+
+        if(curr_params == NULL) {
+            usleep(10000);
             continue;
         }
 
@@ -395,7 +576,33 @@ void *rp_osc_worker_thread(void *args)
         else
             fe_ch2_dc_offs=0;
 
+        /* v2.3.23: new parameters that do not change the acquisition in progress (same state): resume it */
+        if(new_params) {
+            /* (v2.3.23) only while it still waits for its trigger: a Single after the trigger is a new acquisition
+             * (else a new Capture Lock request would take the trace of an older event) */
+            if(acq_armed && !acq_trig && (state == acq_state) && rp_osc_acq_params_same(prev_params, curr_params)) {
+                fpga_update = 0;
+                rp_osc_acq_set(acq_trig_set ? 2 : 1, curr_gen);
+                /* (v2.3.23) already armed for this generation: say so (a lock request of this POST is held for
+                 * it; before, it waited for its deadline: RP2, 10.9 s) */
+                if(acq_trig_set) {
+                    pthread_mutex_lock(&rp_osc_ctrl_mutex);
+                    rp_osc_armed_gen   = curr_gen;
+                    rp_osc_armed_state = state;
+                    pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+                    lock_request_armed(curr_gen);
+                }
+            } else {
+                acq_armed = 0;
+                time_vect_update = 1;
+            }
+        }
+        /* other state (e.g. Normal -> Single): a new acquisition */
+        if(acq_armed && (state != acq_state))
+            acq_armed = 0;
+
         if(fpga_update) {
+            acq_armed = 0;
             osc_fpga_reset();
             if(osc_fpga_update_params((curr_params[TRIG_MODE_PARAM].value == 0),
                                       curr_params[TRIG_SRC_PARAM].value,
@@ -432,11 +639,6 @@ void *rp_osc_worker_thread(void *args)
             fpga_update = 0;
         }
 
-        if(state == rp_osc_idle_state) {
-            usleep(10000);
-            continue;
-        }
-
         if(time_vect_update) {
             float unit_factor =
                 rp_osc_get_time_unit_factor(curr_params[TIME_UNIT_PARAM].value);
@@ -454,150 +656,114 @@ void *rp_osc_worker_thread(void *args)
             /* check if we have long acquisition - if yes the algorithm
              * (wait for pre-defined time and return partial signal) */
             /* TODO: Make it programmable */
-            if(t_acq >= 1.5) {
-                long_acq = 1;
-                /* Catch initial trigger - we will poll trigger pointer,
-                 * when it changes we will act like official 'trigger'
-                 * came
-                 */
-                rp_osc_meas_clear(&ch1_meas);
-                rp_osc_meas_clear(&ch2_meas);
-                osc_fpga_get_wr_ptr(NULL, &long_acq_init_trig_ptr);
-            } else {
-                long_acq_first_wr_ptr  = 0;
-                long_acq_last_wr_ptr   = 0;
-                long_acq = 0;
+            long_acq = (t_acq >= 1.5);
+
+            /* v2.3.23: other time units than the last trace: that trace is replaced by an empty one at once */
+            if((pub_units >= 0) && (curr_params[TIME_UNIT_PARAM].value != pub_units)) {
+                rp_osc_publish_empty(curr_params[MIN_GUI_PARAM].value * unit_factor, curr_gen);
+                pub_units = curr_params[TIME_UNIT_PARAM].value;
             }
-            long_acq_idx = 0;
         }
 
-        /* Start new acquisition only if it is the index 0 (new acquisition) */
-        if(long_acq_idx == 0) {
+        if((state == rp_osc_idle_state) || (state == rp_osc_abort_state)) {
+            if(acq_armed) {
+                acq_armed = 0;
+                rp_osc_acq_set(0, curr_gen);
+            }
+            usleep(10000);
+            continue;
+        }
+
+        /* New acquisition: arm (the FPGA writes from now on) */
+        if(!acq_armed) {
             float time_delay = curr_params[TRIG_DLY_PARAM].value;
-            /* Start the writting machine */
             osc_fpga_arm_trigger();
-
-            /* Be sure to have enough time to load necessary history - wait */
-            if(time_delay < 0) {
-                /* time delay is always in seconds - convert to [us] and
-                * sleep
-                */
-                usleep(round(-1 * time_delay * 1e6));
-            } else {
-                if(curr_params[TIME_RANGE_PARAM].value > 4)
-                    usleep(5000);
-                else
-                    usleep(1);
-            }
-
-            /* Start the trigger */
-            osc_fpga_set_trigger(trig_source);
+            acq_armed     = 1;
+            acq_trig_set  = 0;
+            acq_trig      = 0;
+            acq_published = 0;
+            acq_state     = state;
+            acq_arm_us    = rp_osc_now_us();
+            /* Be sure to have enough time to load necessary history: time delay is always in seconds */
+            if(time_delay < 0)
+                acq_pre_wait_us = (long long)round(-1 * time_delay * 1e6);
+            else
+                acq_pre_wait_us = (curr_params[TIME_RANGE_PARAM].value > 4) ? 5000 : 1;
+            rp_osc_meas_clear(&ch1_meas);
+            rp_osc_meas_clear(&ch2_meas);
+            rp_osc_acq_set(1, curr_gen);
         }
 
-        /* start working */
-        pthread_mutex_lock(&rp_osc_ctrl_mutex);
-        old_state = state = rp_osc_ctrl;
-        /* v2.3.14: the scope is armed now (new acquisition): publish it for rp_osc_worker_wait_armed() */
-        if((long_acq_idx == 0) && !rp_osc_params_dirty) {
+        /* Pre-trigger history: wait (v2.3.23: interrupted by a change, and resumed if the change does not
+         * touch this acquisition), then enable the trigger */
+        if(!acq_trig_set) {
+            if(rp_osc_worker_sleep_until(acq_arm_us + acq_pre_wait_us, state))
+                continue;
+            osc_fpga_set_trigger(trig_source);
+            acq_trig_set    = 1;
+            acq_trig_set_us = rp_osc_now_us();
+            /* v2.3.14: the scope is armed now (new acquisition): publish it */
+            pthread_mutex_lock(&rp_osc_ctrl_mutex);
             rp_osc_armed_gen   = curr_gen;
             rp_osc_armed_state = state;
-        }
-        pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-        if((state == rp_osc_idle_state) || (state == rp_osc_abort_state)) {
-            continue;
-        } else if(state == rp_osc_quit_state) {
-            break;
+            rp_osc_acq_state   = 2;
+            rp_osc_acq_gen     = curr_gen;
+            pthread_mutex_unlock(&rp_osc_ctrl_mutex);
+            /* v2.3.23: a lock request held for this acquisition goes to the FPGA now (lock.c) */
+            lock_request_armed(curr_gen);
         }
 
-        if(long_acq_idx == 0) {
-            /* polling until data is ready */
+        /* Wait for the trigger (non-long: for the end of the acquisition) */
+        if(!acq_trig) {
+            int changed = 0;
             while(1) {
-                pthread_mutex_lock(&rp_osc_ctrl_mutex);
-                state = rp_osc_ctrl;
-                params_dirty = rp_osc_params_dirty;
-                pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-                /* change in state, abort polling */
-                if((state != old_state) || params_dirty) {
+                if(rp_osc_worker_changed(state)) {
+                    changed = 1;
                     break;
                 }
-
-                if(!long_acq && osc_fpga_triggered()) {
-                    /* for non-long acquisition wait for trigger */
-                    break;
-                } else if(long_acq) {
-                    int trig_ptr, curr_ptr;
-                    osc_fpga_get_wr_ptr(&curr_ptr, &trig_ptr);
-                    if((long_acq_init_trig_ptr != trig_ptr) || osc_fpga_triggered()) {
-                        /* FPGA wrote new trigger pointer - which means
-                         * new trigger happened
-                         */
+                if(!long_acq) {
+                    if(osc_fpga_triggered())
                         break;
+                    if(!acq_published && osc_fpga_trig_received()) {
+                        acq_published = 1;
+                        rp_osc_acq_set(3, curr_gen);
                     }
+                } else {
+                    /* v2.3.23: the trigger status bit (osc_fpga_trig_received()). Before, a change of the trigger
+                     * pointer also counted as a trigger: it changes with a reset too, not only at a trigger */
+                    if(osc_fpga_trig_received())
+                        break;
                 }
                 usleep(1000);
             }
-        }
+            if(changed)
+                continue;
 
-
-        if((state != old_state) || params_dirty) {
-            params_dirty = 0;
-            continue;
-        }
-        if(long_acq) {
-            /* Long acquisition - after trigger wait for a while to collect some
-            * data
-            */
-
-            /* TODO: Make it programmable - Sleep for 200 [ms] */
-            const int long_acq_part_delay = 1000 * 200;
-            if(long_acq_idx == 0) {
+            if(long_acq) {
                 /* Trigger - so let's arrange all the needed pointers & stuff */
-                int wr_ptr_curr, wr_ptr_trig;
                 float smpl_period = c_osc_fpga_smpl_period * dec_factor;
-                int t_start_idx =
-                    round(curr_params[MIN_GUI_PARAM].value / smpl_period);
-                float unit_factor =
-                    rp_osc_get_time_unit_factor(
-                                         curr_params[TIME_UNIT_PARAM].value);
-                float t_acq = (curr_params[MAX_GUI_PARAM].value -
-                               curr_params[MIN_GUI_PARAM].value) /
-                    unit_factor;
-
-                osc_fpga_get_wr_ptr(&wr_ptr_curr, &wr_ptr_trig);
-                long_acq_first_wr_ptr = wr_ptr_trig + t_start_idx - 3;
-                if(long_acq_first_wr_ptr < 0)
-                    long_acq_first_wr_ptr =
-                        OSC_FPGA_SIG_LEN + long_acq_first_wr_ptr;
-                long_acq_last_wr_ptr  = long_acq_first_wr_ptr +
-                    (t_acq / (c_osc_fpga_smpl_period * dec_factor));
-                long_acq_last_wr_ptr = long_acq_last_wr_ptr % OSC_FPGA_SIG_LEN;
-
-                if(round((t_acq / (c_osc_fpga_smpl_period * dec_factor) /
-                         (SIGNAL_LENGTH-1))) < 0)
-                    long_acq_step = 1;
-                else
-                    long_acq_step =
-                        round((t_acq / (c_osc_fpga_smpl_period * dec_factor)) /
-                              (SIGNAL_LENGTH-1));
-
+                float unit_factor = rp_osc_get_time_unit_factor(curr_params[TIME_UNIT_PARAM].value);
+                float t_acq = (curr_params[MAX_GUI_PARAM].value - curr_params[MIN_GUI_PARAM].value) / unit_factor;
+                int   t_start_idx = round(curr_params[MIN_GUI_PARAM].value / smpl_period);
+                int   step = (int)round((t_acq / smpl_period) / (SIGNAL_LENGTH-1));
+                /* pre-trigger samples of this acquisition: the FPGA counter (0x2C), or at least the time the
+                 * trigger was disabled after the arm (FPGAs without that register) */
+                long long pre_sw = (long long)((acq_trig_set_us - acq_arm_us) * 1e-6 / smpl_period) - 2;
+                /* points up to the end of the window of the user (GUI_XMAX, in the units of the time vector) */
+                float xmax_user = curr_params[GUI_XMAX].value / unit_factor;
+                int   n_pts = SIGNAL_LENGTH;
+                if(step < 1)
+                    step = 1;
+                if(xmax_user > curr_params[MIN_GUI_PARAM].value)
+                    n_pts = (int)ceil((xmax_user - curr_params[MIN_GUI_PARAM].value) / (step * smpl_period)) + 2;
+                rp_osc_long_rd_start(&rd, t_start_idx - 3, step, n_pts, pre_sw, smpl_period);
                 rp_osc_meas_clear(&ch1_meas);
                 rp_osc_meas_clear(&ch2_meas);
+                acq_next_rd_us = rp_osc_now_us() + 200000;
             }
-
-            /* we are after trigger - so let's wait a while to collect some
-            * samples */
-            usleep(long_acq_part_delay); /* Sleep for 200 [ms] */
+            acq_trig = 1;
+            rp_osc_acq_set(3, curr_gen);
         }
-
-        pthread_mutex_lock(&rp_osc_ctrl_mutex);
-        state = rp_osc_ctrl;
-        params_dirty = rp_osc_params_dirty;
-        pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-
-        if((state != old_state) || params_dirty)
-            continue;
-
-
 
         if(!long_acq) {
             /* Triggered, decimate & convert the values */
@@ -612,75 +778,62 @@ void *rp_osc_worker_thread(void *args)
                             &ch1_meas, &ch2_meas, ch1_max_adc_v, ch2_max_adc_v,
                             curr_params[GEN_DC_OFFS_1].value,
                             curr_params[GEN_DC_OFFS_2].value);
-        } else {
-            long_acq_idx = rp_osc_decimate_partial((float **)&rp_tmp_signals[1],
-                                             &rp_fpga_cha_signal[0],
-                                             (float **)&rp_tmp_signals[2],
-                                             &rp_fpga_chb_signal[0],
-                                             (float **)&rp_tmp_signals[0],
-                                             &long_acq_first_wr_ptr,
-                                             long_acq_last_wr_ptr,
-                                             long_acq_step, long_acq_idx,
-                                             curr_params[MIN_GUI_PARAM].value,
-                                             dec_factor,
-                                             curr_params[TIME_UNIT_PARAM].value,
-                                             &ch1_meas, &ch2_meas,
-                                             ch1_max_adc_v, ch2_max_adc_v,
-                                             curr_params[GEN_DC_OFFS_1].value,
-                                             curr_params[GEN_DC_OFFS_2].value);
-
-            /* Acquisition over, start one more! */
-            if(long_acq_idx >= SIGNAL_LENGTH-1) {
-                long_acq_idx = 0;
-
-                osc_fpga_get_wr_ptr(NULL, &long_acq_init_trig_ptr);
-
-                if(state == rp_osc_single_state) {
-                    rp_osc_worker_change_state(rp_osc_idle_state);
-                }
-            }
-
-        }
-
-
-
-        /* check again for change of state */
-        pthread_mutex_lock(&rp_osc_ctrl_mutex);
-        state = rp_osc_ctrl;
-        pthread_mutex_unlock(&rp_osc_ctrl_mutex);
-
-        /* We have acquisition - if we are in single put state machine
-         * to idle */
-        if((state == rp_osc_single_state) && (!long_acq)) {
-            rp_osc_worker_change_state(rp_osc_idle_state);
-        }
-
-
-
-        /* copy the results to the user buffer - if we are finished or not */
-        if(!long_acq || long_acq_idx == 0) {
-            /* Finish the measurement */
             rp_osc_meas_avg_amp(&ch1_meas, OSC_FPGA_SIG_LEN);
             rp_osc_meas_avg_amp(&ch2_meas, OSC_FPGA_SIG_LEN);
-
-            rp_osc_meas_period(&ch1_meas, &ch2_meas, &rp_fpga_cha_signal[0],
-                               &rp_fpga_chb_signal[0], dec_factor);
-            rp_osc_meas_convert(&ch1_meas, ch1_max_adc_v, fe_ch1_dc_offs);
-            rp_osc_meas_convert(&ch2_meas, ch2_max_adc_v, fe_ch2_dc_offs);
-
-            rp_osc_set_meas_data(ch1_meas, ch2_meas);
-            rp_osc_set_signals(rp_tmp_signals, SIGNAL_LENGTH-1);
         } else {
-            rp_osc_set_signals(rp_tmp_signals, long_acq_idx);
+            int done, complete;
+            /* v2.3.23: read when the next points are there (at most every 200 ms; the last ones at once, so
+             * that the next acquisition is armed in time for the next scan floor) */
+            if(rp_osc_worker_sleep_until(acq_next_rd_us, state))
+                continue;
+            done = osc_fpga_triggered();
+            rp_osc_long_rd_update(&rd);
+            complete = rp_osc_long_rd_read(&rd, done, (float **)&rp_tmp_signals[1], &rp_fpga_cha_signal[0],
+                                           (float **)&rp_tmp_signals[2], &rp_fpga_chb_signal[0],
+                                           (float **)&rp_tmp_signals[0],
+                                           curr_params[MIN_GUI_PARAM].value, dec_factor,
+                                           curr_params[TIME_UNIT_PARAM].value,
+                                           &ch1_meas, &ch2_meas, ch1_max_adc_v, ch2_max_adc_v,
+                                           curr_params[GEN_DC_OFFS_1].value,
+                                           curr_params[GEN_DC_OFFS_2].value);
+            if(!complete) {
+                if(rd.first_valid >= 0) {
+                    rp_osc_long_rd_fill_tail(&rd, (float **)rp_tmp_signals);
+                    rp_osc_set_signals_gen(rp_tmp_signals,
+                                           (rd.next < SIGNAL_LENGTH-1) ? rd.next : SIGNAL_LENGTH-2, curr_gen);
+                    pub_units = curr_params[TIME_UNIT_PARAM].value;
+                }
+                acq_next_rd_us = rp_osc_now_us() + rp_osc_long_rd_wait_us(&rd);
+                continue;
+            }
+            rp_osc_meas_avg_amp(&ch1_meas, rd.meas_n > 0 ? rd.meas_n : 1);
+            rp_osc_meas_avg_amp(&ch2_meas, rd.meas_n > 0 ? rd.meas_n : 1);
         }
+
+        /* Acquisition complete */
+        acq_armed = 0;
+        rp_osc_acq_set(4, curr_gen);
+        if(state == rp_osc_single_state)
+            rp_osc_worker_change_state(rp_osc_idle_state);
+
+        rp_osc_meas_period(&ch1_meas, &ch2_meas, &rp_fpga_cha_signal[0],
+                           &rp_fpga_chb_signal[0], dec_factor);
+        rp_osc_meas_convert(&ch1_meas, ch1_max_adc_v, fe_ch1_dc_offs);
+        rp_osc_meas_convert(&ch2_meas, ch2_max_adc_v, fe_ch2_dc_offs);
+
+        rp_osc_set_meas_data(ch1_meas, ch2_meas);
+        rp_osc_set_signals_gen(rp_tmp_signals, SIGNAL_LENGTH-1, curr_gen);
+        pub_units = curr_params[TIME_UNIT_PARAM].value;
+
         /* do not loop too fast */
-        usleep(10000);
+        if(!long_acq)
+            usleep(10000);
     }
 
     rp_clean_params(curr_params);
+    rp_clean_params(prev_params);
     return 0;
 }
-
 
 /*----------------------------------------------------------------------------------*/
 int rp_osc_prepare_time_vector(float **out_signal, int dec_factor,
@@ -846,28 +999,98 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
 
 
 /*----------------------------------------------------------------------------------*/
-int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
-                            float **chb_out_signal, int *chb_in_signal,
-                            float **time_out_signal, int *next_wr_ptr,
-                            int last_wr_ptr, int step_wr_ptr, int next_out_idx,
-                            float t_start, int dec_factor, int time_unit,
-                            rp_osc_meas_res_t *ch1_meas,
-                            rp_osc_meas_res_t *ch2_meas,
-                            float ch1_max_adc_v, float ch2_max_adc_v,
-                            float ch1_user_dc_off, float ch2_user_dc_off)
+/* v2.3.23: reader of long acquisitions (windows of 1.5 s or more), read while the FPGA writes them.
+ *
+ * Replaces rp_osc_decimate_partial() of the RP 0.9x scope. It followed the buffer with its read index alone and
+ * stopped only when that index was 1..99 samples ahead of the write pointer: when the index wrapped (16383 -> 0..)
+ * before the write pointer it read the samples of the previous lap of the buffer as if they were new, up to the
+ * 1024 points (status OK); with xmin > 0 (the first point more than 100 samples after the write pointer) it never
+ * stopped; and a read that got no point was taken as the end of the acquisition. With windows of 30 s (Dec 524288,
+ * one lap = 68.7 s) the trace mixed data of 68.7 s before.
+ *
+ * Here every point is a sample s counted from the trigger (s = 0 at the trigger pointer, negative before it) and
+ * the reader keeps the count of samples written since the trigger ('written', from the deltas of the write
+ * pointer, read at least every 200 ms: a lap takes 8.6 s or more at the decimations of long acquisitions). A
+ * sample belongs to this acquisition if
+ *     -pre_valid <= s <= written - 1     and     s >= written - 16384 + margin (not overwritten yet),
+ * pre_valid = samples written between the arm and the trigger (FPGA counter adc_we_cnt, register 0x2C, or the
+ * time the trigger was kept disabled after the arm). Points outside are never read from the buffer: before the
+ * first valid point they take its value and time (the trace starts there), after it the previous one. The
+ * acquisition is complete (OK) only when every point was read, or when the FPGA has finished (conf bit 4 / the
+ * trigger source back to 0) and the remaining points will never be written.
+ * The server makes the window a bit longer than the one of the user (1024 points with an integer number of
+ * samples between them: e.g. 0..30 s at Dec 524288 -> 0..30.06 s). The points after the end of the window of
+ * the user (n_pts on) are not waited for (they are out of the plot): with Reset zoom on a slow scan
+ * (window 0.98 x the ramp period) the acquisition ends before the next scan floor and the scope is armed again
+ * in time for it (before, one scan of every two was lost).
+ */
+#define RP_OSC_RD_MARGIN 64     /* samples kept away from the oldest one (the FPGA keeps writing while we read) */
+
+static void rp_osc_long_rd_start(rp_osc_long_rd_t *rd, int s0, int step, int n_pts, long long pre_sw, float smpl_period)
+{
+    int cur, trig, d;
+    long long we = (long long)osc_fpga_get_we_cnt();
+
+    osc_fpga_get_wr_ptr(&cur, &trig);
+    rd->trig_ptr = trig & (OSC_FPGA_SIG_LEN-1);
+    rd->last_cur = cur & (OSC_FPGA_SIG_LEN-1);
+    d = (rd->last_cur - rd->trig_ptr) & (OSC_FPGA_SIG_LEN-1);
+    /* wr_ptr_cur is the last sample written, wr_ptr_trig the one at the trigger: right after the trigger
+     * the current pointer may still be one behind (d = 16383: nothing written yet) */
+    rd->written   = (d >= OSC_FPGA_SIG_LEN - 16) ? 0 : (long long)d + 1;
+    rd->pre_valid = (we > pre_sw) ? we : pre_sw;
+    if(rd->pre_valid < 0)
+        rd->pre_valid = 0;
+    if(rd->pre_valid > OSC_FPGA_SIG_LEN)
+        rd->pre_valid = OSC_FPGA_SIG_LEN;
+    rd->s0          = s0;
+    rd->step        = step;
+    rd->n_pts       = (n_pts > 0 && n_pts < SIGNAL_LENGTH) ? n_pts : SIGNAL_LENGTH;
+    rd->next        = 0;
+    rd->first_valid = -1;
+    rd->meas_n      = 0;
+    rd->smpl_us     = smpl_period * 1e6;
+}
+
+static void rp_osc_long_rd_update(rp_osc_long_rd_t *rd)
+{
+    int cur;
+    osc_fpga_get_wr_ptr(&cur, NULL);
+    cur &= (OSC_FPGA_SIG_LEN-1);
+    rd->written += (cur - rd->last_cur) & (OSC_FPGA_SIG_LEN-1);
+    rd->last_cur = cur;
+}
+
+/* time until the next read [us]: the last point, or 200 ms */
+static long long rp_osc_long_rd_wait_us(const rp_osc_long_rd_t *rd)
+{
+    long long s_last = (long long)rd->s0 + (long long)(rd->n_pts-1) * rd->step;
+    double w = (double)(s_last + 1 - rd->written) * rd->smpl_us + 2000.0;
+    if(w < 2000.0)
+        w = 2000.0;
+    if(w > 200000.0)
+        w = 200000.0;
+    return (long long)w;
+}
+
+/* Reads the points that are there. Returns 1 when the acquisition is complete. */
+static int rp_osc_long_rd_read(rp_osc_long_rd_t *rd, int done,
+                               float **cha_out_signal, int *cha_in_signal,
+                               float **chb_out_signal, int *chb_in_signal,
+                               float **time_out_signal,
+                               float t_start, int dec_factor, int time_unit,
+                               rp_osc_meas_res_t *ch1_meas, rp_osc_meas_res_t *ch2_meas,
+                               float ch1_max_adc_v, float ch2_max_adc_v,
+                               float ch1_user_dc_off, float ch2_user_dc_off)
 {
     float *cha_out = *cha_out_signal;
     float *chb_out = *chb_out_signal;
     float *t_out   = *time_out_signal;
-    int    in_idx = *next_wr_ptr;
-
     float smpl_period = c_osc_fpga_smpl_period * dec_factor;
     int   t_unit_factor = rp_osc_get_time_unit_factor(time_unit);
-
-    // lolo
-    float cha_tmp,chb_tmp;
-    int32_t  fe_ch1_dc_offs=0;
-    int32_t  fe_ch2_dc_offs=0;
+    long long lo, hi;
+    float cha_tmp, chb_tmp;
+    int32_t fe_ch1_dc_offs = 0, fe_ch2_dc_offs = 0;
 
     // if oscilloscope channels are in in1 or in2, make offset correction
     if( rp_osc_params[LOCK_OSCA_SW].value==1 )
@@ -879,96 +1102,109 @@ int rp_osc_decimate_partial(float **cha_out_signal, int *cha_in_signal,
     if( rp_osc_params[LOCK_OSCB_SW].value==2 )
         fe_ch2_dc_offs=rp_calib_params->fe_ch2_dc_offs;
 
-    int curr_ptr;
-    /* check if we have reached currently acquired signals in FPGA */
-    osc_fpga_get_wr_ptr(&curr_ptr, NULL);
+    hi = rd->written - 1;
+    lo = rd->written - OSC_FPGA_SIG_LEN + RP_OSC_RD_MARGIN;
+    if(lo < -rd->pre_valid)
+        lo = -rd->pre_valid;
 
-    for(; in_idx < curr_ptr; in_idx++) {
-        if(in_idx >= OSC_FPGA_SIG_LEN)
-            in_idx = in_idx % OSC_FPGA_SIG_LEN;
-        rp_osc_meas_min_max(ch1_meas, cha_in_signal[in_idx]);
-        rp_osc_meas_min_max(ch2_meas, chb_in_signal[in_idx]);
-    }
+    for(; rd->next < SIGNAL_LENGTH; rd->next++) {
+        int k = rd->next;
+        long long s = (long long)rd->s0 + (long long)k * rd->step;
+        float t = (t_start + ((float)(k * rd->step) * smpl_period)) * t_unit_factor;
 
-    in_idx = *next_wr_ptr;
+        if(s > hi && !done && k < rd->n_pts)
+            break;                                  /* not written yet: next read */
 
-    for(; (next_out_idx < SIGNAL_LENGTH); next_out_idx++,
-            in_idx += step_wr_ptr) {
-        int curr_ptr;
-        int diff_ptr;
-        /* check if we have reached currently acquired signals in FPGA */
-        osc_fpga_get_wr_ptr(&curr_ptr, NULL);
-        if(in_idx >= OSC_FPGA_SIG_LEN)
-            in_idx = in_idx % OSC_FPGA_SIG_LEN;
-        diff_ptr = (in_idx-curr_ptr);
-        /* Check that we did not hit the curr ptr (and that pointer is not
-         * wrapped
-         */
-        if((in_idx >= curr_ptr) && (diff_ptr > 0) && (diff_ptr < 100))
-            break;
-
-
-        if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
-            cha_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
-            chb_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
-        } else {
-            cha_tmp = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], ch1_max_adc_v,
-                                            fe_ch1_dc_offs,
-                                            ch1_user_dc_off);
-
-            chb_tmp = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], ch2_max_adc_v,
-                                            fe_ch2_dc_offs,
-                                            ch2_user_dc_off);
-
-            if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
-                cha_out[next_out_idx] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
-                chb_out[next_out_idx] = atan2( chb_tmp , cha_tmp ) ;
-            }else{
-                cha_out[next_out_idx] = cha_tmp ;
-                chb_out[next_out_idx] = chb_tmp ;
+        if(s < lo || s > hi || k >= rd->n_pts) {
+            /* not part of this acquisition (before its history, overwritten, or never written) */
+            if(rd->first_valid >= 0) {
+                t_out[k]   = t_out[k-1];
+                cha_out[k] = cha_out[k-1];
+                chb_out[k] = chb_out[k-1];
+            } else {
+                t_out[k] = t;                       /* set with the first valid point */
             }
+            continue;
         }
 
+        {
+            int idx = (int)(((long long)rd->trig_ptr + s) & (OSC_FPGA_SIG_LEN-1));
+            long long m;
 
-        /* DISABLED
-        cha_tmp = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], ch1_max_adc_v,
-                                        rp_calib_params->fe_ch1_dc_offs,
-                                        ch1_user_dc_off);
+            /* measurements: the raw samples of this point (up to the next one) */
+            for(m = s; m < s + rd->step && m <= hi; m++) {
+                int mi = (int)(((long long)rd->trig_ptr + m) & (OSC_FPGA_SIG_LEN-1));
+                rp_osc_meas_min_max(ch1_meas, cha_in_signal[mi]);
+                rp_osc_meas_min_max(ch2_meas, chb_in_signal[mi]);
+                rd->meas_n++;
+            }
 
-        chb_tmp = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], ch2_max_adc_v,
-                                        rp_calib_params->fe_ch1_dc_offs,
-                                        ch2_user_dc_off);
+            if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
+                cha_out[k] = osc_fpga_cnv_cnt_to_v(cha_in_signal[idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+                chb_out[k] = osc_fpga_cnv_cnt_to_v(chb_in_signal[idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
+            } else {
+                cha_tmp = osc_fpga_cnv_cnt_to_v(cha_in_signal[idx], ch1_max_adc_v,
+                                                fe_ch1_dc_offs, ch1_user_dc_off);
+                chb_tmp = osc_fpga_cnv_cnt_to_v(chb_in_signal[idx], ch2_max_adc_v,
+                                                fe_ch2_dc_offs, ch2_user_dc_off);
+                if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
+                    cha_out[k] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
+                    chb_out[k] = atan2( chb_tmp , cha_tmp ) ;
+                }else{
+                    cha_out[k] = cha_tmp ;
+                    chb_out[k] = chb_tmp ;
+                }
+            }
+            t_out[k] = t;
 
-        if( rp_osc_params[LOCK_OSC_LOCKIN_MODE].value>0 ){
-            cha_out[next_out_idx] = sqrt(cha_tmp*cha_tmp + chb_tmp*chb_tmp) ;
-            chb_out[next_out_idx] = atan2( chb_tmp , cha_tmp ) ;
-        } else if( rp_osc_params[LOCK_OSC_RAW_MODE].value>0 ){
-            cha_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(cha_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
-            chb_out[next_out_idx] = osc_fpga_cnv_cnt_to_v(chb_in_signal[in_idx], (float)(1<<(c_osc_fpga_adc_bits-1)) , 0, 0);
-        } else {
-            cha_out[next_out_idx] = cha_tmp ;
-            chb_out[next_out_idx] = chb_tmp ;
-        }   // */
+            if(rd->first_valid < 0) {
+                int i;
+                rd->first_valid = k;
+                for(i = 0; i < k; i++) {             /* the trace starts at the first valid point */
+                    t_out[i]   = t_out[k];
+                    cha_out[i] = cha_out[k];
+                    chb_out[i] = chb_out[k];
+                }
+            }
 
-
-        t_out[next_out_idx]   =
-            (t_start + ((next_out_idx*step_wr_ptr)*smpl_period))*t_unit_factor;
-
-        /* A bug in FPGA? - Trig & write pointers not sample-accurate. */
-        if ( (dec_factor > 64) && (next_out_idx == 2) ) {
-             int i;
-             for (i=0; i < next_out_idx; i++) {
-                 cha_out[i] = cha_out[next_out_idx];
-                 chb_out[i] = chb_out[next_out_idx];
-             }
-         }
+            /* A bug in FPGA? - Trig & write pointers not sample-accurate (as rp_osc_decimate_partial()) */
+            if((dec_factor > 64) && (k == 2) && (rd->first_valid == 0)) {
+                int i;
+                for(i = 0; i < k; i++) {
+                    cha_out[i] = cha_out[k];
+                    chb_out[i] = chb_out[k];
+                }
+            }
+        }
     }
 
-    *next_wr_ptr = in_idx;
+    if(rd->next < SIGNAL_LENGTH)
+        return 0;
 
-    return next_out_idx;
+    if(rd->first_valid < 0) {
+        /* no point of this acquisition at all: an empty trace */
+        int i;
+        for(i = 0; i < SIGNAL_LENGTH; i++) {
+            t_out[i]   = t_start * t_unit_factor;
+            cha_out[i] = 0;
+            chb_out[i] = 0;
+        }
+    }
+    return 1;
 }
 
+/* partial trace: the points not read yet on the last one read (not the trace of the previous acquisition) */
+static void rp_osc_long_rd_fill_tail(const rp_osc_long_rd_t *rd, float **sig)
+{
+    int i, last = rd->next - 1;
+    if(last < 0)
+        return;
+    for(i = rd->next; i < SIGNAL_LENGTH; i++) {
+        sig[0][i] = sig[0][last];
+        sig[1][i] = sig[1][last];
+        sig[2][i] = sig[2][last];
+    }
+}
 
 /*----------------------------------------------------------------------------------*/
 int rp_osc_get_time_unit_factor(int time_unit)
