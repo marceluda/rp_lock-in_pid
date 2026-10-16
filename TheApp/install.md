@@ -13,31 +13,35 @@ The application has been designed in 3 flavours, but the only one useful in mode
 
 ![three_flavors]({{ site.baseurl }}/img/three_flavors.png "three_flavors")
 
-Download last release (beta):
+Download last release:
 
+<div class="alert alert-info" role="alert" markdown="1">
+**2.x versions:** they were redesigned by porting the original FPGA design onto the base design of
+RedPitaya-FPGA [Release_2025.2](https://github.com/RedPitaya/RedPitaya-FPGA/releases/tag/Release_2025.2)
+(tag `2.07-48`, branch `origin/Release-2025.2`), which is suitable for the Red Pitaya Ecosystem 2.0.
+The FPGA is built with Vivado 2020.1.
 
-<ul class="nav nav-tabs">
-  <li class="active"><a data-toggle="tab" href="#zip"  > .zip    </a></li>
-  <li>               <a data-toggle="tab" href="#targz"> .tar.gz </a></li>
-</ul>
-
-<div class="tab-content">
-<div id="zip" class="tab-pane fade in active" markdown="1">
-
-|  **Default**  |  [lock_in+pid-0.2.3-7-devbuild.zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.zip)                |
-
-</div>
-<div id="targz" class="tab-pane fade" markdown="1">
-
-|  **Default**  |  [lock_in+pid-0.2.3-7-devbuild.tar.gz]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.tar.gz)                |
-</div>
+**Which version should I download?**
+- **2.x** → Red Pitaya **Ecosystem 2.0** (e.g. `RedPitaya_OS_2.04`; tested on 2.04-35).
+- **0.x** → **0.9x / 1.0** ecosystems.
 </div>
 
+| For | Downloads |
+|-----|-----------|
+| **Ecosystem 2.0** | {% include download-badge.html file="../../releases/lock_in+pid-2.2.9-21-devbuild.tar.gz" label="v2.2.9-21" %} {% include download-badge.html file="../../releases/lock_in+pid-2.2.9-21-devbuild.zip" label="v2.2.9-21" %} |
+| **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="../../releases/lock_in+pid-0.2.4-11-devbuild.tar.gz" label="v0.2.4-11" %} {% include download-badge.html file="../../releases/lock_in+pid-0.2.4-11-devbuild.zip" label="v0.2.4-11" %} |
+
+<div class="text-center">
+  <a href="https://marceluda.github.io/redpitaya/en/versions/" class="btn btn-default btn-sm" role="button"><i class="fa fa-archive"></i> All versions</a>
+</div>
 
 
 <a data-toggle="collapse" href="#OldReleases" aria-expanded="false" aria-controls="OldReleases">Older releases<span class="caret"></span></a>
 
 <div id="OldReleases" class="collapse" markdown="1" style="padding: 10px; border: 1px solid gray; border-radius: 5px;">
+- **lock_in+pid-0.2.3-7**:
+  - lock_in+pid-0.2.3-7-devbuild [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.3-7-devbuild.tar.gz)]
+
 - **lock-in+pid-0.2.1**:
   - lock_in+pid-0.2.1-1-devbuild [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild.tar.gz)]
   - lock_in+pid-0.2.1-1-devbuild_DEBUG [[zip]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.zip),[tar]({{ site.baseurl }}/releases/lock_in+pid-0.2.1-1-devbuild_DEBUG.tar.gz)]
