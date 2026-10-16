@@ -79,6 +79,16 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
 - **Ext Trig**: event used when the scope trigger *Source* is *External*: None, Pin (DIO0_P), Scan floor, Scan
   ceil, harmonic mod. (start of each period of the harmonic modulation), Square mod., Out of lock, Jump trigger,
   Lock control trig (the lock event; used by Capture Lock).
+  Since v2.2.10, picking an Ext Trig other than the current one and not *None* also sets the *Trigger* panel to
+  *Source* = External and *Mode* = Normal (one POST). *None* changes nothing else; *Config load*, the end of a
+  Capture Lock, *Reset zoom* and *AUTO* keep their own trigger settings.
+- **Presets** (v2.2.10): small buttons below Ext Trig that set OscA|OscB in one click: `in1|in2`, `in1|ctrl`
+  (in1, ctrl_A), `X|Y` (Xo, Yo) in blue; `in1|err` (in1, error), `ctrl|err` (ctrl_A, error) and `usr` in green.
+  They change only the two signals: not the zoom, not the trigger, not a lock capture. `usr` is a pair of your
+  own: **double click** on it (or a click while it is not configured; dashed border) opens a dialog with the two
+  signals (any signal of the selects); *Accept* saves it in the browser and shows it. The pair is also saved in the
+  configs (*Config*: save and download; older configs without it keep the current one). The tooltip of each button
+  names its two signals.
 - **More options**: *R|Phase Mode* (button disabled in this version) and *Disable anti-aliasing filter* for each
   channel (on by default).
 

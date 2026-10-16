@@ -34,6 +34,19 @@
     /* v2.3.22: cursor of the scope while SHIFT (wheel: X only) or ALT (wheel: Y only) is down, see [PLOT WHEEL] */
     #plot_holder.wheel-zoom-x, #plot_holder.wheel-zoom-x * { cursor: ew-resize !important; }
     #plot_holder.wheel-zoom-y, #plot_holder.wheel-zoom-y * { cursor: ns-resize !important; }
+    /* v2.2.10: presets of the scope signals (OscA|OscB), below Ext Trig, see [OSC PRESETS] */
+    .osc-presets { display: flex; flex-wrap: wrap; width: 138px; padding-top: 2px; }
+    .btn.osc-preset { width: 42px; height: 20px; margin: 0 4px 3px 0; padding: 1px 0; font-size: 10px; line-height: 16px;
+                      font-weight: bold; white-space: nowrap; overflow: hidden; color: #fff; border-radius: 3px;
+                      background-image: none; box-shadow: none; text-shadow: none; }
+    .btn.osc-preset-blue  { background-color: #2a6db5; border: 1px solid #1d5290; }
+    .btn.osc-preset-green { background-color: #2b7a3b; border: 1px solid #1d5a29; }
+    .btn.osc-preset-blue:hover,  .btn.osc-preset-blue:focus  { background-color: #3a82cf; color: #fff; }
+    .btn.osc-preset-green:hover, .btn.osc-preset-green:focus { background-color: #379149; color: #fff; }
+    .btn.osc-preset:active { box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    .btn.osc-preset:focus  { outline: 1px dotted #fff; outline-offset: -3px; }
+    .btn.osc-preset.osc-preset-unset { border-style: dashed; opacity: .75; }
+    @media (min-width: 768px) { #modal_osc_usr .modal-dialog { width: 380px; } }   /* Bootstrap 3.0: no .modal-sm */
   </style>
 
   <!--  ERASE ON NEXT COMMIT
@@ -1472,6 +1485,15 @@
       if(this.id === 'lock_osc_raw_mode') rawModeRescaleY();   // v2.3.21: Y in the new units
       sendParams();
     });
+
+    // v2.2.10: presets of the scope signals (see [OSC PRESETS])
+    $('.osc-preset[data-preset]').on('click', function() { oscPresetClick($(this).attr('data-preset')); });
+    $('#osc_preset_usr').on('click', function() { oscUsrClick(); })
+                        .on('dblclick', function() { oscUsrOpen(); });
+    $('#btn_osc_usr_accept').on('click', function() { oscUsrAccept(); });
+    $('#btn_osc_usr_cancel').on('click', function() { oscUsrClose(); });
+    $('#modal_osc_usr').on('hidden.bs.modal', function() { osc_usr_modal_open = false; });   // also Esc
+    oscUsrLoad();
 
     // v2.3.13: lock control buttons (doc/lock_control.md). One POST per click, never a POST in answer to the status.
     // Scan / PID A / PID B show the EFFECTIVE enable (lock_lock_status). Not locked: toggle the manual enable.
@@ -3451,6 +3473,125 @@
   }
   // [LOCK CAPTURE END]
 
+  // [OSC PRESETS BEGIN] v2.2.10: presets of the scope signals (buttons below Ext Trig). Also run by test/osc_presets_sim.js.
+  // A click sets OscA/OscB (lock_oscA_sw / lock_oscB_sw, values of the mux of this App, as the options of the selects)
+  // with the same path as the selects: params.local + sendParams() (one POST with only what changed, plus the
+  // always_send_params; the anti-loop guard, the rate limit and the queue of a POST in flight apply). Nothing else
+  // changes: not the zoom (xmin/xmax, Y axis), not the triggers (trig_*, Ext Trig), not a Capture Lock.
+  // "usr": the pair chosen by the user (modal_osc_usr, double click; a click while it is not configured opens it too).
+  // It belongs to the page only (the C has no such param): localStorage (osc_usr_storage_key) and the configs (in
+  // elem.ui of Config save / download, never sent to the server).
+  var osc_presets = [ { a:  1, b: 2 },     // in1|in2
+                      { a:  1, b: 4 },     // in1|ctrl   (ctrl_A)
+                      { a: 22, b: 23 },    // X|Y        (Xo, Yo of the harmonic lock-in; not sqXo/sqYo)
+                      { a:  1, b: 3 },     // in1|err    (error)
+                      { a:  4, b: 3 } ];   // ctrl|err   (ctrl_A, error)
+  var osc_usr = null;                      // { a, b } or null (not configured)
+  var osc_usr_storage_key = 'oscUsrPreset_' + app_id;
+  var osc_usr_modal_open = false;
+  var osc_usr_default = { a: 10, b: 3 };   // what the modal offers the first time: OscA = pidA_out ("PID A out"), OscB = error
+
+  // Name of a value of the OscA/OscB mux (text of its option), '' if the selects have no such option
+  function oscSwName(v) {
+    v = Number(v);
+    if(!(v >= 0 && v <= 31 && Math.floor(v) === v)) return '';
+    return $.trim($('#lock_oscA_sw option[value="' + v + '"]').text() || '');
+  }
+  // { a, b } valid (two options of the selects) or null
+  function oscUsrValid(o) {
+    if(!o || typeof o !== 'object') return null;
+    var a = Number(o.a), b = Number(o.b);
+    return (oscSwName(a) && oscSwName(b)) ? { a: a, b: b } : null;
+  }
+  // Tooltip and look of the "usr" button
+  function oscUsrTitle() {
+    var btn = $('#osc_preset_usr');
+    if(osc_usr) {
+      btn.attr('title', 'usr: OscA = ' + oscSwName(osc_usr.a) + ', OscB = ' + oscSwName(osc_usr.b) + '. Double click: change them');
+      btn.removeClass('osc-preset-unset');
+    }
+    else {
+      btn.attr('title', 'usr: not configured. Click: choose the two signals');
+      btn.addClass('osc-preset-unset');
+    }
+  }
+  // Page load: the "usr" pair saved in this browser
+  function oscUsrLoad() {
+    var o = null;
+    try { o = JSON.parse(localStorage.getItem(osc_usr_storage_key)); } catch(e) {}
+    osc_usr = oscUsrValid(o);
+    oscUsrTitle();
+  }
+  // New "usr" pair (null: not configured): kept here and in localStorage
+  function oscUsrStore(o) {
+    osc_usr = oscUsrValid(o);
+    try {
+      if(osc_usr) localStorage.setItem(osc_usr_storage_key, JSON.stringify(osc_usr));
+      else        localStorage.removeItem(osc_usr_storage_key);
+    } catch(e) { console.log('oscUsrStore: could not write localStorage: ' + e); }
+    oscUsrTitle();
+  }
+  // Configs: elem.ui.ui_osc_usr_a / ui_osc_usr_b (only if configured). Configs without them keep the current pair.
+  function oscUsrConfigAdd(elem) {
+    if(!osc_usr) return;
+    if(!elem.ui) elem.ui = {};
+    elem.ui.ui_osc_usr_a = osc_usr.a;
+    elem.ui.ui_osc_usr_b = osc_usr.b;
+  }
+  function oscUsrConfigLoad(ui) {
+    if(!ui || ui.ui_osc_usr_a === undefined || ui.ui_osc_usr_b === undefined) return false;
+    var o = oscUsrValid({ a: ui.ui_osc_usr_a, b: ui.ui_osc_usr_b });
+    if(o) oscUsrStore(o);
+    return !!o;
+  }
+
+  // Shows the pair a|b on the scope: OscA/OscB only, as if the user had changed the two selects (one POST)
+  function oscPresetApply(a, b) {
+    if(!params.local) return false;
+    a = Number(a);  b = Number(b);
+    if(!oscSwName(a) || !oscSwName(b)) return false;
+    params.local.lock_oscA_sw = a;
+    params.local.lock_oscB_sw = b;
+    $('#lock_oscA_sw').val(a);
+    $('#lock_oscB_sw').val(b);
+    sendParams();
+    return true;
+  }
+  function oscPresetClick(i) {
+    var p = osc_presets[Number(i)];
+    return p ? oscPresetApply(p.a, p.b) : false;
+  }
+  // "usr": click -> its pair, or the modal while it is not configured. The 2nd click of a double click applies the
+  // same pair again (nothing changed: no POST) and the dblclick opens the modal (oscUsrOpen() runs only once).
+  function oscUsrClick() {
+    if(!osc_usr) { oscUsrOpen(); return false; }
+    return oscPresetApply(osc_usr.a, osc_usr.b);
+  }
+  function oscUsrOpen() {
+    if(osc_usr_modal_open) return false;
+    osc_usr_modal_open = true;
+    var opts = $('#lock_oscA_sw').html();
+    var cur = osc_usr || osc_usr_default;   // first time (no pair saved): pidA_out | error
+    $('#osc_usr_a').html(opts).val(cur.a);
+    $('#osc_usr_b').html(opts).val(cur.b);
+    $('#modal_osc_usr').modal({ backdrop: 'static', keyboard: true, show: true });   // static: the 2nd click of a
+    return true;                                                                    // double click does not close it
+  }
+  function oscUsrClose() {
+    osc_usr_modal_open = false;
+    $('#modal_osc_usr').modal('hide');
+  }
+  // Accept: the pair is saved (localStorage; configs saved from now on) and shown
+  function oscUsrAccept() {
+    var o = oscUsrValid({ a: parseInt($('#osc_usr_a').val()), b: parseInt($('#osc_usr_b').val()) });
+    if(!o) return false;
+    oscUsrStore(o);
+    oscUsrClose();
+    oscPresetApply(o.a, o.b);
+    return true;
+  }
+  // [OSC PRESETS END]
+
   // Last saved state of this tab (or null)
   function loadSavedState() {
     var saved = null;
@@ -4029,12 +4170,28 @@
     if ( $.inArray( param_name, [ 'lock_pidB_PSR', 'lock_pidB_ISR', 'lock_pidB_DSR', 'lock_pidB_SAT' ] )>-1 ) lock_pidB_update() ;
     if ( $.inArray( param_name, [ 'lock_lpf_F1_tau', 'lock_lpf_F1_order', 'lock_lpf_F2_tau', 'lock_lpf_F2_order', 'lock_lpf_F3_tau', 'lock_lpf_F3_order', 'lock_lpf_sq_tau', 'lock_lpf_sq_order' ] )>-1 ) lpf_update();
 
+    // v2.2.10: Ext Trig before this change (the rule below applies only to a new value)
+    var ext_prev = (param_name == 'lock_trig_sw' && params.local ? Number(params.local.lock_trig_sw) : null);
+    var restart = false;
     // v2.3.14: the user takes the scope trigger during a capture: it ends, the other settings are restored
     if(param_name == 'trig_source' || param_name == 'lock_trig_sw') {
-      if(lockCaptureLeave(param_name)) { do_get = true; runStop(); }
+      if(lockCaptureLeave(param_name)) { do_get = true; restart = true; }
     }
     var dv = parseInt(that.val());
     if(isFinite(dv)) params.local[param_name] = dv;  // a <select> without selection gives NaN: not copied
+    // v2.2.10: the user picks another Ext Trig that is not None: the scope triggers on it at once (Trigger panel:
+    // Source = External, Mode = Normal), in the same POST. Only here, in the handler of the select: Config load,
+    // the restore of a Capture Lock, Reset zoom and AUTO set their own values and do not go through it.
+    if(param_name == 'lock_trig_sw' && isFinite(dv) && dv != 0 && dv !== ext_prev) {
+      if(Number(params.local.trig_mode) != 1) { restart = true; do_get = true; }   // as a change of Mode
+      params.local.trig_source = 2;
+      params.local.trig_mode   = 1;
+      $('#trig_source').val(2);
+      $('#trig_mode').val(1);
+      autorun = 1;
+      $('#btn_single').prop('disabled', true);
+    }
+    if(restart) runStop();
     sendParams(do_get);
     that.blur();
     user_editing = false;
@@ -5671,6 +5828,7 @@
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
     configAddCaptureUi(tmp_storage_elem);  // v2.3.14: user scope settings during a capture, UI preferences
+    oscUsrConfigAdd(tmp_storage_elem);     // v2.2.10: "usr" preset of the scope (elem.ui, not sent to the server)
 
     // store element in params storage
     params.storage.push(tmp_storage_elem);
@@ -5748,6 +5906,7 @@
     // (configs saved before v2.3.14 have none: the current ones are kept)
     lockCaptureEnd('none');
     uiPrefsSet(params.storage[num].ui);
+    oscUsrConfigLoad(params.storage[num].ui);   // v2.2.10: "usr" preset of the config (if any; not sent to the server)
 
     // load into params
     loadParams(params.storage[num].data);
@@ -5896,6 +6055,7 @@
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
     configAddCaptureUi(tmp_storage_elem);  // v2.3.14: user scope settings during a capture, UI preferences
+    oscUsrConfigAdd(tmp_storage_elem);     // v2.2.10: "usr" preset of the scope (elem.ui, not sent to the server)
 
     var save_text = JSON.stringify(tmp_storage_elem);
     $('#btn_config_save_file')[0].download = filename_config;
@@ -6139,6 +6299,20 @@
                             <option  value="64">Jump trigger</option>
                             <option  value="128">Lock control trig</option>
                           </select>
+                        </div>
+                      </div>
+                      <!-- v2.2.10: presets of the scope signals (OscA|OscB), see [OSC PRESETS]. They change only OscA/OscB. -->
+                      <div class="form-group">
+                        <label class="col-xs-4 control-label" title="Presets of the scope signals (OscA|OscB). They change only OscA and OscB: not the zoom nor the triggers.">Presets:</label>
+                        <div class="col-xs-8">
+                          <div class="osc-presets" role="group" aria-label="Presets of the scope signals (OscA|OscB)">
+                            <button type="button" id="osc_preset_0" class="btn osc-preset osc-preset-blue"  data-preset="0" title="OscA = in1, OscB = in2">in1|<wbr>in2</button>
+                            <button type="button" id="osc_preset_1" class="btn osc-preset osc-preset-blue"  data-preset="1" title="OscA = in1, OscB = ctrl_A">in1|<wbr>ctrl</button>
+                            <button type="button" id="osc_preset_2" class="btn osc-preset osc-preset-blue"  data-preset="2" title="OscA = Xo, OscB = Yo">X|Y</button>
+                            <button type="button" id="osc_preset_3" class="btn osc-preset osc-preset-green" data-preset="3" title="OscA = in1, OscB = error">in1|<wbr>err</button>
+                            <button type="button" id="osc_preset_4" class="btn osc-preset osc-preset-green" data-preset="4" title="OscA = ctrl_A, OscB = error">ctrl|<wbr>err</button>
+                            <button type="button" id="osc_preset_usr" class="btn osc-preset osc-preset-green osc-preset-unset" title="usr: not configured. Click: choose the two signals">usr</button>
+                          </div>
                         </div>
                       </div>
                     </form>
@@ -8665,6 +8839,35 @@
   </div>
 
 
+
+  <!-- v2.2.10: signals of the "usr" preset of the scope (see [OSC PRESETS]) -->
+  <div id="modal_osc_usr" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_osc_usr_label" aria-hidden="true">
+    <div class="modal-dialog modal-sm">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h4 class="modal-title" id="modal_osc_usr_label">Scope preset "usr"</h4>
+        </div>
+        <div class="modal-body">
+          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+            <div class="form-group">
+              <label for="osc_usr_a" class="col-xs-4 control-label">OscA:</label>
+              <div class="col-xs-8"><select id="osc_usr_a" class="form-control"></select></div>
+            </div>
+            <div class="form-group">
+              <label for="osc_usr_b" class="col-xs-4 control-label">OscB:</label>
+              <div class="col-xs-8"><select id="osc_usr_b" class="form-control"></select></div>
+            </div>
+          </form>
+          <p class="help-block">Saved in this browser and in the configs (Config: save / download). Click on "usr": shows
+            these two signals. Double click: change them.</p>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-default" id="btn_osc_usr_cancel">Cancel</button>
+          <button type="button" class="btn btn-primary" id="btn_osc_usr_accept">Accept</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   <div id="modal_app" class="modal" tabindex="-1" role="dialog" aria-labelledby="modal_app_label" aria-hidden="true">
     <div class="modal-dialog">

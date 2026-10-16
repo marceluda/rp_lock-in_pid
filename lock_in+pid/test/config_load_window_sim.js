@@ -75,6 +75,7 @@ function makeSandbox(srvUnits, plotWin) {
   sb.config_storage_read = () => ls[sb.config_storage_key] || '';
   sb.lockCaptureEnd = () => false;
   sb.uiPrefsSet = () => {};
+  sb.oscUsrConfigLoad = () => false;   // v2.2.10: "usr" preset of the scope (test/osc_presets_sim.js)
   // loadParams(): the parts that matter for the time window (see index.html)
   sb.loadParams = function(orig) {
     for(const k in sb.params.local) if(orig[k] === undefined || orig[k] === null) orig[k] = sb.params.local[k];
@@ -270,6 +271,7 @@ function race(name, page, cfg, exp_s) {
   sb.config_storage_read = () => ls[sb.config_storage_key] || '';
   sb.lockCaptureEnd = () => false;
   sb.uiPrefsSet = () => {};
+  sb.oscUsrConfigLoad = () => false;   // v2.2.10: "usr" preset of the scope (test/osc_presets_sim.js)
   sb.postEnd = () => {};
   sb.saveState = () => {};
   sb.updateTriggerSlider = () => {};

@@ -1,6 +1,30 @@
 
 # Devbuild  changes
 
+## 2.2.10 - Scope presets (OscA|OscB) and Ext Trig sets the Trigger panel (port of lock_in+pid_harmonic 2.3.24)
+Port of lock_in+pid_harmonic v2.3.24 (web page only: no FPGA, no controller change; comments "v2.2.10" in
+`index.html` mark the port). X|Y uses Xo/Yo of the harmonic lock-in (the select labels them "Xo"/"Yo"); sqXo/sqYo of the square lock-in are not in the fixed presets (they can be chosen in `usr`).
+
+- Added (page): **presets of the scope signals**: six small buttons in the *Oscilloscope* panel, below *Ext Trig*
+  (row *Presets*, two rows of three, 42x20 px, label in one line, 10 px bold). Blue: `in1|in2`, `in1|ctrl` (in1,
+  ctrl_A), `X|Y` (Xo, Yo of the harmonic lock-in, mux 22, 23); green: `in1|err` (in1, error), `ctrl|err` (ctrl_A, error) and `usr`. A click sets OscA/OscB
+  (mux values 1, 2, 3, 4, 22, 23, read from the options of the selects) through the same path as the two selects: one POST
+  with only `lock_oscA_sw` / `lock_oscB_sw` (plus the usual `single_btn`/`xmin`/`xmax` with their current values);
+  the zoom, the trigger (Mode, Source, Edge, Level, Ext Trig) and a Capture Lock are not touched. The title of each
+  button names its two signals.
+- Added (page): **`usr` preset**, a pair chosen by the user. Double click (or a click while it is not configured,
+  dashed border) opens a dialog with two selects (all the options of OscA/OscB; the first time OscA = PID A out (10),
+  OscB = error (3)); *Accept* saves the pair in the browser (`localStorage`, key `oscUsrPreset_lock_in+pid`) and shows
+  it. It is saved in the configs (*Config* save and download json, in `ui.ui_osc_usr_a` / `ui.ui_osc_usr_b`, never
+  sent to the server); a *Config load* of a config that has it takes it, configs without it keep the current pair.
+- Changed (page): **Ext Trig sets the Trigger panel**: when the user picks in *Ext Trig* a value different from the
+  current one and not *None*, the *Trigger* panel goes to *Source* = External and *Mode* = Normal in the same POST
+  (from *Single* the page polls again). *None* changes nothing else. *Config load*, the restore at the end of a
+  Capture Lock, *Reset zoom* and *AUTO* do not apply it. During a Capture Lock the change ends it and the restore and
+  the new values go in one POST.
+- Tests: new `test/osc_presets_sim.js` (37 checks; the page of 2.2.9 fails 32); `test/config_load_window_sim.js`:
+  stub of `oscUsrConfigLoad()`.
+
 ## 2.2.9 - Reset zoom, mouse wheel on the scope and slow scans (port of lock_in+pid_harmonic 2.3.21-2.3.23)
 Port of lock_in+pid_harmonic v2.3.21 (Reset zoom), v2.3.22 (mouse wheel) and v2.3.23 (slow scans, FPGA `lock_ctrl.v`);
 see its CHANGELOG for the details and the board tests. New FPGA image. Comments that quote v2.3.2x refer to
