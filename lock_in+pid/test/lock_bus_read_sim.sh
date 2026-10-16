@@ -2,7 +2,7 @@
 # Simulates the bus reads of fpga/prj/v0.94/rtl/lock.v through fpga/rtl/rtl/sys_bus_cdc.sv (PS clock and
 # ADC clock asynchronous) with test/lock_bus_read_tb.sv in Vivado 2020.1 xsim (lock_in+pid v2.2.5, from lock_in+pid_harmonic v2.3.17).
 # Usage: test/lock_bus_read_sim.sh [work_dir [lock.v]]   (default: a temporary directory, removed at the
-#        end; the lock.v of the repo). Passing another lock.v (e.g. the one of v0.2.4, fpga_old_2015.2/rtl/lock.v) shows the bug.
+#        end; the lock.v of the repo). Passing another lock.v (e.g. the one of v0.2.4: `git show v0.2.4:lock_in+pid/fpga/rtl/lock.v`) shows the bug.
 # mult_dsp_14.v instantiates DSP48E1: elaborated with the unisims_ver library and glbl.
 # Exit status 0 if the testbench prints "TB RESULT: PASS".
 set -e
