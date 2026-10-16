@@ -8,18 +8,18 @@ cards:
     descripcion: Harmonic lock-in up to 50 kHz, PID filters and lock control.
     imagen: /img/cards/rp_lock-in_pid_h.png
     url: "#lock-in-pid-h"
-  - nombre: Lock-in+PID H2
-    descripcion: Two lock-in demodulators sharing the same local oscillator.
-    imagen: /img/cards/rp_lock-in_pid_h2.png
-    url: "#lock-in-pid-h2"
-  - nombre: Lock-in+PID H HF
-    descripcion: High frequency version of Lock-in+PID H, up to 1 MHz.
-    imagen: /img/cards/rp_lock-in_pid_h_hf.png
-    url: "#lock-in-pid-h-hf"
   - nombre: Lock-in+PID SQ
     descripcion: Version of Lock-in+PID with only the square (fast) lock-in.
     imagen: /img/cards/rp_lock-in_pid_sq.png
     url: "#lock-in-pid-sq"
+  - nombre: Lock-in+PID H HF
+    descripcion: High frequency version of Lock-in+PID H, up to 1 MHz.
+    imagen: /img/cards/rp_lock-in_pid_h_hf.png
+    url: "#lock-in-pid-h-hf"
+  - nombre: Lock-in+PID H2
+    descripcion: Two lock-in demodulators sharing the same local oscillator.
+    imagen: /img/cards/rp_lock-in_pid_h2.png
+    url: "#lock-in-pid-h2"
 ---
 
 {% include card-grid.html items=page.cards logo=true %}
@@ -36,6 +36,10 @@ The FPGA is built with Vivado 2020.1.
 **Which version should I download?**
 - **2.x** → Red Pitaya **Ecosystem 2.0** (e.g. `RedPitaya_OS_2.04`; tested on 2.04-35).
 - **0.x** → **0.9x / 1.0** ecosystems.
+</div>
+
+<div class="text-center">
+  <a href="https://marceluda.github.io/redpitaya/en/versions/" class="btn btn-default btn-sm" role="button"><i class="fa fa-archive"></i> All versions</a>
 </div>
 
 
@@ -68,54 +72,53 @@ The source code can be found in the [github rp_lock-in_pid_h repository](https:/
 
 **Downloads:**
 
-<ul class="nav nav-tabs">
-  <li class="active"><a data-toggle="tab" href="#h-now">LAST VERSION</a></li>
-  <li><a data-toggle="tab" href="#h-old">Old versions</a></li>
-</ul>
-
-<div class="tab-content">
-<div id="h-now" class="tab-pane fade in active" markdown="1">
-
-Last releases:
-
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic-2.3.20-46-devbuild.tar.gz" label="v2.3.20-46" %} {% include download-badge.html file="lock_in+pid_harmonic-2.3.20-46-devbuild.zip" label="v2.3.20-46" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic-2.3.23-57-devbuild.tar.gz" label="v2.3.23-57" %} {% include download-badge.html file="lock_in+pid_harmonic-2.3.23-57-devbuild.zip" label="v2.3.23-57" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.tar.gz" label="v0.3.11-17" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.zip" label="v0.3.11-17" %} |
-
-</div>
-<div id="h-old" class="tab-pane fade" markdown="1">
-
-Old releases:
-
-| Version | Downloads |
-|---------|-----------|
-| **v0.3.10** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.tar.gz" label="v0.3.10-4" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.10-4-devbuild.zip" label="v0.3.10-4" %} |
-| **v0.3.9** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.9-0-devbuild.tar.gz" label="v0.3.9-0" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.9-0-devbuild.zip" label="v0.3.9-0" %} |
-| **v0.3.7** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-22-devbuild.tar.gz" label="v0.3.7-22" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-22-devbuild.zip" label="v0.3.7-22" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-21-devbuild.tar.gz" label="v0.3.7-21" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-21-devbuild.zip" label="v0.3.7-21" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-20-devbuild.tar.gz" label="v0.3.7-20" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-20-devbuild.zip" label="v0.3.7-20" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-15-devbuild.tar.gz" label="v0.3.7-15" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-15-devbuild.zip" label="v0.3.7-15" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-10-devbuild.tar.gz" label="v0.3.7-10" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-10-devbuild.zip" label="v0.3.7-10" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-8-devbuild.tar.gz" label="v0.3.7-8" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-8-devbuild.zip" label="v0.3.7-8" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-1-devbuild.tar.gz" label="v0.3.7-1" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.7-1-devbuild.zip" label="v0.3.7-1" %} |
-| **v0.3.4** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild.tar.gz" label="v0.3.4-1" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild.zip" label="v0.3.4-1" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.tar.gz" label="v0.3.4-1 DEBUG" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild_DEBUG.zip" label="v0.3.4-1 DEBUG" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.tar.gz" label="v0.3.4-1 RELOAD" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.4-1-devbuild_RELOAD.zip" label="v0.3.4-1 RELOAD" %} |
-| **v0.3.3** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild.tar.gz" label="v0.3.3-4" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild.zip" label="v0.3.3-4" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.tar.gz" label="v0.3.3-4 DEBUG" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild_DEBUG.zip" label="v0.3.3-4 DEBUG" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.tar.gz" label="v0.3.3-4 RELOAD" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.3-4-devbuild_RELOAD.zip" label="v0.3.3-4 RELOAD" %} |
-| **v0.3.1** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild.tar.gz" label="v0.3.1-3" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild.zip" label="v0.3.1-3" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.tar.gz" label="v0.3.1-3 DEBUG" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild_DEBUG.zip" label="v0.3.1-3 DEBUG" %} |
-|            | {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.tar.gz" label="v0.3.1-3 RELOAD" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.1-3-devbuild_RELOAD.zip" label="v0.3.1-3 RELOAD" %} |
-
-</div>
-</div>
 
   - All releases are also available in [github](https://github.com/marceluda/rp_lock-in_pid/tree/gh-pages/Derivated)
   - [ChangeLog](https://github.com/marceluda/rp_lock-in_pid_h/blob/master/CHANGELOG.md) in the [project page](https://github.com/marceluda/rp_lock-in_pid_h)
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+{% include section-title.html id="lock-in-pid-sq" title="Lock-in+PID SQ" %}
+
+{% include repo-badges.html repo="marceluda/rp_lock-in_pid_sq" %}
+
+Version of Lock-in+PID with only the square (fast) lock-in. It takes the [Lock-in+PID H](#lock-in-pid-h) App
+and replaces the harmonic modulation with **square modulation**, like the one of the original Lock-in+PID:
+a square local oscillator with reference and quadrature outputs up to **31.25 MHz** and a square lock-in,
+while keeping the features of the harmonic App (modulation added to the control signals, two PIDs, ramp,
+lock control run by the FPGA, streaming and HTTP remote control).
+
+It is only available as a 2.x version, for the Red Pitaya Ecosystem 2.0.
+
+The source code can be found in the [github rp_lock-in_pid_sq repository](https://github.com/marceluda/rp_lock-in_pid_sq).
+
+**Downloads:**
+
+| For | Downloads |
+|-----|-----------|
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_square-2.0.3-11-devbuild.tar.gz" label="v2.0.3-11" %} {% include download-badge.html file="lock_in+pid_square-2.0.3-11-devbuild.zip" label="v2.0.3-11" %} |
+
+
+{% include section-title.html id="lock-in-pid-h-hf" title="Lock-in+PID H HF" %}
+
+{% include repo-badges.html repo="marceluda/rp_lock-in_pid_h_hf" %}
+
+High Frequency version of [Lock-in+PID H](#lock-in-pid-h). It is a copy of that project with only one change:
+**the harmonic modulation signal frequency can be set from 60 Hz to 1 MHz**.
+
+The source code can be found in the [github rp_lock-in_pid_h_hf repository](https://github.com/marceluda/rp_lock-in_pid_h_hf).
+
+**Downloads:**
+
+| For | Downloads |
+|-----|-----------|
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.14-16-devbuild.tar.gz" label="v2.3.14-16" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.14-16-devbuild.zip" label="v2.3.14-16" %} |
+| **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.tar.gz" label="v0.3.9-7" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.zip" label="v0.3.9-7" %} |
 
 
 {% include section-title.html id="lock-in-pid-h2" title="Lock-in+PID H2" %}
@@ -142,46 +145,8 @@ The source code can be found in the [github rp_lock-in_pid_h2 repository](https:
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic2-2.4.6-16-devbuild.tar.gz" label="v2.4.6-16" %} {% include download-badge.html file="lock_in+pid_harmonic2-2.4.6-16-devbuild.zip" label="v2.4.6-16" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic2-2.4.7-18-devbuild.tar.gz" label="v2.4.7-18" %} {% include download-badge.html file="lock_in+pid_harmonic2-2.4.7-18-devbuild.zip" label="v2.4.7-18" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic2-0.4.2-10-devbuild.tar.gz" label="v0.4.2-10" %} {% include download-badge.html file="lock_in+pid_harmonic2-0.4.2-10-devbuild.zip" label="v0.4.2-10" %} |
-
-
-{% include section-title.html id="lock-in-pid-h-hf" title="Lock-in+PID H HF" %}
-
-{% include repo-badges.html repo="marceluda/rp_lock-in_pid_h_hf" %}
-
-High Frequency version of [Lock-in+PID H](#lock-in-pid-h). It is a copy of that project with only one change:
-**the harmonic modulation signal frequency can be set from 60 Hz to 1 MHz**.
-
-The source code can be found in the [github rp_lock-in_pid_h_hf repository](https://github.com/marceluda/rp_lock-in_pid_h_hf).
-
-**Downloads:**
-
-| For | Downloads |
-|-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.13-14-devbuild.tar.gz" label="v2.3.13-14" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.13-14-devbuild.zip" label="v2.3.13-14" %} |
-| **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.tar.gz" label="v0.3.9-7" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.zip" label="v0.3.9-7" %} |
-
-
-{% include section-title.html id="lock-in-pid-sq" title="Lock-in+PID SQ" %}
-
-{% include repo-badges.html repo="marceluda/rp_lock-in_pid_sq" %}
-
-Version of Lock-in+PID with only the square (fast) lock-in. It takes the [Lock-in+PID H](#lock-in-pid-h) App
-and replaces the harmonic modulation with **square modulation**, like the one of the original Lock-in+PID:
-a square local oscillator with reference and quadrature outputs up to **31.25 MHz** and a square lock-in,
-while keeping the features of the harmonic App (modulation added to the control signals, two PIDs, ramp,
-lock control run by the FPGA, streaming and HTTP remote control).
-
-It is only available as a 2.x version, for the Red Pitaya Ecosystem 2.0.
-
-The source code can be found in the [github rp_lock-in_pid_sq repository](https://github.com/marceluda/rp_lock-in_pid_sq).
-
-**Downloads:**
-
-| For | Downloads |
-|-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_square-2.0.2-9-devbuild.tar.gz" label="v2.0.2-9" %} {% include download-badge.html file="lock_in+pid_square-2.0.2-9-devbuild.zip" label="v2.0.2-9" %} |
 
 
 {% include section-title.html id="other-authors" title="Derivated works from other authors" %}
