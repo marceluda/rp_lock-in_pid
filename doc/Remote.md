@@ -1,6 +1,6 @@
 # Remote control
 
-How to control `lock_in+pid` **v2.2.6** from a program, without the web page. The registers are described in
+How to control `lock_in+pid` **v2.2.10** (branch `master`) from a program, without the web page. The registers are described in
 [FPGA.md](FPGA.md); the meaning of each instrument in [App.md](App.md).
 
 - [What exists in this App](#what-exists-in-this-app)
@@ -111,6 +111,10 @@ Since 2.2.7 the trigger values written by the script (0x30, 0x34, 0x38) are copi
 (before 2.2.7 they were not shown and were rewritten with the page values at the next change of any lock parameter;
 on the board the lock then fired at 18 ms instead of 100 ms). `--time` is clamped to 0..2³²−1 ticks (34.36 s).
 See [Structure.md](Structure.md#lock-control).
+
+Since 2.2.9 (FPGA) the time trigger only counts from a scan floor of a ramp that kept running: a request armed right
+after a release or with the ramp stopped waits for the next floor and fires at floor + time (before, it could fire in
+the middle of the scan). With slow ramps use a timeout longer than the period.
 
 ### Oscilloscope: `osc_trig.py` and `osc_get_ch.py`
 
@@ -231,7 +235,7 @@ The web page talks to the C controller with `POST /data` (JSON `{"datasets":{"pa
 names are those of the parameter table of `src/main.c` (e.g. `lock_pidA_kp`, `lock_ctrl_aux_launch_lock_trig`,
 `trig_mode`); the controller clamps each value to its `min`/`max` and writes the registers (`rp_set_params()`). A
 program could do the same, but **this is not provided nor tested for this App**. What was learned on the same
-Ecosystem with lock_in+pid_harmonic ([its Remote.md](https://github.com/marceluda/rp_lock-in_pid_h/blob/devel2.0/doc/Remote.md)):
+Ecosystem with lock_in+pid_harmonic ([its Remote.md](https://github.com/marceluda/rp_lock-in_pid_h/blob/master/doc/Remote.md)):
 
 - `trig_mode` = 2 (Single) stops the acquisitions of the controller; 0 gives Auto back.
 - Use only `POST /data` (a `GET /data` while another 2.0 App is loaded crashes the nginx worker), with the body in the

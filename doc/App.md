@@ -1,7 +1,7 @@
 # The App: instruments and specifications
 
-`lock_in+pid` ("Oscilloscope+Lock-in+PID") **v2.2.6** for the Red Pitaya STEMlab 125-14, Ecosystem 2.0
-(tested on RedPitaya_OS 2.04-35). Branch `devel2.0`.
+`lock_in+pid` ("Oscilloscope+Lock-in+PID") **v2.2.10** for the Red Pitaya STEMlab 125-14, Ecosystem 2.0
+(tested on RedPitaya_OS 2.04-35). Branch `master`.
 
 This page describes what the App contains and its technical data. How to use it from the web page is in
 [Usage.md](Usage.md); how the parts are connected in [Structure.md](Structure.md); the registers in
@@ -80,14 +80,17 @@ ADCs). Registers: [FPGA.md](FPGA.md#oscilloscope-0x40100000).
 | Item | Value |
 |---|---|
 | Channels | 2, each any of: 0, in1, in2, error, ctrl_A, ctrl_B, Ramp A/B, pidA/B_in, PID A/B out, sin_ref, cos_ref, cos_1f/2f/3f, sq_ref, sq_quad, sq_phas, square ref (bin), signal_i, Xo, Yo, F1o, F2o, F3o, sqXo, sqYo, sqFo |
-| Memory | 16384 samples per channel; the web page gets 1024 points (`SIGNAL_LENGTH`, `src/main.h` l. 299) |
-| Time ranges (decimation) | 0: 1 (131 µs), 1: 8 (1.05 ms), 2: 64 (8.4 ms), 3: 1024 (134 ms), 4: 8192 (1.07 s), 5: 65536 (8.6 s), 6: 524288 (68.7 s, new in v2.2.6) — `src/fpga.c` l. 495-526. The range is chosen from the zoom window |
+| Memory | 16384 samples per channel; the web page gets 1024 points (`SIGNAL_LENGTH`, `src/main.h` l. 313) |
+| Time ranges (decimation) | 0: 1 (131 µs), 1: 8 (1.05 ms), 2: 64 (8.4 ms), 3: 1024 (134 ms), 4: 8192 (1.07 s), 5: 65536 (8.6 s), 6: 524288 (68.7 s, new in v2.2.6) — `src/fpga.c` l. 527-558. The range is chosen from the zoom window |
 | Trigger | sources Channel 1, Channel 2, External; modes Auto, Normal, Single; rising/falling edge; level |
 | External trigger | pin DIO0_P, scan floor, scan ceil, start of the harmonic period, square modulation, out of lock, jump (step response), lock event ("Lock control trig") — `trig_sw` |
 | Other | averaging inside the decimation, equalization (anti-aliasing) filter bypass per channel, Raw mode (counts), Measure (min, max, amplitude, mean, frequency, period), AUTO (auto-set), save data as Python / Matlab / CSV |
+| Web page tools | Reset zoom to the period of the trigger source (v2.2.9; 0.98 × T for T ≥ 1.5 s), mouse wheel zoom on both axes / time only (SHIFT) / Y only (ALT) (v2.2.9), OscA\|OscB presets (v2.2.10): [Usage.md](Usage.md#toolbar) |
+| Slow windows (≥ 1.5 s) | read while the FPGA writes them; only samples of the current acquisition are shown, never an older lap of the memory (v2.2.9, `src/worker.c`): [Usage.md](Usage.md#slow-scans) |
 
 Range 6 was verified on the board: `Dec` = 524288 and data up to 68.72 s; it is reached with the zoom-out
-(magnifier −); the X+ button of the Range panel stops at 10 s (`testAgent.md` 2026-10-10 09:48).
+(magnifier −); the X+ button of the Range panel stopped at 10 s up to v2.2.6 (`testAgent.md` 2026-10-10 09:48;
+up to 68.72 s since v2.2.7).
 
 ## Inputs and outputs
 
@@ -127,7 +130,7 @@ square lock-in and, as ±4096 (±0.5 V) signals, `sq_ref`, `sq_quad`, `sq_phas`.
 
 ## Lock-in amplifiers
 
-`lock.v` l. 787-1052 ([published description](https://marceluda.github.io/rp_lock-in_pid/TheApp/instruments/instruments_04_lock-in)).
+`lock.v` l. 804-1108 ([published description](https://marceluda.github.io/rp_lock-in_pid/TheApp/instruments/instruments_04_lock-in)).
 Both lock-ins demodulate the same input `signal_i` (`signal_sw`: in1, in2, in1−in2, sin_ref, cos_1f, sq_ref,
 sq_phas, Ramp A, square ref (bin), square phas (bin), aux_A, aux_B).
 
@@ -207,7 +210,7 @@ component of the product).
 
 ## Error signal and PIDs
 
-`lock.v` l. 604-638 and 1138-1236, `lock/lock_pid_block.v` ([published description](https://marceluda.github.io/rp_lock-in_pid/TheApp/instruments/instruments_07_pids)).
+`lock.v` l. 620-654 and 1195-1297, `lock/lock_pid_block.v` ([published description](https://marceluda.github.io/rp_lock-in_pid/TheApp/instruments/instruments_07_pids)).
 
 The **error** is one of 0, in1, Xo, F1o, F3o, sqXo, sqYo, sqFo, minus `error_offset` (14-bit wrap). `Yo` and
 `F2o` are not in the error selector, but each PID can take the error or any of 24 other signals directly
@@ -224,12 +227,12 @@ out = kp·e / 2^P  +  Σ(ki·e) / 2^I  +  kd·(slope of e) / 2^6
 |---|---|---|
 | `kp`, `ki`, `kd`, `sp` | −8192..8191 | 14-bit signed |
 | Proportional divider P | /1, /8, /64, /1024, /4096 | default /1024 (`kp` = 1024 → gain 1) |
-| Integrator (ISR) | 2^I, I = 0,3,6,10,13,16,20,23,26,30 → UI 8 ns, 64 ns, 512 ns, 8 us, 65 us, 524 us, 8 ms, 67 ms, 537 ms, 9 s ("65 us" said "6 us" before v2.2.6) | τ_i = 8 ns · 2^I / \|ki\| (UI formula, `index.html` l. 1843); default I = 26 (537 ms) |
+| Integrator (ISR) | 2^I, I = 0,3,6,10,13,16,20,23,26,30 → UI 8 ns, 64 ns, 512 ns, 8 us, 65 us, 524 us, 8 ms, 67 ms, 537 ms, 9 s ("65 us" said "6 us" before v2.2.6) | τ_i = 8 ns · 2^I / \|ki\| (UI formula, `index.html` l. 1905); default I = 26 (537 ms) |
 | Derivative (DSR) | averages of 2^D samples, D = 0,3,6,10,13,16 → UI 7.5 ns .. 491.5 µs | τ_d = 7.5 ns · 2^D · \|kd\| (UI formula) |
 | Integrator saturation (SAT) | ±2^SAT counts: ±122 µV (0) .. ±1 V (13) | default 13 |
 | Output | saturated to 14 bits (±1 V) | |
 | Controls | integrator reset, freeze output, freeze integrator (`pidX_ctrl`) | also frozen during a step (`sf_config`) |
-| Enable | output forced to 0 and integrator reset while the PID is disabled by the lock control | `lock.v` l. 1184-1187 |
+| Enable | output forced to 0 and integrator reset while the PID is disabled by the lock control | `lock.v` l. 1246-1247 |
 
 ## Lock control (auto-lock)
 
@@ -243,7 +246,7 @@ Design: [`lock_control.md`](../lock_in+pid/doc/lock_control.md); published descr
 | In IDLE / ARMED | ramp, PID A, PID B follow the manual enables ("Scan enable", "PID A enable", "PID B enable") |
 | In LOCKED | they follow the "config" enables (usually: ramp off, PID A on) |
 | Requests | Lock Now (immediate), Trigger Lock (arm, lock on the trigger) |
-| Triggers | **Time**: `lock_trig_time` ticks after the scan floor, 0..2³²−1 (up to 34.36 s); **Level**: the signal of `lock_trig_sw` crosses `lock_trig_val` upwards or downwards; **Level+time**: level crossing after the time |
+| Triggers | **Time**: `lock_trig_time` ticks after the scan floor, 0..2³²−1 (up to 34.36 s; since v2.2.9 the counter saturates and the time trigger only fires after a floor of a running ramp, [FPGA.md](FPGA.md#lock-control-auto-lock-re-lock-and-step-response)); **Level**: the signal of `lock_trig_sw` crosses `lock_trig_val` upwards or downwards; **Level+time**: level crossing after the time |
 | Latency | time trigger: the ramp stops and the PIDs start in the clock of the trigger; level trigger: 1 clock (8 ns) later (comparisons registered in build 14) |
 | Status | `lock_status`: armed, locked, effective enables, lock count |
 | Capture | the lock event is a scope trigger source ("Lock control trig"); the page uses it for *Capture Lock* ([`lock_capture.md`](../lock_in+pid/doc/lock_capture.md)) |
@@ -253,7 +256,8 @@ Lock → LOCKED, second click releases, Lock Now, manual override, ARMED with a 
 locked or armed, Capture Lock with Time and Level, Fire on click, locking from `py/lock_from_registers.py`).
 **A confirmar: a real lock (closed loop on a system) has not been validated with this App on the current
 bench** (it has no modulation added to OUT1, so the procedure used for lock_in+pid_harmonic does not apply; the
-user will define a setup). The PID gains used in those tests were not a real lock.
+user will define a setup). The PID gains used in those tests were not a real lock, and neither are the screenshots
+of v2.2.10 in [Usage.md](Usage.md) (kp = ki = 0: "LOCKED" only stops the ramp and holds ctrl_A).
 
 ## Re-lock and step response
 

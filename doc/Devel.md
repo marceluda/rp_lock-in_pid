@@ -1,6 +1,6 @@
 # Development: building and modifying the App
 
-How to build, modify, test and install `lock_in+pid` v2.2.6 (branch `devel2.0`). The internal structure is
+How to build, modify, test and install `lock_in+pid` v2.2.10 (branch `master`). The internal structure is
 explained in [Structure.md](Structure.md) and the registers in [FPGA.md](FPGA.md).
 
 - [Source tree](#source-tree)
@@ -63,7 +63,7 @@ rp_lock-in_pid/
     └── target/              # staging folder for the packages (built, not versioned)
 ```
 
-Compared with lock_in+pid_harmonic devel2.0 there is no `c/` folder (no `lock`, `osc`, streaming tools), no
+Compared with lock_in+pid_harmonic 2.3.x there is no `c/` folder (no `lock`, `osc`, streaming tools), no
 `resources/streaming/` nor `resources/remote_control/http_version/`, and no Lua endpoints in `nginx.conf`.
 
 ## Software requirements
@@ -195,7 +195,11 @@ Where to change things:
 | Scope (decimation, `osc_ctrl_i`, bus read) | `rtl/rtl/classic/rp_scope_com.v`, `rp_scope_cfg.v`, `rp_decim.v` |
 | Constraints | `sdc/red_pitaya.xdc` (pins), `prj/v0.94/sdc/red_pitaya.xdc` (timing, multicycle of `i_lock/sys_rdata`) |
 
-Timing does not close, as in the 2015.2 design (WNS −14.749 ns): v2.2.6 build 14 WNS −11.721 ns, TNS −12069 ns,
+Timing since v2.2.8: almost closes (WNS −1.794 ns, TNS −469 ns, 1234 endpoints; v2.2.9 −1.689 ns, `devAgent.md`):
+pipeline registers in the long chains of the loop ([`lock_latency.md`](../lock_in+pid/doc/lock_latency.md)). The rest
+of this paragraph is the state of v2.2.6.
+
+Timing did not close, as in the 2015.2 design (WNS −14.749 ns): v2.2.6 build 14 WNS −11.721 ns, TNS −12069 ns,
 5431 failing endpoints; the worst paths are the long combinational paths of the loop (reference ROM / lock-in →
 PID, scope muxes −11.5 ns, DAC −9.5 ns); the bus read meets timing (`sys_rdata` +0.264 ns) with the 2-cycle multicycle
 constraint. In `i_lock_ctrl` 15 endpoints still fail (14 `signal_now_reg` −9.833 ns, 1 `ramp_trigger_r` −2.057 ns):
@@ -259,12 +263,23 @@ controller, and update [FPGA.md](FPGA.md).
 | `trig_from_graph_sim.js` | `node test/trig_from_graph_sim.js` | click → time conversion of *Choose from graph* |
 | `trig_input_units_sim.js` | `node test/trig_input_units_sim.js [--old]` | Time / Level trigger fields with units, empty fields not sent |
 | `config_load_window_sim.js` | `node test/config_load_window_sim.js [--old]` | Config → load of the time window |
-| `auto_set_c_sim/` | `test/auto_set_c_sim/run.sh [src dir]` | the real C controller compiled for the PC with fake `/dev/mem`: AUTO after a capture, forceX |
+| `auto_set_c_sim/` | `test/auto_set_c_sim/run.sh [src dir]` | the real C controller compiled for the PC with fake `/dev/mem`: AUTO after a capture, forceX; since v2.2.9 also a model of the circular scope buffer and of the lock pulse (slow windows, Capture Lock with history, time trigger after a stopped ramp) |
+| `lock_latency_tb.sv` | `test/lock_latency_sim.sh [work_dir [old_ref]]` (xsim) | `lock.v` of the working tree side by side with the one of v2.2.7: every signal is the old one delayed by the latency of [`lock_latency.md`](../lock_in+pid/doc/lock_latency.md) (v2.2.8); prints `TB RESULT: PASS` |
+| `minor_ui_sim.js` | `node test/minor_ui_sim.js [index.html]` | wheel → τ/f text, X+ up to 68.72 s, labels (v2.2.7) |
+| `ramp_mod_period_tb.v` | `test/ramp_mod_period_sim.sh [work_dir]` (xsim) | periods of the ramp floor/ceil triggers and of the harmonic and square modulation triggers on the RTL, the formulas used by Reset zoom (v2.2.9); prints `TB RESULT: PASS` |
+| `reset_zoom_sim.js` | `node test/reset_zoom_sim.js [index.html] [--old]` | the real `resetZoom()` against a model of the time range code of `src/main.c`, incl. Square mod. (v2.2.9) |
+| `plot_wheel_sim.js` | `node test/plot_wheel_sim.js [index.html]` | mouse wheel on the plot: no key / SHIFT / ALT (one Y axis), limits, debounce, Capture Lock (v2.2.9) |
+| `osc_presets_sim.js` | `node test/osc_presets_sim.js [index.html]` | the OscA\|OscB presets, the `usr` dialog and the Ext Trig → Trigger panel rule (v2.2.10) |
 
 Run them from `lock_in+pid/`. All exit with code 1 on failure. Results of v2.2.6 (`devAgent.md` 2026-10-10 08:30 and
 09:14, `build_logs/rp_lock-in_pid_20261010_0914_v226b_sim.txt`): `lock_ctrl_sim` 35/35, `lock_bus_read_sim` PASS,
 `lock_ctrl_ui_sim` 28/28, `lock_capture_ui_sim` 63/63, `trig_input_units_sim` 38/38, `config_load_window_sim` 21/21,
-`trig_from_graph_sim` 0 failures, `auto_set_c_sim` 14/14.
+`trig_from_graph_sim` 0 failures, `auto_set_c_sim` 14/14. Counts reported in the CHANGELOG for later versions:
+`lock_latency_sim` 418 checks (v2.2.8); `reset_zoom_sim` 36, `plot_wheel_sim` 59, `ramp_mod_period_sim` 14,
+`lock_capture_ui_sim` 79, `auto_set_c_sim` 44, `lock_ctrl_sim` 46 (v2.2.9); `osc_presets_sim` 37 (v2.2.10). Node tests
+run by devAgent on 2.2.10 (`build_logs/rp_lock-in_pid_20261016_1635_v2210_sim.txt`): `osc_presets` 37/37,
+`config_load_window` 21/21, `lock_capture_ui` 79/79, `lock_ctrl_ui` 28/28, `minor_ui` 7/7, `plot_wheel` 59/59,
+`reset_zoom` 36/36, `trig_input_units` 38/38, `trig_from_graph` 0 failures (2.2.10 only changed the web page).
 
 On the board the tests of each version are in `reportes/lock-in_pid.md` (Apps root). The LOCK MODE procedure of
 `test_files/lock_test.md` (used for lock_in+pid_harmonic) does not apply to this App, which adds no modulation to OUT1;
@@ -275,7 +290,7 @@ a test bench for a real lock with this App is pending (to be defined by the user
 From a package (`archive/*.tar.gz` or `.zip`, or a GitHub release):
 
 ```bash
-tar -xzf lock_in+pid-2.2.6-<build>-devbuild.tar.gz
+tar -xzf lock_in+pid-2.2.10-<build>-devbuild.tar.gz
 ./upload_app.sh rp-XXXXXX.local          # -p <ssh port>; -w uploads only index.html, js, css
 ```
 
@@ -290,17 +305,20 @@ if an older version was running. If `nginx.conf` changed, restart nginx (`system
 Notes for Ecosystem 2.0 (`testAgent.md`):
 
 - In a non-interactive SSH, `rw` needs `PATH_REDPITAYA`: `export PATH_REDPITAYA=/opt/redpitaya; /opt/redpitaya/sbin/rw`
-  (the `upload*` targets do so). `upload_app.sh` calls `/boot/sbin/rw` (l. 119, 125); whether that path exists on OS
-  2.04 is **a confirmar**. Its `-w` option removes `{index.html,js.css}` (l. 119: probably meant `js,css`).
+  (the `upload*` targets do so, and `upload_app.sh` since v2.2.7: `/opt/redpitaya/sbin/rw` on Ecosystem 2.0,
+  `/boot/sbin/rw` on 0.9x; its `-w` option removed `{index.html,js.css}` up to v2.2.6, now `{index.html,js,css}`).
 - Each `POST /data` leaves an open connection in the nginx of the board; after long sessions restart it with
   `systemctl restart redpitaya_nginx` (then start the App again).
 - Close any tab with the main menu of the board before testing: it can relaunch the main menu and unload the App.
 
 ## Versioning and packages
 
-- Version: `lock_in+pid/info/info.json` (`"version": "2.2.6-BUILD_NUMBER"`), the title of `index.html`
-  (`Oscilloscope+Lock-in+PID (v2.2.6)`), `CHANGELOG.md`, `README.md` ("Current version"). Build number:
-  `_build_number`. Revision: `REVISION` (default `devbuild`).
-- Package name: `lock_in+pid-<VER>-<BUILD_NUMBER>-<REVISION>.{zip,tar.gz}` in `archive/` (v2.2.6: build 14).
-- Branches: `master` = 0.2.x (FPGA Vivado 2015.2, Ecosystems 0.9x / 1.0), `devel2.0` = 2.2.x (FPGA Vivado 2020.1,
-  Ecosystem 2.0). Tags `v0.2.1`, `v0.2.3`, `v0.2.4`, `v2.2.5`, `v2.2.6`.
+- Version: `lock_in+pid/info/info.json` (`"version": "2.2.10-BUILD_NUMBER"`), `CHANGELOG.md`, `README.md` ("Current
+  version"). Since v2.2.8 the build writes the version of `info.json` in `<title>` and in the page title of
+  `target/…/index.html`; the title in the source `index.html` does not matter. Build number: `_build_number`.
+  Revision: `REVISION` (default `devbuild`).
+- Package name: `lock_in+pid-<VER>-<BUILD_NUMBER>-<REVISION>.{zip,tar.gz}` in `archive/` (v2.2.10: build 23).
+- Branches: since 2026-10-15 `master` is the 2.2.x line (FPGA Vivado 2020.1, Ecosystem 2.0); the 0.2.x series (FPGA
+  Vivado 2015.2, Ecosystems 0.9x / 1.0) stays in the tags `v0.2.1`, `v0.2.3`, `v0.2.4`. Tags `v2.2.5` .. `v2.2.10`.
+  `devel2.0` is left as it was and is no longer used. pid 2.2.6 = `_h` 2.3.10-2.3.17, 2.2.7 = 2.3.18, 2.2.8 = 2.3.19
+  (+ the reference delay of 2.3.20), 2.2.9 = 2.3.21-2.3.23, 2.2.10 = 2.3.24.

@@ -1,6 +1,6 @@
 # Using the App from the web interface
 
-How to use `lock_in+pid` **v2.2.6** from the browser, panel by panel, and the usual procedures: scan, see a
+How to use `lock_in+pid` **v2.2.10** from the browser, panel by panel, and the usual procedures: scan, see a
 peak, get an error signal, close a lock and check it. Technical data of each instrument is in
 [App.md](App.md); registers in [FPGA.md](FPGA.md). The published documentation of this App has a longer,
 illustrated description of the interface: https://marceluda.github.io/rp_lock-in_pid/
@@ -10,7 +10,7 @@ illustrated description of the interface: https://marceluda.github.io/rp_lock-in
 - [Panels](#panels)
   - [Toolbar](#toolbar) · [Oscilloscope](#oscilloscope) · [Outputs](#outputs) ·
     [Lock-in modules](#lock-in-modules) · [Ramp Controller](#ramp-controller) · [PIDs modules](#pids-modules) ·
-    [Lock Control](#lock-control) · [Right panels and displays](#right-panels-and-displays)
+    [Lock Control](#lock-control) · [Right panels and displays](#right-panels-and-displays) · [Slow scans](#slow-scans)
 - [Typing values with units](#typing-values-with-units)
 - [Procedures](#procedures)
   1. [Scan and see the response of the system](#1-scan-and-see-the-response-of-the-system)
@@ -22,10 +22,13 @@ illustrated description of the interface: https://marceluda.github.io/rp_lock-in
 - [Several clients and Restart](#several-clients-and-restart)
 - [Known limitations of the interface](#known-limitations-of-the-interface)
 
-Screenshots: RP2 (RedPitaya_OS 2.04-35) with v2.2.6-14, taken by testAgent during the tests of
-`reportes/lock-in_pid.md` (2026-10-10; the system scanned is a simulated peak made by `dummy_simulator` on a
-second board, OUT1 → IN1 of the other board and back) and by docAgent while writing this page (only opening
-panels; the values seen are those left on the board).
+Screenshots: RP2 (RedPitaya_OS 2.04-35), the system scanned is a simulated peak made by `dummy_simulator` on a
+second board (OUT1 → IN1 of the other board and back). v2.2.10-23 (2026-10-16, testAgent): the Oscilloscope /
+Outputs panels, the cos_1f example, the 68.7 s range and the Capture Lock + Fire on click GIF, with a configuration
+built from the defaults of the page (Out1 = ctrl_A, ramp 400 triangle ±5000, OscA in1 / OscB ctrl_A, Ext Trig Scan
+floor, **kp = ki = 0**: no real lock). v2.2.5 / v2.2.6-14 (2026-10-10): the rest, taken by testAgent during the tests
+of `reportes/lock-in_pid.md` and by docAgent while writing this page (only opening panels; the values seen are those
+left on the board). Some screenshots taller than the browser window are two screenshots of the same page joined.
 
 ## Opening the App
 
@@ -57,7 +60,7 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
 | Button | Action |
 |---|---|
 | Autoscale | Rescales the **Y axis** to the data on screen, only in the page. Does not end a lock capture. |
-| Reset zoom, zoom in/out, pan | Plot navigation. A zoom selects the time window of the acquisition; the decimation (time range 0..6, up to 68.7 s) is chosen from it. Reset zoom (v2.2.9) sets the window from t = 0 to one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod., 2520·(hp+1) clocks), one period of the square modulation (Ext Trig = Square mod., 2·(sqp+1) clocks; the harmonic period with sqp = 0) or one whole memory at the current decimation (otherwise), and Y to −1 … 1 V (raw mode −8192 … 8192). Periods of 1.5 s or more: 0.98 × the period, so that every scan is acquired. During a lock capture it first ends it, as AUTO, and uses the restored Ext Trig. The Raw Mode button rescales Y the same way. |
+| Reset zoom, zoom in/out, pan | Plot navigation. A zoom selects the time window of the acquisition; the decimation (time range 0..6, up to 68.7 s) is chosen from it. Reset zoom (v2.2.9) sets the window from t = 0 to one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod., 2520·(hp+1) clocks), one period of the square modulation (Ext Trig = Square mod., 2·(sqp+1) clocks; the harmonic period with sqp = 0) or one whole memory at the current decimation (otherwise), and Y to −1 … 1 V (raw mode −8192 … 8192). Periods of 1.5 s or more: 0.98 × the period, so that every scan is acquired ([Slow scans](#slow-scans)). During a lock capture it first ends it, as AUTO, and uses the restored Ext Trig. The Raw Mode button rescales Y the same way. |
 | Mouse wheel on the plot (v2.2.9) | Zoom centred on the mouse, 1.5× per step. **No key:** both axes. **SHIFT** held: time axis only (the cursor becomes a horizontal double arrow ↔). **ALT** held: Y axis only (vertical double arrow ↕; in raw mode the Y range is in counts). The time window is sent to the controller once the wheel stops (250 ms), which chooses the decimation as for any zoom; it stays between 20 ns and 68.7 s. The Y zoom is only in the page (1/2048 … 1000 × full scale). During a lock capture the wheel zoom is only in the page; ending the capture restores the window saved before it. |
 | Channel 1 / Channel 2 | Show or hide each channel. |
 | Stop | Stops the acquisition. |
@@ -71,7 +74,11 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
 
 ### Oscilloscope
 
-![Oscilloscope and Outputs panels (v2.2.6)](.Usage/panel_oscilloscope_outputs.jpg)
+![Oscilloscope (with the Presets) and Outputs panels: scan of the peak, Normal trigger on Scan floor](.Usage/panel_oscilloscope_outputs.jpg)
+
+In the screenshot: OscA = in1 (blue), OscB = ctrl_A (red) (preset `in1|ctrl`), Ext Trig = Scan floor, Trigger
+External / Normal, after *Reset zoom* (0 … 64.16 ms); Out1 = ctrl_A, Out2 = 0. The triangle of ctrl_A (±0.61 V)
+and the two peaks of in1 (≈ 0.45 V, at ≈ 16.3 ms and ≈ 48 ms, on the way up and on the way down).
 
 - **OscA / OscB**: signal shown on Channel 1 / Channel 2: 0, in1, in2, error, ctrl_A, ctrl_B, Ramp A/B,
   pidA/B_in, PID A/B out, the references (sin_ref, cos_ref, cos_1f/2f/3f, sq_ref, sq_quad, sq_phas, square ref
@@ -94,7 +101,7 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
 
 ### Outputs
 
-![More options of the Oscilloscope and Slow outputs (v2.2.6)](.Usage/panel_oscilloscope_more_slow_outputs.jpg)
+![More options of the Oscilloscope and Slow outputs](.Usage/panel_oscilloscope_more_slow_outputs.jpg)
 
 - **Out1 / Out2**: signal sent to each fast output (±1 V): 0, in1, in2, in1−in2, sin_ref (Out1) / cos_ref
   (Out2), cos_1f, cos_2f, cos_3f, sq_ref, sq_quad, sq_phas, PID A out (Out1) / PID B out (Out2), ctrl_A, ctrl_B,
@@ -105,10 +112,13 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
   0 V); **Slow out1 and Slow out2 have no effect** in this version ([App.md](App.md#inputs-and-outputs)). The slow
   outputs were not measured on 2.0 (a confirmar).
 
-Example of a reference on an output: Out1 = cos_1f with Period 50 (972.6 Hz), seen on IN1 after the simulated
-peak (2f components):
+Example of a reference on an output: Out1 = cos_1f with Period 50 (τ = 1.028 ms, f = 972.611 Hz), ramp off, seen
+on IN1 after the simulated peak:
 
-![cos_1f on OUT1 and IN1 after the dummy system (v2.2.6)](.Usage/cos1f_out1_in1.jpg)
+![cos_1f on OUT1 (blue) and IN1 after the dummy system (red), trigger Channel 1 / Normal, 0–3 ms](.Usage/cos1f_out1_in1.jpg)
+
+In the screenshot: OscA = cos_1f (±0.5 V), OscB = in1, ≈ 3 periods in 0–3 ms. in1 shows a narrow peak
+(≈ 0.3–0.4 V) every time cos_1f crosses the peak of the simulated system: two per period (a 2f component).
 
 ### Lock-in modules
 
@@ -198,8 +208,8 @@ How the lock control works inside: [`lock_control.md`](../lock_in+pid/doc/lock_c
 
 - **Trigger**: *Source* (Channel 1, Channel 2, External), *Mode* (Auto, Normal, Single), *Edge*, *Level*, and the
   *Single* button. External uses the *Ext Trig* of the Oscilloscope panel.
-- **Range**: buttons for the X and Y scales and offsets (the X+ button stops at 10 s; the 68.7 s range is reached
-  with the zoom-out of the toolbar).
+- **Range**: buttons for the X and Y scales and offsets (the X+ button goes up to 68.72 s since v2.2.7; it
+  stopped at 10 s before).
 - **Measure**: min, max, amplitude, average, frequency and period of each channel.
 
 ![Measure panel (v2.2.5)](.Usage/measure_panel.jpg)
@@ -213,7 +223,31 @@ How the lock control works inside: [`lock_control.md`](../lock_in+pid/doc/lock_c
 
 Range 6 of the time axis (68.7 s):
 
-![Time range 6, 68.7 s (v2.2.6)](.Usage/time_range_68s.jpg)
+![Time range 6, 68.7 s: a 20 s triangle (ctrl_A) and the peaks of in1, whole trace](.Usage/time_range_68s.jpg)
+
+In the screenshot: *Ramp period* 124999 (τ = 20.00 s), OscA in1 / OscB ctrl_A, Ext Trig = None, Trigger Channel 1
+/ Auto, window 0 … 68.72 s: the trace is complete from 0.067 s to 68.65 s (1024 points), 3½ triangles of ctrl_A
+with the peaks of in1. See also [Slow scans](#slow-scans).
+
+### Slow scans
+
+With windows of 1.5 s or more (e.g. a 30 s ramp) the scope reads its memory while the FPGA is still writing it.
+Since v2.2.9 (port of lock_in+pid_harmonic v2.3.23, see the CHANGELOG):
+
+- **Reset zoom** on a scan of period T ≥ 1.5 s (Ext Trig = Scan floor / Scan ceil / harmonic mod. / Square mod.)
+  sets the window to 0 … 0.98 × T (at least 50 ms before the next trigger), so that the scope is armed again in
+  time and every scan is acquired. Shorter periods keep one whole period.
+- The trace is drawn **while it is acquired**, only with valid points of the current acquisition (it starts and
+  ends at the valid ones, never mixed with an older lap of the memory, and the previous trace is not left to the
+  right). In Normal mode the **whole trace is only seen near the end of each scan**: between the end of the
+  window (0.98 × T) and the next scan floor. In Auto mode the same happens for every acquisition (the 68.7 s
+  screenshot above shows a whole acquisition just before the next one starts).
+- **Capture Lock** works with slow scans (Time trigger, Level trigger and Lock Now): the lock request is held until
+  the scope has loaded its **history before the lock** (the part of the window before t = 0; banner "loading the
+  scope history before the lock (x s)"), then the lock is applied and the capture is drawn as it is acquired.
+  Lock Now on a slow window therefore locks after that history, on purpose.
+- (FPGA) A time trigger armed after the ramp was stopped (e.g. right after releasing a lock) waits for the next
+  scan floor instead of firing in the middle of the scan.
 
 ## Typing values with units
 
@@ -247,10 +281,13 @@ the steps 3 and 4 below were checked only as states, registers and captures of t
 2. **Ramp Controller**: limits ±5000 (±610 mV), period 400 (64.16 ms), *Scan enable* checked.
 3. **Lock Control**: *Scan enable* button on, *PID A enable* off.
 4. **Oscilloscope**: OscA = `in1`, OscB = `Ramp A` (or `ctrl_A`); Ext Trig = *Scan floor*.
-5. **Trigger**: Source *External*, Mode *Normal*. Zoom to one period of the ramp: t = 0 is the scan floor.
+5. **Trigger**: Source *External*, Mode *Normal* (picking an Ext Trig already sets them, v2.2.10). Press
+   **Reset zoom**: the window goes from 0 to one period of the ramp (0 … 64.16 ms) and t = 0 is the scan floor.
+   The preset `in1|ctrl` sets OscA = in1, OscB = ctrl_A in one click.
 
-The response of the system appears at the same position in every sweep (in the screenshot of the
-[layout](#layout-of-the-page), two peaks per period, on the way up and down of the triangle).
+The response of the system appears at the same position in every sweep (in the screenshots of the
+[layout](#layout-of-the-page) and of the [Oscilloscope](#oscilloscope), two peaks per period, on the way up and down
+of the triangle).
 
 ### 2. Get an error signal
 
@@ -294,9 +331,15 @@ Choose from graph, Trigger Lock, Lock Now and release (GIF):
 
 ![Choose from graph, Trigger Lock, Lock Now and release](.Usage/choose_trigger_locknow_release.gif)
 
-Capture Lock and Fire on click on a frozen capture (GIF):
+Capture Lock and Fire on click on a frozen capture (GIF, v2.2.10). It shows the **page sequence only**: the PID
+gains were 0, so "LOCKED" just stops the ramp and holds ctrl_A where the trigger happened (in1 stays at the level of
+that point); it is not a lock of the system. Frames: scan (OFF, Time trigger 0); *Choose from graph*; click on the
+peak at 16.31 ms → LOCKED, capture frozen, Time trigger 2039088 (T = 16.313 ms, "16.3 ms after the scan floor");
+*Choose from graph* on the capture and a click at t = −2.95 ms (**Fire on click**) → locks 2, Time trigger 1669799
+(T = 13.358 ms); **AUTO** ends the capture; a second click on *Trigger Lock* releases, Reset zoom shows the scan
+again:
 
-![Capture Lock and Fire on click](.Usage/capture_lock_fire_on_click.gif)
+![Capture Lock and Fire on click (page sequence, PID gains 0)](.Usage/capture_lock_fire_on_click.gif)
 
 The frozen capture ends (and the scope settings saved before the capture are restored) with trigger mode
 Auto/Normal, *Single*, **AUTO**, a change of source or Ext Trig, or unchecking *Capture Lock*. *Autoscale* keeps it.
@@ -349,14 +392,10 @@ again.
 
 - **Slow out1 / Slow out2** have no effect; the **R|Phase Mode** button is disabled.
 - *Time trigger* values above 2²⁴ ticks (134 ms) set from the page are rounded to the float32 grid (≤ 1 µs).
-- Time / Level written from Python (`lock_from_registers.py`) do not appear in the page, and the next change of a
-  lock parameter in the page rewrites them with the values of the page (a confirmar, see
-  [Structure.md](Structure.md#lock-control)).
-- AUTO with the lock closed (no ramp, only noise) chooses a window of 0…139 ns; with the ramp running it works
-  (`reportes/lock-in_pid.md`).
-- The τ/f text of *Ramp period* is not refreshed when the value is changed with the wheel (the value and the POST
-  are).
-- The X+ button of *Range* stops at 10 s.
+- Fixed in v2.2.7 (seen in v2.2.6): Time / Level written from Python (`lock_from_registers.py`) did not appear in
+  the page and were rewritten at the next change of a lock parameter ([Structure.md](Structure.md#lock-control));
+  AUTO with the lock closed (only noise) chose a window of 0…139 ns (minimum 1 µs now); the τ/f text of
+  *Ramp period* was not refreshed with the wheel; the X+ button of *Range* stopped at 10 s.
 - Each change made in the page is a `POST /data`, and on Ecosystem 2.0 each one leaves an open connection in the
   nginx of the board ([Remote.md](Remote.md#the-post-data-interface-of-the-ecosystem)).
 

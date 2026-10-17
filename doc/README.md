@@ -1,6 +1,6 @@
 # RP Lock-in+PID — documentation
 
-Documentation of `lock_in+pid` **v2.2.6** (branch `devel2.0`, Ecosystem 2.0, FPGA built with Vivado 2020.1).
+Documentation of `lock_in+pid` **v2.2.10** (branch `master`, Ecosystem 2.0, FPGA built with Vivado 2020.1).
 Back to the [project README](../README.md) · [CHANGELOG](../CHANGELOG.md). The published documentation of the
 App (concepts, applications, the 0.x versions) is at https://marceluda.github.io/rp_lock-in_pid/
 
@@ -15,7 +15,7 @@ App (concepts, applications, the 0.x versions) is at https://marceluda.github.io
 
 Design notes kept with the sources (`lock_in+pid/doc/`):
 
-- [`lock_control.md`](../lock_in+pid/doc/lock_control.md): the lock control of v2.2.6 (`lock_control` /
+- [`lock_control.md`](../lock_in+pid/doc/lock_control.md): the lock control (since v2.2.6; `lock_control` /
   `lock_status`, state machine in the FPGA, locking from Python).
 - [`lock_capture.md`](../lock_in+pid/doc/lock_capture.md): *Capture Lock* and *Fire on click*.
 

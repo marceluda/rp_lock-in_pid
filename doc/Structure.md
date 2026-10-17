@@ -1,6 +1,6 @@
 # Internal structure
 
-How `lock_in+pid` v2.2.6 is built: the three layers (web page, server, FPGA), how they talk, and how the
+How `lock_in+pid` v2.2.10 (branch `master`) is built: the three layers (web page, server, FPGA), how they talk, and how the
 instruments are connected inside the FPGA. Registers: [FPGA.md](FPGA.md). Specifications: [App.md](App.md).
 Source tree and build: [Devel.md](Devel.md).
 
@@ -89,29 +89,35 @@ flowchart TB
   W -->|traces| GS
 ```
 
-- **Parameter table**: `src/main.c` `rp_main_params[]` (221 parameters, `PARAMS_NUM`, indices in `src/main.h`):
-  the scope (0-41), the AWG and PID of the original scope App (42-80, unused by this FPGA), and the lock module
-  (81-220, `[MAINDEFH DOCK]`). Most `lock_*` parameters map one to one to a register; some are fields of a
+- **Parameter table**: `src/main.c` `rp_main_params[]` (225 parameters, `PARAMS_NUM`, indices in `src/main.h`):
+  the scope (0-41), the AWG and PID of the original scope App (42-80, unused by this FPGA), the lock module
+  (81-220, `[MAINDEFH DOCK]`) and, since v2.2.9, four read-only scope state parameters (221-224: `scope_gen`,
+  `scope_acq_state`, `scope_acq_gen`, `sig_gen`; `src/main.h` l. 291-294) that tell the page which acquisition a
+  trace comes from. Most `lock_*` parameters map one to one to a register; some are fields of a
   register (`lock_lpf_F1_tau`/`_order` → `lpf_F1`; `lock_ctrl_aux_*` → `lock_control`; `lock_osc1/2_filt_off` →
   `osc_ctrl`; `lock_pidA_irst/freeze/ifreeze` → `pidA_ctrl`; `lock_rl_*_enable`, `lock_rl_reset` → `rl_config`;
   `lock_sf_*` → `sf_config`). `lock_osc_raw_mode` and `lock_osc_lockin_mode` are options of the scope worker
   (Raw mode, R|Phase mode); `lock_mod_sq_on` and `lock_mod_harmonic_on` are not written to any register. Values
-  outside the `min`/`max` of the table are clamped by `rp_set_params()` (`src/main.c` l. 894-900).
-- **`lock_update()`** (`src/lock.c` l. 111-246) writes all the lock registers from the parameters each time a
+  outside the `min`/`max` of the table are clamped by `rp_set_params()` (`src/main.c` l. 902-908).
+- **`lock_update()`** (`src/lock.c` l. 222-366) writes all the lock registers from the parameters each time a
   lock parameter changes; `lock_control` only when the value composed from `lock_ctrl_aux_*` changes (v2.2.6).
-- **`lock_update_main()`** (l. 275-415) reads every lock register back into the parameters, but only when
-  `rp_get_signals()` gets a complete acquisition (`src/main.c` l. 1235). `X_28`..`sqF_28` and `cnt_clk*` are
+- **`lock_update_main()`** (l. 395-535) reads every lock register back into the parameters, but only when
+  `rp_get_signals()` gets a complete acquisition (`src/main.c` l. 1269). `X_28`..`sqF_28` and `cnt_clk*` are
   read between `lock_freeze_regs()` / `lock_restore_regs()` (freeze with `read_ctrl[0]`).
-- **`lock_update_status()`** (l. 433-459) copies `lock_status` and `lock_control` to the parameters on **every**
-  `rp_get_params()` (`src/main.c` l. 1177), so the page sees the lock state also when the scope gets no
+- **`lock_update_status()`** (l. 433-465) copies `lock_status` and `lock_control` to the parameters on **every**
+  `rp_get_params()` (`src/main.c` l. 1202), so the page sees the lock state also when the scope gets no
   triggers (the ramp stops when the lock closes). If `lock_control` was written from outside (Python), its bits
   are copied to the `lock_ctrl_aux_*` parameters. Nothing is written to the FPGA there.
 - **Scope worker** (`src/worker.c`): a thread that arms the scope, waits for the trigger (on 2.0 it unlocks the
   trigger at 0x94 before each acquisition and detects the end with `conf` bit 4), reads both buffers and
   decimates them to 1024 points; it also runs the auto-set (AUTO) and the measurements. A POST without scope
-  changes does not reset it, and a lock request that arms a Single waits until the scope is armed
-  (`rp_osc_worker_wait_armed()`), which makes *Capture Lock* deterministic
-  ([`lock_capture.md`](../lock_in+pid/doc/lock_capture.md) §3.2).
+  changes does not reset it. Since v2.2.9 (port of lock_in+pid_harmonic v2.3.23) every point is a sample counted
+  from the trigger and is read only if it was written in the current acquisition (windows ≥ 1.5 s are read while
+  being written, and partial traces are served); and a lock request that arms a Single no longer waits in the
+  POST: the request bits are held out of `lock_control` (`lock_request_hold()` and the `lock_ctrl_hold*` state,
+  `src/lock.c` l. 76-81 and 620) until the worker has enabled the trigger of that acquisition, which keeps
+  *Capture Lock* deterministic also with slow scans ([`lock_capture.md`](../lock_in+pid/doc/lock_capture.md),
+  section "v2.2.9 (lock_in+pid_harmonic v2.3.23): slow scans").
 
 ## Inside the FPGA
 
@@ -200,15 +206,15 @@ flowchart LR
 
 Main points (lines of `lock.v`):
 
-- **Control signals** (l. 244-253): `ctrl_A = pidA_out + ramp_A + jumpA`, `ctrl_B = pidB_out + ramp_B + jumpB`,
+- **Control signals** (l. 250-259): `ctrl_A = pidA_out + ramp_A + jumpA`, `ctrl_B = pidB_out + ramp_B + jumpB`,
   saturated to 14 bits.
-- **Scope** (l. 262-311): two 32-input registered selectors (30 signals used); external trigger from `trig_sw`
-  (l. 321-341).
-- **Outputs** (l. 346-392): any of 16 signals, **without** added modulation. Slow outputs 3 and 4 (l. 429-551):
+- **Scope** (l. 268-317): two 32-input registered selectors (30 signals used); external trigger from `trig_sw`
+  (l. 327-347).
+- **Outputs** (l. 352-398): any of 16 signals, **without** added modulation. Slow outputs 3 and 4 (l. 445-567):
   registered selectors, mapped to 0..1.8 V by `(x + 8192)·156/1024`; slow outputs 1 and 2 are not driven.
-- **Error** (l. 604-638): one of 0, in1, Xo, F1o, F3o, sqXo, sqYo, sqFo minus `error_offset`; its mean and square
+- **Error** (l. 620-654): one of 0, in1, Xo, F1o, F3o, sqXo, sqYo, sqFo minus `error_offset`; its mean and square
   are accumulated over 2²⁷ ticks for the Monitor.
-- **PIDs** (l. 1138-1236): each PID takes a signal (`pidX_sw`, `muxer5`), computes P, I, D (`lock_pid_block.v`); its
+- **PIDs** (l. 1195-1297): each PID takes a signal (`pidX_sw`, `muxer5`), computes P, I, D (`lock_pid_block.v`); its
   output is forced to 0 (and the integrator reset) when the lock control disables it.
 
 ### Modulation and lock-in detail
@@ -307,16 +313,17 @@ sequenceDiagram
   C-->>UI: OFF / ARMED / LOCKED (no POST)
 ```
 
-**A confirmar** (`testAgent.md` 2026-10-10 09:48, `reportes/lock-in_pid.md` "Observaciones abiertas (2.2.6)"):
+**Fixed in v2.2.7** (seen by testAgent in v2.2.6, `testAgent.md` 2026-10-10 09:48, `reportes/lock-in_pid.md`):
 the trigger values written by Python (0x30, 0x34, 0x38) did not appear in the Time / Level fields of the page,
 and the next change of a lock parameter made from the page rewrote 0x34 with the copy of the controller (the
-lock then fired at another time). `lock_update_status()` only copies `lock_control`; `lock_update_main()` does
+lock then fired at another time). Since v2.2.7 the C writes each of them only when its parameter changes and
+copies a value written from outside to the parameter (CHANGELOG 2.2.7). Before: `lock_update_status()` only copies `lock_control`; `lock_update_main()` does
 read 0x30/0x34/0x38 back, but only with complete acquisitions (which stop when the ramp stops in Normal mode),
 and `lock_update()` rewrites every lock register on any lock change.
 
 ### Bus interface
 
-`[FPGA MEMORY DOCK]` of `lock.v` (l. 1243-1567), generated by `resources/config_tool.py`: registers written by
+`[FPGA MEMORY DOCK]` of `lock.v` (l. 1304-1628), generated by `resources/config_tool.py`: registers written by
 the PS and the read multiplexer. Since v2.2.5 `sys_rdata` is loaded only during a read and then held, and the
 read-only signals are read from registered copies (`*_rd`, l. 966-1006, and the `*_reg` copies of `read_ctrl[0]`)
 that are held during the read, with a 2-cycle multicycle constraint (`prj/v0.94/sdc/red_pitaya.xdc` l. 76-83).

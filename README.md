@@ -21,7 +21,8 @@ using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/Red
 (project `v0.94`, model `Z10`, the same port done in
 [rp_lock-in_pid_h](https://github.com/marceluda/rp_lock-in_pid_h) v2.3.x).
 It is intended for the Red Pitaya **Ecosystem 2.0** (e.g. `RedPitaya_OS_2.04`; tested on 2.04-35).
-The 0.2.x series (branch `master`, FPGA with Vivado 2015.2) is the version for the 0.9x / 1.0 ecosystems.
+Since 2026-10-15 the branch `master` holds the 2.x series; the 0.2.x series (FPGA with Vivado 2015.2), for the
+0.9x / 1.0 ecosystems, stays in the tags `v0.2.1` .. `v0.2.4`.
 
 - 2.2.5: FPGA in `lock_in+pid/fpga/` (Vivado 2020.1, see [lock_in+pid/fpga/README.md](lock_in+pid/fpga/README.md)).
   Oscilloscope of the Ecosystem 2.0 (trigger lock, decimation widened to 20 bits), exact bus reads of the lock
