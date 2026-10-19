@@ -31,6 +31,12 @@
  *      9.3 the same with the request written directly to lock_control (py/lock_from_registers.py);
  *      9.2 a new Capture Lock request while the capture of the same window is still waiting: applied at once
  *          (2.3.23-51: the scope was resumed without saying it was armed, the request waited for its deadline).
+ *  10. v2.2.11: Auto waits for the trigger and forces the acquisition only after a time limit (worker.c,
+ *      rp_osc_auto_timeout_us()): 10.1 Auto + Scan floor every 3 s (ramp registers of 3 s), window 0..2.94 s: every
+ *      trace from a floor (t = 0 at the floor), no forced trigger (2.2.10: immediate triggers, any phase); 10.2 scan
+ *      stopped, window 0..0.1 s: forced after ~0.25 s, traces keep coming; 10.3 scan of 3 s seen in 0..0.1 s: the
+ *      limit follows the ramp period, only floors; 10.4 Normal without trigger: nothing (no forcing in Normal).
+ *      SIM_AUTO=1 test/auto_set_c_sim/run.sh runs only section 10.
  *
  * Build and run: test/auto_set_c_sim/run.sh [src dir]     (exit code 1 if a check fails)
  */
@@ -149,6 +155,8 @@ static struct {
     long long next_floor_n;
     /* triggers: absolute sample number of the trigger sample */
     long long trig_n[MAX_TRIGS];
+    int      trig_forced[MAX_TRIGS];  /* v2.2.11: 1 = manual trigger source (1: forced / immediate), 0 = external */
+    double   trig_t[MAX_TRIGS];
     int      ntrig;
     /* stall: the writer waits stall_s at the address stall_addr once (a read that catches it there) */
     int      stall_addr;
@@ -325,10 +333,15 @@ static void ring_tick(void)
             else if((src == 6 || src == 7) && ext) trig = 1;
         }
         if(trig) {
+            int forced = (src == 1);
             ring.wp_trig = ring.wp; ring.dly_do = 1; ring.trg_rd = 1;
             ring.dly_cnt = (long long)osc->trigger_delay;
             osc->trig_source = 0; src = 0;
-            if(ring.ntrig < MAX_TRIGS) ring.trig_n[ring.ntrig++] = n;
+            if(ring.ntrig < MAX_TRIGS) {
+                ring.trig_forced[ring.ntrig] = forced;
+                ring.trig_t[ring.ntrig] = tn;
+                ring.trig_n[ring.ntrig++] = n;
+            }
             if(getenv("SIM_DEBUG")) fprintf(stderr, "MDBG %.4f TRIG n %lld wp %d src %u\n", t, n, ring.wp, osc->trig_source);
         }
         if(ring.we) {
@@ -733,13 +746,14 @@ int main(void)
     usleep(50000);
     int v2323 = has_v2323();
     printf("INFO C with the v2.3.23 scope params: %s\n", v2323 ? "yes" : "no (older version)");
+    if(getenv("SIM_AUTO")) goto auto10;            /* v2.2.11: only section 10 */
 
     /* ---- 6.1 Auto, window 1..3 s (xmin > 0) */
     {
         run_stat_t st;
         post("trig_mode", 0.0, NULL);
         post_window(1.0, 3.0, NULL, 0, NULL, 0, NULL, 0);
-        run_traces(7.0, &st, 0);
+        run_traces(9.0, &st, 0);     /* v2.2.11: Auto without trigger forces it after 1.1 x 2 s + 50 ms */
         check("6.1 Auto, window 1..3 s (Dec 65536): no trace with samples of another lap of the buffer",
               st.bad == 0 && st.ok >= 1,
               "Dec %d, %d GET, %d OK, %d AGAIN, %d bad (%d OK) %s", cur_dec(), st.gets, st.ok, st.again, st.bad, st.ok_bad,
@@ -844,7 +858,7 @@ int main(void)
         int ok_units = 1, n = 0;
         post("trig_mode", 0.0, "trig_source", 0.0, NULL);
         post_window(0.0, 0.020, NULL, 0, NULL, 0, NULL, 0);
-        usleep(200000);
+        usleep(600000);                     /* v2.2.11: Auto without trigger: a trace every ~0.27 s */
         module_get(); module_get();         /* the module holds a trace in ms */
         float tu_ms = get("time_units");
         post_window(0.0, 2.94, NULL, 0, NULL, 0, NULL, 0);
@@ -861,6 +875,80 @@ int main(void)
               "units %g -> %g, %d GET, %s", tu_ms, get("time_units"), n, ok_units ? "all x in 0..2.94" : "x out of the window");
         if(!ok_units) printf("     first x out of the window: %g\n", bad_t);
     }
+
+auto10:
+    /* ---- 10. v2.2.11: Auto waits for the trigger, forced only after its time limit */
+    {
+        int c;
+        /* ramp registers of a 3 s triangle (-1000..1000, step 93749: 2*2000*93750*8 ns), Scan enable on; the floors
+         * themselves come from the model (floor_period_s), the worker only reads the registers for its time limit */
+        post("lock_ramp_low_lim", -1000.0, "lock_ramp_hig_lim", 1000.0, "lock_ramp_step", 93749.0,
+             "lock_ramp_enable", 1.0, NULL);
+        /* effective ramp enable of lock_ctrl.v (lock_status bit 4, read-only; the model of section 9 is off here) */
+        *(volatile uint32_t *)&g_lock_reg->lock_status = 0x10;
+        for(c = 1; c <= 4; c++) {
+            run_stat_t st;
+            int t0, i, n_ext = 0, n_forced = 0;
+            double dur, x1, t_first = -1, t_prev = -1, gap_max = 0, gap_min = 1e9;
+            double floor_p = (c == 2 || c == 4) ? 0 : 3.0;
+            int mode = (c == 4 || (c == 1 && getenv("SIM_AUTO_NORMAL"))) ? 1 : 0;   /* SIM_AUTO_NORMAL: 10.1 in Normal (reference) */
+            if(c == 2)
+                post("lock_ramp_enable", 0.0, NULL);                      /* scan stopped: no floors */
+            if(c == 3)
+                post("lock_ramp_enable", 1.0, NULL);
+            pthread_mutex_lock(&ring.mx); ring.floor_period_s = floor_p; ring.next_floor_n = -1; pthread_mutex_unlock(&ring.mx);
+            post("trig_mode", (double)mode, "trig_source", 2.0, "lock_trig_sw", (c == 4) ? 0.0 : 2.0, NULL);
+            x1 = (c == 1) ? 2.94 : 0.1;
+            post_window(0.0, x1, NULL, 0, NULL, 0, NULL, 0);
+            /* the floors of the model are counted in samples: restart them at the Dec of this window */
+            pthread_mutex_lock(&ring.mx); ring.next_floor_n = -1; pthread_mutex_unlock(&ring.mx);
+            usleep(50000);
+            module_get();
+            t0 = ring_ntrig();
+            dur = (c == 1) ? 12.5 : (c == 3 ? 7.5 : 2.5);
+            run_traces(dur, &st, 0);
+            pthread_mutex_lock(&ring.mx);
+            for(i = t0; i < ring.ntrig; i++) {
+                if(ring.trig_forced[i]) n_forced++; else n_ext++;
+                if(t_first < 0) t_first = ring.trig_t[i];
+                if(t_prev >= 0) {
+                    double g = ring.trig_t[i] - t_prev;
+                    if(g > gap_max) gap_max = g;
+                    if(g < gap_min) gap_min = g;
+                }
+                t_prev = ring.trig_t[i];
+            }
+            pthread_mutex_unlock(&ring.mx);
+            if(c == 1)
+                check("10.1 Auto + Ext Trig Scan floor every 3 s, window 0..2.94 s: every trace from a floor (t = 0 at the floor), none forced",
+                      st.bad == 0 && st.ok >= 3 && n_forced == 0 && n_ext >= 4,
+                      "Dec %d, %d OK, %d AGAIN, %d bad, triggers in %.1f s: %d floors, %d forced %s", cur_dec(), st.ok, st.again,
+                      st.bad, dur, n_ext, n_forced, st.first_bad);
+            else if(c == 2)
+                check("10.2 Auto, Scan floor with the scan stopped, window 0..0.1 s: forced after ~0.25 s, traces keep coming",
+                      st.ok >= 4 && n_ext == 0 && n_forced >= 4 && gap_min > 0.25 && gap_max < 0.6,
+                      "%d OK in %.1f s, %d forced, %d floors, time between triggers %.3f .. %.3f s", st.ok, dur, n_forced, n_ext,
+                      gap_min, gap_max);
+            else if(c == 3)
+                check("10.3 Auto, scan of 3 s seen in a window of 0..0.1 s: the limit follows the ramp period, only floors",
+                      st.ok >= 2 && n_forced == 0 && n_ext >= 2,
+                      "%d OK in %.1f s, %d floors, %d forced", st.ok, dur, n_ext, n_forced);
+            else
+                check("10.4 Normal, Source External, Ext Trig None (no trigger): no acquisition, nothing forced",
+                      st.ok == 0 && n_forced == 0 && n_ext == 0, "%d OK, %d AGAIN in %.1f s, %d triggers", st.ok, st.again, dur,
+                      n_ext + n_forced);
+        }
+        pthread_mutex_lock(&ring.mx); ring.floor_period_s = 0; pthread_mutex_unlock(&ring.mx);
+        *(volatile uint32_t *)&g_lock_reg->lock_status = 0;
+        post("lock_ramp_enable", 0.0, "trig_mode", 1.0, "trig_source", 0.0, "lock_trig_sw", 0.0, NULL);
+    }
+    if(getenv("SIM_AUTO")) {
+        fpga_run = 0;
+        pthread_join(th, NULL);
+        printf("%d OK, %d FAIL\n", oks, fails);
+        _exit(fails ? 1 : 0);
+    }
+
     post("trig_mode", 1.0, "lock_osc_raw_mode", 0.0, NULL);
     fpga_mode = 0;
 

@@ -14,7 +14,7 @@ the use of the App, its instruments and some suggested applications.
 
 ## Version 2.2.x (Ecosystem 2.0)
 
-Current version: **2.2.10** (branch `master`).
+Current version: **2.2.11** (branch `master`).
 
 This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
 using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)
@@ -48,6 +48,11 @@ Since 2026-10-15 the branch `master` holds the 2.x series; the 0.2.x series (FPG
   `X|Y` (Xo, Yo), `in1|err`, `ctrl|err` and `usr` (a pair of the user: double click to choose it; saved in the browser
   and in the configs). They change only OscA/OscB (not the zoom nor the trigger). Picking an **Ext Trig** other than
   None sets the Trigger panel to External + Normal.
+- 2.2.11: **Auto** waits for the trigger (Ext Trig or the level of a channel) and forces an acquisition only if none
+  comes within max(0.25 s, 1.1 × window, 1.1 × period of the Ext Trig when known) + 50 ms: with Ext Trig = Scan floor
+  t = 0 is the scan floor in Auto too (before, Auto triggered at once, at any phase of the scan). Also: the option **Don't turn on PIDs and Ramp on config loading** (Config dialog) is now unchecked by
+  default: *Config → load* / *Load file* (and the restore after a Restart) bring back the ramp (Scan enable) and the
+  PIDs as saved, so a config saved while scanning loads scanning. Checking it keeps the previous protection.
 - See the [CHANGELOG](CHANGELOG.md).
 
 ## Features

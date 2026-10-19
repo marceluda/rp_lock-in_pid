@@ -662,9 +662,9 @@ for(const [name, init] of [['Time', {}], ['Level', { lock_ctrl_aux_trig_type: 2 
   E.get('clickSetTrig')();
   check('4.1 Normal/External/Scan floor: no warning', !/text-danger/.test(E.msg()), E, E.msg());
   E.select('trig_mode', 0); E.run(100);
-  check('4.2 trig_mode -> Auto: warning shown at once', /text-danger/.test(E.msg()), E);
+  check('4.2 trig_mode -> Auto: no warning (v2.2.11: Auto waits for the scan floor; it was a warning up to the previous version)', !/text-danger/.test(E.msg()), E, E.msg());
   E.select('trig_mode', 1); E.run(100);
-  check('4.3 back to Normal: warning gone', !/text-danger/.test(E.msg()) && E.get('set_trigger_val'), E);
+  check('4.3 back to Normal: no warning', !/text-danger/.test(E.msg()) && E.get('set_trigger_val'), E);
   E.select('lock_trig_sw', 4); E.run(100);
   check('4.4 Ext Trig -> Scan ceil: warning', /text-danger/.test(E.msg()), E);
   E.select('lock_trig_sw', 2); E.select('trig_source', 0); E.run(100);

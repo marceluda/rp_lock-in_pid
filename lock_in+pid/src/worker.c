@@ -24,6 +24,7 @@
 
 #include "worker.h"
 #include "fpga.h"
+#include "fpga_lock.h"   /* v2.2.11: g_lock_reg (Auto time limit) */
 #include "lock.h"         /* v2.2.9: lock_request_*() (Capture Lock, from lock_in+pid_harmonic 2.3.23) */
 
 pthread_t *rp_osc_thread_handler = NULL;
@@ -439,6 +440,64 @@ static void rp_osc_publish_empty(float t_start_units, int gen)
     rp_osc_set_signals_gen(rp_tmp_signals, 0, gen);
 }
 
+/* v2.2.11 (from lock_in+pid_harmonic 2.3.26): Auto mode waits for the trigger
+ * (level of a channel, or Ext Trig with Source = External) like Normal,
+ * and forces the acquisition only when no trigger came within a time limit (as the Auto of a bench scope). Up to
+ * v2.2.10 Auto was an immediate trigger (osc_fpga_cnv_trig_source(trig_imm = 1)): t = 0 fell on any phase of the
+ * scan even with Ext Trig = Scan floor (testAgent, sq 2.0.3/2.0.4, 2026-10-19).
+ * Time limit, counted from the moment the trigger is enabled (after the pre-trigger history):
+ *   max( AUTO_TRIG_MIN_S,                      unknown period: free view refreshed ~4 times per second
+ *        1.1 * window + 50 ms,                 a signal with a period up to the window always triggers in time
+ *        1.1 * period of the Ext Trig + 50 ms  known period: Scan floor / ceil (ramp running) and modulation )
+ * at most AUTO_TRIG_MAX_S (longer than the longest window, 68.7 s). A 30 s scan seen in a 0..29.4 s window waits
+ * up to 33.05 s: Auto acquires every scan from its floor, as Normal, while the floors come. */
+#define AUTO_TRIG_MIN_S   0.25
+#define AUTO_TRIG_MAX_S   80.0
+
+/* Period of the Ext Trig event of the lock module (lock trig_sw), in seconds; 0 if unknown or not periodic */
+static double rp_osc_ext_trig_period_s(void)
+{
+    uint32_t sw;
+    if(!g_lock_reg)
+        return 0;
+    sw = g_lock_reg->trig_sw;
+    if(sw == 2 || sw == 4) {
+        /* Scan floor / Scan ceil: ramp of gen_ramp.v (as rampPeriodCycles() of the page), only if it runs: Scan
+         * enable on, not in reset, and the effective ramp enable of lock_ctrl.v (lock_status bit 4; off e.g. when
+         * LOCKED with the ramp off): a stopped scan gives no floors, so the free view is not slowed down */
+        double span = (double)(int32_t)g_lock_reg->ramp_hig_lim - (double)(int32_t)g_lock_reg->ramp_low_lim;
+        double cyc  = (double)g_lock_reg->ramp_step + 1.0;
+        if(!(g_lock_reg->ramp_enable & 1) || (g_lock_reg->ramp_reset & 1) || !((g_lock_reg->lock_status >> 4) & 1) ||
+           span <= 0)
+            return 0;
+        return (2 * span * cyc) * 8e-9;      /* triangle (no sawtooth in this App) */
+    }
+    if(sw == 8)   /* harmonic mod.: 2520 table points, each one held gen_mod_hp+1 cycles (gen_mod_h.v) */
+        return 2520.0 * ((g_lock_reg->gen_mod_hp & 0x3FFF) + 1) * 8e-9;
+    if(sw == 16) {   /* Square mod.: 2*(gen_mod_sqp+1) cycles; sqp 0: once per harmonic period (sqPeriodCycles()) */
+        if(g_lock_reg->gen_mod_sqp == 0)
+            return 2520.0 * ((g_lock_reg->gen_mod_hp & 0x3FFF) + 1) * 8e-9;
+        return 2.0 * ((double)g_lock_reg->gen_mod_sqp + 1.0) * 8e-9;
+    }
+    return 0;
+}
+
+/* Time limit of an Auto acquisition [us] (see above) */
+static long long rp_osc_auto_timeout_us(const rp_app_params_t *p)
+{
+    double unit  = rp_osc_get_time_unit_factor((int)p[TIME_UNIT_PARAM].value);
+    double t_win = (p[MAX_GUI_PARAM].value - p[MIN_GUI_PARAM].value) / unit;
+    double per   = ((int)p[TRIG_SRC_PARAM].value == 2) ? rp_osc_ext_trig_period_s() : 0;
+    double t     = AUTO_TRIG_MIN_S;
+    if(t_win > 0 && 1.1 * t_win + 0.05 > t)
+        t = 1.1 * t_win + 0.05;
+    if(per > 0 && 1.1 * per + 0.05 > t)
+        t = 1.1 * per + 0.05;
+    if(t > AUTO_TRIG_MAX_S)
+        t = AUTO_TRIG_MAX_S;
+    return (long long)(t * 1e6);
+}
+
 
 /*----------------------------------------------------------------------------------*/
 void *rp_osc_worker_thread(void *args)
@@ -464,6 +523,7 @@ void *rp_osc_worker_thread(void *args)
     int acq_trig_set = 0;               /* its trigger source is enabled */
     int acq_trig = 0;                   /* its trigger was received */
     int acq_published = 0;              /* (non-long) acq. state 3 published */
+    int acq_forced = 0;                 /* v2.2.11: Auto: no trigger in its time limit, acquisition forced */
     rp_osc_worker_state_t acq_state = rp_osc_idle_state;   /* worker state it was armed in */
     long long acq_arm_us = 0, acq_trig_set_us = 0, acq_pre_wait_us = 0, acq_next_rd_us = 0;
     /* time units of the last published trace (rp_osc_publish_empty()) */
@@ -604,7 +664,9 @@ void *rp_osc_worker_thread(void *args)
         if(fpga_update) {
             acq_armed = 0;
             osc_fpga_reset();
-            if(osc_fpga_update_params((curr_params[TRIG_MODE_PARAM].value == 0),
+            /* v2.2.11: also in Auto the trigger source is the real one (trig_imm 0); the worker forces the
+             * acquisition if no trigger comes in time (rp_osc_auto_timeout_us()) */
+            if(osc_fpga_update_params(0,
                                       curr_params[TRIG_SRC_PARAM].value,
                                       curr_params[TRIG_EDGE_PARAM].value,
                                       /* Here we could use trigger, but it is safer
@@ -631,8 +693,7 @@ void *rp_osc_worker_thread(void *args)
                 fprintf(stderr, "Setting of FPGA registers failed\n");
                 rp_osc_worker_change_state(rp_osc_idle_state);
             }
-            trig_source = osc_fpga_cnv_trig_source(
-                                     (curr_params[TRIG_MODE_PARAM].value == 0),
+            trig_source = osc_fpga_cnv_trig_source(0,
                                      curr_params[TRIG_SRC_PARAM].value,
                                      curr_params[TRIG_EDGE_PARAM].value);
 
@@ -682,6 +743,7 @@ void *rp_osc_worker_thread(void *args)
             acq_trig_set  = 0;
             acq_trig      = 0;
             acq_published = 0;
+            acq_forced    = 0;
             acq_state     = state;
             acq_arm_us    = rp_osc_now_us();
             /* Be sure to have enough time to load necessary history: time delay is always in seconds */
@@ -716,10 +778,19 @@ void *rp_osc_worker_thread(void *args)
         /* Wait for the trigger (non-long: for the end of the acquisition) */
         if(!acq_trig) {
             int changed = 0;
+            /* v2.2.11: Auto: time limit for the trigger (recomputed each time the wait is entered or resumed) */
+            long long auto_to_us = (acq_state == rp_osc_auto_state) ? rp_osc_auto_timeout_us(curr_params) : 0;
             while(1) {
                 if(rp_osc_worker_changed(state)) {
                     changed = 1;
                     break;
+                }
+                if(auto_to_us && !acq_forced && (rp_osc_now_us() - acq_trig_set_us >= auto_to_us)) {
+                    /* no trigger: force it (manual trigger source, as the immediate trigger of Auto up to 2.2.10);
+                     * not if a trigger has just come (it is not unlocked / rewritten under the acquisition) */
+                    if(!osc_fpga_trig_received())
+                        osc_fpga_set_trigger(1);
+                    acq_forced = 1;
                 }
                 if(!long_acq) {
                     if(osc_fpga_triggered())

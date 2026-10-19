@@ -177,6 +177,8 @@ at the peak does not produce any POST.
 "Don't turn on PIDs and Ramp" (Config → load, Restart) and `state_transient_zero` keep working:
 they set the manual enables and both request bits to 0, which in the new model is also a release
 (state IDLE with everything off). Configs and saved states keep the same keys.
+(Since v2.2.11 that option is unchecked by default: then only `state_transient_zero` applies, the
+manual enables are loaded as saved and both request bits are 0, i.e. a release to the saved manual state.)
 
 ## 5. Locking from Python with registers only
 

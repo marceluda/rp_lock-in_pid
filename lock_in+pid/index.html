@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.9)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.11)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -238,7 +238,11 @@
     local: null
   };
 
-  load_config_block_start=1;
+  // "Don't turn on PIDs and Ramp on config loading" (#load_config_block_start). v2.2.11: off by default, so that
+  // Config -> load / Load file and the restore after a (Re)start bring back the ramp, Scan enable and the PIDs as
+  // they are in the config / saved state (up to the previous version it was on, and a loaded config never scanned).
+  // Not saved anywhere (configs, state, localStorage): every page load starts with it off.
+  load_config_block_start=0;
 
   set_trigger_val=false;
   trigger_just_set=false;
@@ -323,8 +327,8 @@
     $('#trigger_canvas').on({
       'mousedown touchstart': function(evt) {
 
-        // Ignore the event if trigger source is External or mode is not Normal
-        if(!params.original || params.original.trig_mode != 1 || params.original.trig_source == 2) {
+        // Ignore the event if trigger source is External or mode is Single (v2.2.11: Auto waits for the level too)
+        if(!params.original || (params.original.trig_mode != 1 && params.original.trig_mode != 0) || params.original.trig_source == 2) {
           return;
         }
 
@@ -1550,6 +1554,7 @@
     $('#load_config_block_start').on('change', function() {
       load_config_block_start = ($(this).is(':checked') ? 1 : 0);
     });
+    load_config_block_start = ($('#load_config_block_start').is(':checked') ? 1 : 0);   // v2.2.11: variable = checkbox
     // */
 
     $('#btn_disp_units')
@@ -3381,9 +3386,10 @@
              (tg.level ? ' (only the level is set)' : '') + '. Press Auto or Single first';
     }
     if(lock_cap.state !== 'off') return 'Waiting for the lock capture: the time can not be taken now';
-    if(!(p.trig_mode != 0 && p.trig_source == 2 && p.lock_trig_sw == 2))
+    // v2.2.11: also in Auto (it waits for the trigger; forced only if no scan floor comes in its time limit)
+    if(!(p.trig_source == 2 && p.lock_trig_sw == 2))
       return 'Warning: t&nbsp;=&nbsp;0 of the graph is the scan floor only with the scope trigger ' +
-             'in Normal/Single, source External and Oscilloscope Ext&nbsp;Trig = Scan floor';
+             'in Auto/Normal/Single, source External and Oscilloscope Ext&nbsp;Trig = Scan floor (and the ramp running)';
     return '';
   }
 
@@ -3618,7 +3624,8 @@
       delete p.state_xmin_s;
       delete p.state_xmax_s;
       /* LOLO load_config_block_start */
-      // Same safety rule as Config -> load: an unexpected restart should not close the loops by itself
+      // Same option as Config -> load: when checked, a restart does not turn on the ramp / PIDs by itself
+      // (v2.2.11: unchecked by default -> they are restored as saved). Lock requests: always 0 (state_transient_zero).
       if(load_config_block_start == 1) {
         p.lock_ctrl_aux_ramp_enable_ctrl = 0;
         p.lock_ctrl_aux_pidA_enable_ctrl = 0;
@@ -3905,8 +3912,8 @@
         downloading = false;
 
         if(params.local) {
-          // Disable trigger level input if trigger source is External or mode is not Normal
-          if(params.original.trig_mode != 1 || params.original.trig_source == 2) {
+          // Disable trigger level input if trigger source is External or mode is Single (v2.2.11: not in Auto)
+          if((params.original.trig_mode != 1 && params.original.trig_mode != 0) || params.original.trig_source == 2) {
             $('#trig_level').prop('disabled', true);
             if($('#trig_level').is(':focus')) {
               $('#trig_level').blur();
@@ -5036,8 +5043,8 @@
         return dsets;
       }
     }
-    // ...or trigger mode is not Normal
-    if(params.local.trig_mode != 1) {
+    // ...or trigger mode is Single (v2.2.11: Auto waits for the level too)
+    if(params.local.trig_mode != 1 && params.local.trig_mode != 0) {
       return dsets;
     }
     // ...or trigger source is external
@@ -5447,7 +5454,7 @@
     // If trigger source is External or mode is not Normal or trigger level is not in visible area, do not show the trigger slider and paint the vertical line with gray
     context.clearRect(0, 0, canvas.width, canvas.height);
     var yaxis = plot.getAxes().yaxis;
-    if(params.original.trig_mode != 1 || tlev < yaxis.min || tlev > yaxis.max || params.original.trig_source == 2) {
+    if((params.original.trig_mode != 1 && params.original.trig_mode != 0) || tlev < yaxis.min || tlev > yaxis.max || params.original.trig_source == 2) {
       context.lineWidth = 1;
       context.strokeStyle = '#dddddd';
       context.stroke();
@@ -5876,7 +5883,8 @@
     }
 
     /* LOLO load_config_block_start */
-    // If config_load_storage option is on, turn off Ramp and PIDs
+    // If the option is checked, turn off Ramp and PIDs (v2.2.11: unchecked by default -> restored as in the config;
+    // the lock requests lock_now / launch_lock_trig are always 0, see state_transient_zero below)
     if(load_config_block_start==1){
       params.storage[num].data['lock_ctrl_aux_ramp_enable_ctrl']   = 0 ;
       params.storage[num].data['lock_ctrl_aux_pidA_enable_ctrl']   = 0 ;
@@ -6140,7 +6148,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.9)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.11)</h2>
     </div>
   </div>
   <div class="container">
@@ -8811,7 +8819,7 @@
                 <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                   <div class="checkbox" style="padding-bottom: 12px;">
                     <label class="group-label">
-                      <input type="checkbox" id="load_config_block_start" checked>
+                      <input type="checkbox" id="load_config_block_start" autocomplete="off">
                       Don't turn on PIDs and Ramp on config loading
                     </label>
                   </div>

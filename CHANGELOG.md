@@ -1,6 +1,60 @@
 
 # Devbuild  changes
 
+## 2.2.11 - Auto waits for the trigger; "Don't turn on PIDs and Ramp on config loading" unchecked by default (as lock_in+pid_harmonic 2.3.26)
+
+Requested by the user (2026-10-19): loading a config switched the scan off; it should start scanning if it was
+scanning when the config was saved. This change is in the web page only.
+
+### Changed (web page)
+- The option **Don't turn on PIDs and Ramp on config loading** (Config dialog, `#load_config_block_start`) is kept
+  but is now **unchecked by default** (it was checked). Unchecked, *Config → load* (and *Load file*, which goes through
+  the same load) and the restore of the tab state after a start / *Restart* (`restoreState()`) set
+  `lock_ctrl_aux_ramp_enable_ctrl`, `lock_ctrl_aux_pidA_enable_ctrl`, `lock_ctrl_aux_pidB_enable_ctrl` and
+  `lock_ramp_enable` (*Scan enable*) as saved. Checked, they are set to 0 as before. The lock requests
+  (`lock_ctrl_aux_lock_now`, `lock_ctrl_aux_launch_lock_trig`) and the other transient commands
+  (`state_transient_zero`) are never loaded, with or without the option.
+- The option is not saved (configs, tab state, localStorage): every page load starts unchecked. The checkbox has
+  `autocomplete="off"` (a browser that restores form fields on reload, e.g. Firefox on F5, could otherwise show a
+  state different from the variable)
+  and the variable is synced from the checkbox when the handlers are set.
+- The `<title>` and page title of the source `index.html` said v2.2.9; now v2.2.11.
+
+### Tests
+- New `test/config_load_block_sim.js` (10 checks: default unchecked, Config load and Restart restore ramp / Scan enable
+  / PIDs as saved, checked keeps them off, lock requests always 0). With the page of 2.2.10 6 of them fail.
+  The other node tests unchanged (they set the option explicitly).
+
+### Changed (controller, `src/worker.c`; web page): Auto waits for the trigger
+Reported by testAgent (2026-10-19, lock_in+pid_square 2.0.3/2.0.4 on RP2; `reportes/lock-in_pid_sq.md`): with Ext Trig =
+Scan floor the trace sometimes started at the ceiling of the scan. Cause: in **Auto** the scope triggered at once
+(`osc_fpga_cnv_trig_source(trig_imm = 1)` = manual trigger source in `src/fpga.c`), so t = 0 fell on any phase of the
+scan; the Ext Trig (and the level of a channel) only worked in Normal / Single. The config of the user had Auto.
+- Auto now arms the real trigger source (as Normal) and the worker forces the acquisition (manual trigger source)
+  only if no trigger came within a time limit counted from the moment the trigger is enabled
+  (`rp_osc_auto_timeout_us()`): max(0.25 s, 1.1 x window + 50 ms, 1.1 x period of the Ext Trig + 50 ms), at most 80 s.
+  The period is known for Scan floor / Scan ceil when the scan runs (Scan enable on, not in reset, effective ramp
+  enable of `lock_ctrl.v` = `lock_status` bit 4; same formula as `rampPeriodCycles()` of the page) and for harmonic mod. (2520 x (hp+1)) and Square mod. (2 x (sqp+1), or the harmonic period with sqp = 0); the ramp is always a triangle in this App (no sawtooth).
+  Choice of the values: 0.25 s keeps the free view (no trigger) at ~4 traces per second and is longer than the default
+  64 ms scan; 1.1 x window lets a signal whose period fits in the window always trigger in time; 1.1 x period makes a
+  slow scan behave as Normal (30 s scan, window 0..29.4 s: limit 33.05 s; the next floor comes ~0.6 s after the
+  re-arm, so every scan is acquired from its floor); a stopped scan (or LOCKED with the ramp off) gives no period term,
+  so Auto does not wait a whole period for a floor that will not come. 80 s > the longest window (68.7 s).
+- Unchanged: Normal and Single (never forced), the Auto window (from the trigger, t = 0 .. xmax, no pre-trigger, as
+  `src/main.c` sets it for Auto), the resume of an acquisition across POSTs that do not change it (the limit is
+  recomputed and keeps counting from the same moment), the long acquisitions of 2.3.23 (forced or not, the reader
+  starts at the trigger), Capture Lock (Single + Ext Trig 128) and AUTO (its own immediate acquisitions).
+  `scope_acq_state` is 2 (armed) while Auto waits and 3 after the (real or forced) trigger.
+- Page: the trigger *Level* field, its line and slider are enabled in Auto too (they were only for Normal); the
+  "Choose from graph" warning no longer asks for Normal/Single (Auto + External + Scan floor gives t = 0 at the floor).
+
+### Tests (Auto)
+- `test/auto_set_c_sim/harness.c` section 10 (`SIM_AUTO=1 test/auto_set_c_sim/run.sh` runs only it): 10.1 Auto + Scan floor
+  every 3 s, window 0..2.94 s: every trace from a floor, none forced; 10.2 scan stopped, window 0..0.1 s: forced every
+  ~0.40 s (0.25 s + the acquisition); 10.3 3 s scan seen in 0..0.1 s: only floors (period term); 10.4 Normal without
+  trigger: nothing. With the `src/` of 2.2.10: 10.1-10.3 fail (immediate triggers). 6.1 runs 9 s (Auto without trigger
+  waits 2.25 s now) and section 8 waits 0.6 s for an Auto trace in ms. `worker.c` includes `fpga_lock.h` (g_lock_reg).
+
 ## 2.2.10 - Scope presets (OscA|OscB) and Ext Trig sets the Trigger panel (port of lock_in+pid_harmonic 2.3.24)
 Port of lock_in+pid_harmonic v2.3.24 (web page only: no FPGA, no controller change; comments "v2.2.10" in
 `index.html` mark the port). X|Y uses Xo/Yo of the harmonic lock-in (the select labels them "Xo"/"Yo"); sqXo/sqYo of the square lock-in are not in the fixed presets (they can be chosen in `usr`).
