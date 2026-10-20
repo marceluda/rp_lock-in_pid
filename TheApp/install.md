@@ -28,7 +28,7 @@ The FPGA is built with Vivado 2020.1.
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="../../releases/lock_in+pid-2.2.9-21-devbuild.tar.gz" label="v2.2.9-21" %} {% include download-badge.html file="../../releases/lock_in+pid-2.2.9-21-devbuild.zip" label="v2.2.9-21" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="../../releases/lock_in+pid-2.2.11-26-devbuild.tar.gz" label="v2.2.11-26" %} {% include download-badge.html file="../../releases/lock_in+pid-2.2.11-26-devbuild.zip" label="v2.2.11-26" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="../../releases/lock_in+pid-0.2.4-11-devbuild.tar.gz" label="v0.2.4-11" %} {% include download-badge.html file="../../releases/lock_in+pid-0.2.4-11-devbuild.zip" label="v0.2.4-11" %} |
 
 <div class="text-center">

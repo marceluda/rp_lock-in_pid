@@ -74,7 +74,7 @@ The source code can be found in the [github rp_lock-in_pid_h repository](https:/
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic-2.3.23-57-devbuild.tar.gz" label="v2.3.23-57" %} {% include download-badge.html file="lock_in+pid_harmonic-2.3.23-57-devbuild.zip" label="v2.3.23-57" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic-2.3.26-62-devbuild.tar.gz" label="v2.3.26-62" %} {% include download-badge.html file="lock_in+pid_harmonic-2.3.26-62-devbuild.zip" label="v2.3.26-62" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.tar.gz" label="v0.3.11-17" %} {% include download-badge.html file="lock_in+pid_harmonic-0.3.11-17-devbuild.zip" label="v0.3.11-17" %} |
 
   - All releases are also available in [github](https://github.com/marceluda/rp_lock-in_pid/tree/gh-pages/Derivated)
@@ -101,7 +101,7 @@ The source code can be found in the [github rp_lock-in_pid_sq repository](https:
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_square-2.0.3-11-devbuild.tar.gz" label="v2.0.3-11" %} {% include download-badge.html file="lock_in+pid_square-2.0.3-11-devbuild.zip" label="v2.0.3-11" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_square-2.0.5-15-devbuild.tar.gz" label="v2.0.5-15" %} {% include download-badge.html file="lock_in+pid_square-2.0.5-15-devbuild.zip" label="v2.0.5-15" %} |
 
 
 {% include section-title.html id="lock-in-pid-h-hf" title="Lock-in+PID H HF" %}
@@ -117,7 +117,7 @@ The source code can be found in the [github rp_lock-in_pid_h_hf repository](http
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.14-16-devbuild.tar.gz" label="v2.3.14-16" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.14-16-devbuild.zip" label="v2.3.14-16" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.16-21-devbuild.tar.gz" label="v2.3.16-21" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-2.3.16-21-devbuild.zip" label="v2.3.16-21" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.tar.gz" label="v0.3.9-7" %} {% include download-badge.html file="lock_in+pid_harmonic_hf-0.3.9-7-devbuild.zip" label="v0.3.9-7" %} |
 
 
@@ -145,7 +145,7 @@ The source code can be found in the [github rp_lock-in_pid_h2 repository](https:
 
 | For | Downloads |
 |-----|-----------|
-| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic2-2.4.7-18-devbuild.tar.gz" label="v2.4.7-18" %} {% include download-badge.html file="lock_in+pid_harmonic2-2.4.7-18-devbuild.zip" label="v2.4.7-18" %} |
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_harmonic2-2.4.9-23-devbuild.tar.gz" label="v2.4.9-23" %} {% include download-badge.html file="lock_in+pid_harmonic2-2.4.9-23-devbuild.zip" label="v2.4.9-23" %} |
 | **Ecosystems 0.9x / 1.0** | {% include download-badge.html file="lock_in+pid_harmonic2-0.4.2-10-devbuild.tar.gz" label="v0.4.2-10" %} {% include download-badge.html file="lock_in+pid_harmonic2-0.4.2-10-devbuild.zip" label="v0.4.2-10" %} |
 
 
