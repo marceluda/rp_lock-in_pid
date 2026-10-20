@@ -1,6 +1,27 @@
 
 # Devbuild  changes
 
+## 2.2.12 - "Load last config on init", Load last config / Reset to defaults; Lock Control below Outputs (as lock_in+pid_harmonic 2.3.27)
+
+Port of lock_in+pid_harmonic 2.3.27 (web page only, no FPGA / C change). Requested by the user (2026-10-20): the App
+opened with the parameters of a previous session; the user wants to choose.
+- CHANGED: **Lock Control** panel moved right below **Outputs** in the left column (Oscilloscope, Outputs, Lock Control, Lock-in modules, Ramp Controller, PIDs modules).
+- CHANGED: the state that the page saves automatically (`saveState()`, every ~2 s and after each POST) is now also kept in
+  **localStorage** (`lockin_last_state_lock_in+pid`, shared by the tabs, survives closing the browser): the **last config**.
+  The tab state (`sessionStorage`, used by *Restart*) is kept as before.
+- ADDED (Config dialog) checkbox **Load last config on init** (`#load_last_on_init`), **checked by default**, saved in
+  localStorage (`lockin_load_last_on_init_lock_in+pid`). When the page starts the App (main menu, new tab, F5): checked, the
+  last config is restored; unchecked, only `def_params` are sent (defaults of `src/main.c`). Ramp / PIDs of a restored
+  config follow *Don't turn on PIDs and Ramp on config loading*; lock requests are never restored.
+- ADDED (Config dialog) buttons **Load last config** and **Reset to defaults**: they close the dialog and restart the App
+  (reload; stopped and started as when it is opened, FPGA reloaded) with the last config / with the defaults, whatever
+  the checkbox says. Reset to defaults = a fresh App (no table of defaults in the page), lock open, no lock request.
+- ADDED hold (`lockin_last_hold_lock_in+pid`): opened with the defaults, the last config is kept until the user changes a
+  parameter (time window / Y axis alone do not count), so *Load last config* brings it back.
+- *Restart* (took control, error dialogs) and the automatic restarts still restore the tab state; an App already running
+  when the page opens keeps its state (stopped and started for Load last config / Reset to defaults).
+- Tests: new `test/last_config_sim.js` (35 checks; the page of 2.2.11 fails). The other node tests unchanged and passing.
+
 ## 2.2.11 - Auto waits for the trigger; "Don't turn on PIDs and Ramp on config loading" unchecked by default (as lock_in+pid_harmonic 2.3.26)
 
 Requested by the user (2026-10-19): loading a config switched the scan off; it should start scanning if it was

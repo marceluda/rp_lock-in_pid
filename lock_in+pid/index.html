@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.11)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.12)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -191,6 +191,17 @@
   // sessionStorage flag: Restart after onControlLost() -> restoreState() even if our App is still loaded
   // (another tab of this same App took control). While set, saveState() does not overwrite state_key.
   var restore_pending_key = 'lockin_restore_pending_' + app_id;
+  // v2.2.12 [LAST CONFIG]: the last state is also kept in localStorage (all the tabs, survives closing the browser).
+  // "Load last config on init" (Config modal, checked by default) restores it each time the App is opened; unchecked,
+  // the App opens with its defaults. "Load last config" / "Reset to defaults" restart the App with it / with the defaults.
+  var last_state_key   = 'lockin_last_state_' + app_id;        // localStorage: last state (written by saveState())
+  var load_on_init_key = 'lockin_load_last_on_init_' + app_id;  // localStorage: '0' unchecked, '1' or missing checked
+  var start_mode_key   = 'lockin_start_mode_' + app_id;        // sessionStorage: restore of the next start (see startRestoreMode)
+  var last_hold_key    = 'lockin_last_hold_' + app_id;         // localStorage: opened with defaults, last state kept (see lastStateWrite)
+  // Keys left out when the hold compares states: time window / Y axis and the values the server derives from them
+  var last_hold_skip = ['xmin', 'xmax', 'state_xmin_s', 'state_xmax_s', 'trig_delay', 'time_range', 'time_units',
+                        'gui_xmin', 'gui_xmax', 'min_y', 'max_y'];
+  var page_start_done = false;           // The first (re)start of this page load is done: later ones are recoveries
   var restart_restores = false;          // The Restart button of the shown modal comes from onControlLost()
   // Read-only params (read_only = 1 in src/main.c): the display shows them, the user never changes them
   var readonly_keys = ('meas_min_ch1,meas_max_ch1,meas_amp_ch1,meas_avg_ch1,meas_freq_ch1,meas_per_ch1,'+
@@ -1214,6 +1225,7 @@
 
     $('.btn-app-restart').on('click', function() {
       if(restart_restores) setRestorePending(true);  // "took control" modal: restore after the reload
+      else startModeSet('session');                  // v2.2.12: other Restarts restore this tab's state too
       location.reload();
     });
 
@@ -1555,6 +1567,12 @@
       load_config_block_start = ($(this).is(':checked') ? 1 : 0);
     });
     load_config_block_start = ($('#load_config_block_start').is(':checked') ? 1 : 0);   // v2.2.11: variable = checkbox
+    // v2.2.12 [LAST CONFIG]: "Load last config on init" (localStorage) and the Load last config / Reset to defaults buttons
+    $('#load_last_on_init').prop('checked', loadOnInitGet()).on('change', function() {
+      loadOnInitSet($(this).is(':checked'));
+    });
+    $('#btn_load_last_config').on('click', function() { lastConfigRestart('last'); });
+    $('#btn_reset_defaults'  ).on('click', function() { lastConfigRestart('defaults'); });
     // */
 
     $('#btn_disp_units')
@@ -2698,6 +2716,7 @@
     config_show_storage();
     $("#config_name_input").val("config_" + now() );
     config_save_file();
+    $('#load_last_on_init').prop('checked', loadOnInitGet());   // v2.2.12: it may have been changed in another tab
     config_modal.modal('show');
   }
 
@@ -2731,10 +2750,17 @@
   // Page load and Retry button: GET /data only if our App is the loaded one, otherwise start it
   function resumeApp() {
     probeApp().done(function(id) {
-      if(id === app_id) {
+      var sm = startModePeek();
+      if(id === app_id && !isRestorePending() && !page_start_done && (sm === 'last' || sm === 'defaults')) {
+        // v2.2.12: Load last config / Reset to defaults and our App is still loaded (the stop of onbeforeunload did not
+        // happen: Chrome does not send a sync XHR on unload): stop and start it, as when it is opened
+        startApp(1, id, true);
+      }
+      else if(id === app_id) {
         app_check_pending = false;  // probeApp() confirmed our App: GET /data allowed again
-        if(isRestorePending()) { restoreState(); }  // Restart after onControlLost(): restore, no stop/start
-        else { app_started = true; control_lost = false; updateGraphData(); }  // already running: keep its state
+        startModeTake();            // v2.2.12: nothing to restore, the App keeps its state
+        if(isRestorePending()) { restoreState('session'); }  // Restart after onControlLost(): restore, no stop/start
+        else { app_started = true; control_lost = false; page_start_done = true; updateGraphData(); }  // already running: keep its state
       }
       else { startApp(1, id); }
     });
@@ -2933,6 +2959,7 @@
     }
     $.extend(s, uiPrefsGet());
     try { sessionStorage.setItem(state_key, JSON.stringify(s)); last_state_save = Date.now(); } catch(e) {}
+    lastStateWrite(s);  // v2.2.12: also the last state of all the tabs (localStorage), unless held
   }
 
   // GUI time units (0 us, 1 ms, 2 s) -> factor from seconds (same as the server: 10^(3*(2-time_units)))
@@ -3605,9 +3632,94 @@
     return (saved && typeof saved === 'object') ? saved : null;
   }
 
-  // After each start: send def_params + the saved state (the server side App starts with its static defaults)
-  function restoreState() {
-    var p = $.extend({}, def_params), saved = loadSavedState(), x_s = null;
+  // [LAST CONFIG BEGIN] v2.2.12 (also run by test/last_config_sim.js)
+  // "Load last config on init" (checked when never set)
+  function loadOnInitGet() {
+    try { return localStorage.getItem(load_on_init_key) !== '0'; } catch(e) { return true; }
+  }
+  function loadOnInitSet(on) {
+    try { localStorage.setItem(load_on_init_key, on ? '1' : '0'); } catch(e) {}
+  }
+  // Last state of all the tabs (or null)
+  function loadLastState() {
+    var saved = null;
+    try { saved = JSON.parse(localStorage.getItem(last_state_key)); } catch(e) {}
+    return (saved && typeof saved === 'object') ? saved : null;
+  }
+  // Restore of the next start of this tab: 'session' | 'last' | 'defaults' (set before a reload)
+  function startModeSet(m) {
+    try { sessionStorage.setItem(start_mode_key, m); } catch(e) {}
+  }
+  function startModePeek() {
+    try { return sessionStorage.getItem(start_mode_key); } catch(e) { return null; }
+  }
+  function startModeTake() {
+    var m = startModePeek();
+    try { sessionStorage.removeItem(start_mode_key); } catch(e) {}
+    return m;
+  }
+  // Hold of the last state: the App was opened with its defaults (unchecked / Reset to defaults). Until the user changes
+  // something, saveState() does not overwrite the last state with the defaults (Load last config still brings it back).
+  // { base: null } just set; { base: view } view of the first state saved after the start. null: no hold.
+  // localStorage, like the last state: another tab of the App (resumeApp(), no restore) keeps it too.
+  function lastHoldGet() {
+    var h = null;
+    try { h = JSON.parse(localStorage.getItem(last_hold_key)); } catch(e) {}
+    return (h && typeof h === 'object') ? h : null;
+  }
+  function lastHoldSet(h) {
+    try {
+      if(h) localStorage.setItem(last_hold_key, JSON.stringify(h));
+      else  localStorage.removeItem(last_hold_key);
+    } catch(e) {}
+  }
+  // State without the keys of last_hold_skip, keys sorted (a string to compare)
+  function lastHoldView(s) {
+    var keys = Object.keys(s).filter(function(k) { return last_hold_skip.indexOf(k) < 0; }).sort(), v = {};
+    for(var i = 0; i < keys.length; i++) v[ keys[i] ] = s[ keys[i] ];
+    return JSON.stringify(v);
+  }
+  // From saveState(): the state s is also the last state, unless the hold keeps the previous one
+  function lastStateWrite(s) {
+    var h = lastHoldGet();
+    if(h) {
+      var v = lastHoldView(s);
+      if(typeof h.base !== 'string') { lastHoldSet({ base: v }); return; }   // first state after the start
+      if(h.base === v) return;                                            // still the defaults: keep the last state
+      lastHoldSet(null);                                                  // changed by the user: this is the last state now
+    }
+    try { localStorage.setItem(last_state_key, JSON.stringify(s)); } catch(e) {}
+  }
+  // What restoreState() restores after a start (startApp())
+  function startRestoreMode() {
+    var m = startModeTake();
+    if(isRestorePending() || page_start_done) return 'session';     // Restart after "took control", recoveries
+    if(m === 'session' || m === 'last' || m === 'defaults') return m;
+    return loadOnInitGet() ? 'last' : 'defaults';                    // the App is being opened
+  }
+  // Buttons of the Config modal: close it and restart the App (reload; onbeforeunload or resumeApp() stop it)
+  function lastConfigRestart(mode) {
+    startModeSet(mode);
+    $('#modal_config').modal('hide');
+    location.reload();
+  }
+  // [LAST CONFIG END]
+
+  // After each start: send def_params + the saved state (the server side App starts with its static defaults).
+  // v2.2.12: src (see startRestoreMode()): 'session' this tab's state (Restart, recoveries), 'last' the last state of
+  // all the tabs (open with "Load last config on init", Load last config), 'defaults' nothing but def_params.
+  function restoreState(src) {
+    var p = $.extend({}, def_params), saved = null, x_s = null;
+    if(src === 'defaults') {
+      lastHoldSet({ base: null });   // the last state is kept until the user changes something (see lastStateWrite)
+      try { sessionStorage.removeItem(state_key); } catch(e) {}
+    }
+    else if(src === 'last') {
+      lastHoldSet(null);
+      saved = loadLastState() || loadSavedState();   // no last state yet (older version): this tab's state
+      if(saved) { try { sessionStorage.setItem(state_key, JSON.stringify(saved)); } catch(e) {} }  // now this tab's state
+    }
+    else saved = loadSavedState();
     if(saved) {
       $.extend(p, saved);
       // v2.3.14: UI preferences (not server params)
@@ -3647,8 +3759,11 @@
       var f = timeUnitFactor(Number(srv.time_units));
       return postParamsChunks([ { xmin: x_s[0] * f, xmax: x_s[1] * f } ], post_chunk_timeout, post_chunk_retries);
     })
-    .done(function() {
+    .done(function(dresult) {
       setRestorePending(false);
+      page_start_done = true;
+      // v2.2.12: opened with the defaults: the hold takes them as its base now (before any change of the user)
+      if(src === 'defaults' && dresult && dresult.datasets && dresult.datasets.params) saveState(dresult.datasets.params, true);
       app_started = true;
       control_lost = false;
       auto_restarts = 0;
@@ -3663,10 +3778,11 @@
   // prev_id: App loaded before ('' none, null unknown, other id). If it is another App, stop it first and wait
   // for the worker to die (2.0 ws_server stop() -> exit(-1) 1 s later): our start then runs once, in a clean worker.
   // bazaar?stop ignores its argument (0.9x and 2.0), the id is only informative.
-  function startApp(attempt, prev_id) {
+  // v2.2.12: force_stop: stop it even if it is our App (Load last config / Reset to defaults, see resumeApp())
+  function startApp(attempt, prev_id, force_stop) {
     attempt = attempt || 1;
     var pre = $.Deferred();
-    if(prev_id && prev_id !== app_id) {
+    if(prev_id && (prev_id !== app_id || force_stop === true)) {
       console.info('startApp: ' + prev_id + ' is loaded, stopping it before start (attempt ' + attempt + ')');
       $.ajax({ url: stop_app_url + prev_id, timeout: long_timeout, cache: false })
       .always(function() { setTimeout(function() { pre.resolve(); }, 1500); });
@@ -3681,7 +3797,7 @@
           probeApp().done(function(id) {
             if(id === app_id) {
               app_check_pending = false;  // probeApp() confirmed our App: GET /data allowed again
-              restoreState();
+              restoreState(startRestoreMode());   // v2.2.12
             }
             else if(attempt < start_retries) {
               console.info('startApp: attempt ' + attempt + ' failed (loaded app: ' +
@@ -6148,7 +6264,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.11)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.12)</h2>
     </div>
   </div>
   <div class="container">
@@ -6567,6 +6683,434 @@
                     </div>
                   </div>
 
+
+                </div>
+
+              </div>
+            </div>
+          </div>
+        </div>
+
+
+        <!-- Lock Control --------------------------------------------->
+
+        <div class="panel panel-default">
+          <div class="panel-heading">
+            <h4 class="panel-title">
+              <a data-toggle="collapse" href="#lock_ctrl">
+                Lock Control
+              </a>
+            </h4>
+          </div>
+          <div id="lock_ctrl" class="panel-collapse collapse">
+            <div class="panel-body">
+              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+
+                <div class="row">
+
+                  <!---------------------------------------------------------------------->
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#RelockControl" aria-expanded="true" aria-controls="RelockControl">
+                        Re-lock system
+                      </a>
+                    </p>
+                  </div>
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="RelockControl">
+                    <div class="row">
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="checkbox" style="padding-bottom: 12px;">
+                            <label class="group-label">
+                              <input type="checkbox" id="lock_rl_error_enable">Error Enable
+                            </label>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group">
+                            <label for="lock_rl_error_threshold" class="col-xs-4 control-label">|error|&nbsp;&gt;</label>
+                            <div class="col-xs-6 col-sm-6">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_rl_error_threshold" step="1" min="0" max="8191">
+                              <span style="display: none;" class="input-group-btn" id="lock_rl_error_threshold_apply">
+                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                              </span>
+                            </div>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="checkbox" style="padding-bottom: 12px;">
+                            <label class="group-label">
+                              <input type="checkbox" id="lock_rl_signal_enable">Signal Enable
+                            </label>
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group">
+                            <!--label for="lock_rl_signal_sw" class="col-xs-4 control-label">Signal:</label-->
+                            <div class="col-xs-5">
+                              <select id="lock_rl_signal_sw" class="form-control">
+                                <option  value="0" selected="selected">in1</option>
+                                <option  value="1">in2</option>
+                                <option  value="2">in1-in2</option>
+                                <option  value="3">aux_A</option>
+                                <option  value="4">aux_B</option>
+                                <option  value="5">0</option>
+                                <option  value="6">0</option>
+                                <option  value="7">0</option>
+                              </select>
+                            </div>
+                            <div class="col-xs-1">
+                              &lt;
+                            </div>
+                            <div class="col-xs-5">
+                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_rl_signal_threshold" step="1" min="-8192" max="8191">
+                            </div>
+
+                          </div>
+                        </form>
+                      </div>
+
+                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="checkbox" style="padding-bottom: 12px;">
+                            <label class="group-label">
+                              <input type="checkbox" id="lock_rl_reset">RL reset
+                            </label>
+                          </div>
+                        </form>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#StepResponceControl" aria-expanded="true" aria-controls="StepResponceControl">
+                        Step Responce Measurement
+                      </a>
+                    </p>
+                  </div>
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="StepResponceControl">
+                    <div class="row">
+
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="form-group">
+                              <label for="lock_sf_jumpA" class="col-xs-4 control-label">Jump ctrl_A</label>
+                              <div class="col-xs-6 col-sm-6">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_sf_jumpA" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_sf_jumpA_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="form-group">
+                              <label for="lock_sf_jumpB" class="col-xs-4 control-label">Jump ctrl_B</label>
+                              <div class="col-xs-6 col-sm-6">
+                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_sf_jumpA" step="1" min="-8192" max="8191">
+                                <span style="display: none;" class="input-group-btn" id="lock_sf_jumpB_apply">
+                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                                </span>
+                              </div>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
+                          <b>Freeze during step</b>
+                        </div>
+                      </div>
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="checkbox" style="padding-bottom: 12px;">
+                              <label class="group-label">
+                                <input type="checkbox" id="lock_sf_AfrzO">A out
+                              </label>
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="checkbox" style="padding-bottom: 12px;">
+                              <label class="group-label">
+                                <input type="checkbox" id="lock_sf_AfrzI">A int
+                              </label>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+
+                      <div class="row">
+                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="checkbox" style="padding-bottom: 12px;">
+                              <label class="group-label">
+                                <input type="checkbox" id="lock_sf_BfrzO">B out
+                              </label>
+                            </div>
+                          </form>
+                        </div>
+                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="checkbox" style="padding-bottom: 12px;">
+                              <label class="group-label">
+                                <input type="checkbox" id="lock_sf_BfrzI">B int
+                              </label>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+
+                      <div class="row">
+                        <div class="panel-group col-xs-12">
+                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                            <div class="form-group text-center">
+                              <button id="lock_sf_start" class="btn btn-primary btn-lg" data-checked="true" disabled>Start Step Responce</button>
+                            </div>
+                          </form>
+                        </div>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+
+                    <div class="row">
+                      <div class="panel-group col-xs-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="panel-group col-xs-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_pidA_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;A enable</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="panel-group col-xs-12">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_pidB_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;B enable</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="panel-group col-xs-6">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
+                          </div>
+                        </form>
+                      </div>
+                      <div class="panel-group col-xs-6">
+                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                          <div class="form-group text-center">
+                            <button id="lock_ctrl_aux_lock_now" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock<br>Now</button>
+                          </div>
+                        </form>
+                      </div>
+                    </div>
+
+                    <div class="row">
+                      <div class="col-xs-12 text-center" title="Lock state, read from the FPGA (lock_status). OFF: manual enables; ARMED: waiting for the lock trigger; LOCKED: enables of the config section. Click Trigger Lock / Lock Now again to release the lock.">
+                        <span id="lock_status_label" class="label label-default">OFF</span>
+                        <small>&nbsp;locks:&nbsp;<span id="lock_status_count">-</span></small>
+                      </div>
+                    </div>
+
+                    <!-- v2.3.14: UI preferences of the lock requests (saved in the state and in the configs) -->
+                    <div class="row">
+                      <div class="col-xs-12 text-center">
+                        <form class="form-inline" role="form" onsubmit="return false;" novalidate>
+                          <label class="checkbox-inline" title="Each lock request from this page (Trigger Lock, Lock Now, Fire on click) captures the closing of the loop: the scope goes to Single with Ext Trig = Lock control trig and a window around the lock, and the trace stays frozen until trigger mode Auto or Normal, Single or the AUTO button (the scope settings are then restored). The Autoscale button only rescales the Y axis and keeps the capture.">
+                            <input type="checkbox" id="ui_capture_lock" checked> Capture Lock
+                          </label>
+                          <label class="checkbox-inline" title="A click on the graph with Choose from graph sets the time / level and fires Trigger Lock at once (an active lock is released and armed again with the new value).">
+                            <input type="checkbox" id="ui_fire_on_click" checked> Fire on click
+                          </label>
+                        </form>
+                        <small><span id="lock_capture_msg" class="label label-warning" style="display: none; white-space: normal;"></span></small>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
+
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <p class="text-center">
+                      <a data-toggle="collapse" href="#LockConfig" aria-expanded="true" aria-controls="LockConfig">
+                        config
+                      </a>
+                    </p>
+                  </div>
+
+                  <div id="LockConfig" class="collapse">
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_set_pidA_enable" checked>PID A enable
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable" checked>PID B enable
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
+                          <div class="col-xs-8">
+                            <select id="lock_ctrl_aux_trig_type" class="form-control">
+                              <option  value="0" selected="selected">OFF</option>
+                              <option  value="1">Time trigger</option>
+                              <option  value="2">Level Trigger</option>
+                              <option  value="3">Level+time Trigger</option>
+                            </select>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_sw">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
+                          <div class="col-xs-8">
+                            <select id="lock_lock_trig_sw" class="form-control">
+                              <option  value="0" selected="selected">error</option>
+                              <option  value="1">Xo</option>
+                              <option  value="2">Yo</option>
+                              <option  value="3">F1o</option>
+                              <option  value="4">F2o</option>
+                              <option  value="5">F3o</option>
+                              <option  value="6">sqXo</option>
+                              <option  value="7">sqYo</option>
+                              <option  value="8">sqFo</option>
+                              <option  value="9">signal_i</option>
+                              <option  value="10">Ramp A</option>
+                              <option  value="11">aux_A</option>
+                              <option  value="12">in1</option>
+                              <option  value="13">in2</option>
+                              <option  value="14">in1-in2</option>
+                              <option  value="15">PID A out</option>
+                            </select>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_time_val">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295" title="Delay after the scan floor: 8 ns ticks (0 = OFF, up to 4294967295 = 34.36 s) or a time with units: s, ms, us, ns (e.g. 16.58 ms)">
+                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_time_val_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_time_val_text">lock_lock_trig_time_val</div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_val">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191" title="Level: counts (-8192..8191, 1 V = 8192) or a voltage with units: V, mV (e.g. 0.1 V)">
+                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_val_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_val_text">lock_lock_trig_val</div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_ctrl_aux_lock_trig_rise">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="checkbox" style="padding-bottom: 12px;">
+                          <label class="group-label">
+                            <input type="checkbox" id="lock_ctrl_aux_lock_trig_rise">trig upward?
+                          </label>
+                        </div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_btn_set_trig">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group text-center">
+                          <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
+                          <div id="btn_set_trig_msg" style="padding-top: 4px;"></div>
+                        </div>
+                      </form>
+                    </div>
+
+
+                  </div>
 
                 </div>
 
@@ -7784,432 +8328,6 @@
         </div>
 
 
-        <!-- Lock Control --------------------------------------------->
-
-        <div class="panel panel-default">
-          <div class="panel-heading">
-            <h4 class="panel-title">
-              <a data-toggle="collapse" href="#lock_ctrl">
-                Lock Control
-              </a>
-            </h4>
-          </div>
-          <div id="lock_ctrl" class="panel-collapse collapse">
-            <div class="panel-body">
-              <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-                <div class="row">
-
-                  <!---------------------------------------------------------------------->
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <p class="text-center">
-                      <a data-toggle="collapse" href="#RelockControl" aria-expanded="true" aria-controls="RelockControl">
-                        Re-lock system
-                      </a>
-                    </p>
-                  </div>
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="RelockControl">
-                    <div class="row">
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="checkbox" style="padding-bottom: 12px;">
-                            <label class="group-label">
-                              <input type="checkbox" id="lock_rl_error_enable">Error Enable
-                            </label>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group">
-                            <label for="lock_rl_error_threshold" class="col-xs-4 control-label">|error|&nbsp;&gt;</label>
-                            <div class="col-xs-6 col-sm-6">
-                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_rl_error_threshold" step="1" min="0" max="8191">
-                              <span style="display: none;" class="input-group-btn" id="lock_rl_error_threshold_apply">
-                                <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                              </span>
-                            </div>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="checkbox" style="padding-bottom: 12px;">
-                            <label class="group-label">
-                              <input type="checkbox" id="lock_rl_signal_enable">Signal Enable
-                            </label>
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group">
-                            <!--label for="lock_rl_signal_sw" class="col-xs-4 control-label">Signal:</label-->
-                            <div class="col-xs-5">
-                              <select id="lock_rl_signal_sw" class="form-control">
-                                <option  value="0" selected="selected">in1</option>
-                                <option  value="1">in2</option>
-                                <option  value="2">in1-in2</option>
-                                <option  value="3">aux_A</option>
-                                <option  value="4">aux_B</option>
-                                <option  value="5">0</option>
-                                <option  value="6">0</option>
-                                <option  value="7">0</option>
-                              </select>
-                            </div>
-                            <div class="col-xs-1">
-                              &lt;
-                            </div>
-                            <div class="col-xs-5">
-                              <input type="number" autocomplete="off" class="form-control" value="0" id="lock_rl_signal_threshold" step="1" min="-8192" max="8191">
-                            </div>
-
-                          </div>
-                        </form>
-                      </div>
-
-                      <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="checkbox" style="padding-bottom: 12px;">
-                            <label class="group-label">
-                              <input type="checkbox" id="lock_rl_reset">RL reset
-                            </label>
-                          </div>
-                        </form>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
-
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <p class="text-center">
-                      <a data-toggle="collapse" href="#StepResponceControl" aria-expanded="true" aria-controls="StepResponceControl">
-                        Step Responce Measurement
-                      </a>
-                    </p>
-                  </div>
-
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 collapse" id="StepResponceControl">
-                    <div class="row">
-
-                      <div class="row">
-                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="form-group">
-                              <label for="lock_sf_jumpA" class="col-xs-4 control-label">Jump ctrl_A</label>
-                              <div class="col-xs-6 col-sm-6">
-                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_sf_jumpA" step="1" min="-8192" max="8191">
-                                <span style="display: none;" class="input-group-btn" id="lock_sf_jumpA_apply">
-                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                </span>
-                              </div>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="form-group">
-                              <label for="lock_sf_jumpB" class="col-xs-4 control-label">Jump ctrl_B</label>
-                              <div class="col-xs-6 col-sm-6">
-                                <input type="number" autocomplete="off" class="form-control" value="0" id="lock_sf_jumpA" step="1" min="-8192" max="8191">
-                                <span style="display: none;" class="input-group-btn" id="lock_sf_jumpB_apply">
-                                  <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                                </span>
-                              </div>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-
-                      <div class="row">
-                        <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
-                          <b>Freeze during step</b>
-                        </div>
-                      </div>
-                      <div class="row">
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_sf_AfrzO">A out
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_sf_AfrzI">A int
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-
-                      <div class="row">
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_sf_BfrzO">B out
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                        <div class="panel-group col-xs-12 col-sm-6 col-md-6">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="checkbox" style="padding-bottom: 12px;">
-                              <label class="group-label">
-                                <input type="checkbox" id="lock_sf_BfrzI">B int
-                              </label>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-
-                      <div class="row">
-                        <div class="panel-group col-xs-12">
-                          <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                            <div class="form-group text-center">
-                              <button id="lock_sf_start" class="btn btn-primary btn-lg" data-checked="true" disabled>Start Step Responce</button>
-                            </div>
-                          </form>
-                        </div>
-                      </div>
-
-                    </div>
-                  </div>
-
-                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
-
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-
-                    <div class="row">
-                      <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_ramp_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>Scan enable</button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_pidA_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;A enable</button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="panel-group col-xs-12">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_pidB_enable_ctrl" class="btn btn-primary btn-lg" data-checked="true" disabled>PID&nbsp;B enable</button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
-                          </div>
-                        </form>
-                      </div>
-                      <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_lock_now" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock<br>Now</button>
-                          </div>
-                        </form>
-                      </div>
-                    </div>
-
-                    <div class="row">
-                      <div class="col-xs-12 text-center" title="Lock state, read from the FPGA (lock_status). OFF: manual enables; ARMED: waiting for the lock trigger; LOCKED: enables of the config section. Click Trigger Lock / Lock Now again to release the lock.">
-                        <span id="lock_status_label" class="label label-default">OFF</span>
-                        <small>&nbsp;locks:&nbsp;<span id="lock_status_count">-</span></small>
-                      </div>
-                    </div>
-
-                    <!-- v2.3.14: UI preferences of the lock requests (saved in the state and in the configs) -->
-                    <div class="row">
-                      <div class="col-xs-12 text-center">
-                        <form class="form-inline" role="form" onsubmit="return false;" novalidate>
-                          <label class="checkbox-inline" title="Each lock request from this page (Trigger Lock, Lock Now, Fire on click) captures the closing of the loop: the scope goes to Single with Ext Trig = Lock control trig and a window around the lock, and the trace stays frozen until trigger mode Auto or Normal, Single or the AUTO button (the scope settings are then restored). The Autoscale button only rescales the Y axis and keeps the capture.">
-                            <input type="checkbox" id="ui_capture_lock" checked> Capture Lock
-                          </label>
-                          <label class="checkbox-inline" title="A click on the graph with Choose from graph sets the time / level and fires Trigger Lock at once (an active lock is released and armed again with the new value).">
-                            <input type="checkbox" id="ui_fire_on_click" checked> Fire on click
-                          </label>
-                        </form>
-                        <small><span id="lock_capture_msg" class="label label-warning" style="display: none; white-space: normal;"></span></small>
-                      </div>
-                    </div>
-
-                  </div>
-
-                  <hr style="margin: 7px 7px"> <!---------------------------------------------------------------------->
-
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <p class="text-center">
-                      <a data-toggle="collapse" href="#LockConfig" aria-expanded="true" aria-controls="LockConfig">
-                        config
-                      </a>
-                    </p>
-                  </div>
-
-                  <div id="LockConfig" class="collapse">
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="checkbox" style="padding-bottom: 12px;">
-                          <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_ramp_enable">Scan enable
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="checkbox" style="padding-bottom: 12px;">
-                          <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_pidA_enable" checked>PID A enable
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="checkbox" style="padding-bottom: 12px;">
-                          <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_set_pidB_enable" checked>PID B enable
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="form-group">
-                          <label for="lock_ctrl_aux_trig_type" class="col-xs-4 control-label">Trigger type:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_ctrl_aux_trig_type" class="form-control">
-                              <option  value="0" selected="selected">OFF</option>
-                              <option  value="1">Time trigger</option>
-                              <option  value="2">Level Trigger</option>
-                              <option  value="3">Level+time Trigger</option>
-                            </select>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_sw">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="form-group">
-                          <label for="lock_lock_trig_sw" class="col-xs-4 control-label">Signal for trigger:</label>
-                          <div class="col-xs-8">
-                            <select id="lock_lock_trig_sw" class="form-control">
-                              <option  value="0" selected="selected">error</option>
-                              <option  value="1">Xo</option>
-                              <option  value="2">Yo</option>
-                              <option  value="3">F1o</option>
-                              <option  value="4">F2o</option>
-                              <option  value="5">F3o</option>
-                              <option  value="6">sqXo</option>
-                              <option  value="7">sqYo</option>
-                              <option  value="8">sqFo</option>
-                              <option  value="9">signal_i</option>
-                              <option  value="10">Ramp A</option>
-                              <option  value="11">aux_A</option>
-                              <option  value="12">in1</option>
-                              <option  value="13">in2</option>
-                              <option  value="14">in1-in2</option>
-                              <option  value="15">PID A out</option>
-                            </select>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_time_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="form-group">
-                          <label for="lock_lock_trig_time_val" class="col-xs-4 control-label">Time trigger:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_time_val" step="1" min="0" max="4294967295" title="Delay after the scan floor: 8 ns ticks (0 = OFF, up to 4294967295 = 34.36 s) or a time with units: s, ms, us, ns (e.g. 16.58 ms)">
-                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_time_val_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_time_val_text">lock_lock_trig_time_val</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_lock_trig_val">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="form-group">
-                          <label for="lock_lock_trig_val" class="col-xs-4 control-label">Level trigger:</label>
-                          <div class="col-xs-4 col-sm-8">
-                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_lock_trig_val" step="1" min="-8192" max="8191" title="Level: counts (-8192..8191, 1 V = 8192) or a voltage with units: V, mV (e.g. 0.1 V)">
-                            <span style="display: none;" class="input-group-btn" id="lock_lock_trig_val_apply">
-                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                            </span>
-                          </div>
-                          <div class="col-xs-12 col-sm-12 text-center">
-                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_lock_trig_val_text">lock_lock_trig_val</div>
-                          </div>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_lock_ctrl_aux_lock_trig_rise">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="checkbox" style="padding-bottom: 12px;">
-                          <label class="group-label">
-                            <input type="checkbox" id="lock_ctrl_aux_lock_trig_rise">trig upward?
-                          </label>
-                        </div>
-                      </form>
-                    </div>
-
-                    <div class="panel-group col-xs-12 col-sm-12 col-md-12" id="container_btn_set_trig">
-                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                        <div class="form-group text-center">
-                          <button id="btn_set_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Choose from graph</button>
-                          <div id="btn_set_trig_msg" style="padding-top: 4px;"></div>
-                        </div>
-                      </form>
-                    </div>
-
-
-                  </div>
-
-                </div>
-
-              </div>
-            </div>
-          </div>
-        </div>
 
         <!-- END left panel -->
       </div>
@@ -8824,6 +8942,29 @@
                     </label>
                   </div>
                 </form>
+              </div>
+            </div> <!-- row end -->
+            <hr>
+            <!-- v2.2.12: last config (state saved automatically by the page) on init / defaults (see [LAST CONFIG]) -->
+            <div class="row">
+              <div class="panel-group col-xs-1"></div>
+              <div class="panel-group col-xs-11">
+                <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                  <div class="checkbox">
+                    <label class="group-label" title="Checked: each time the App is opened it starts with the last settings used in this browser (saved automatically). Unchecked: it starts with the default parameters of the App.">
+                      <input type="checkbox" id="load_last_on_init" autocomplete="off" checked>
+                      Load last config on init
+                    </label>
+                  </div>
+                </form>
+              </div>
+            </div> <!-- row end -->
+            <div class="row">
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
+                <button id="btn_load_last_config" class="btn btn-primary btn-lg" title="Restart the App with the last settings used in this browser (saved automatically)">Load last config</button>
+              </div>
+              <div class="panel-group col-xs-12 col-sm-6 col-md-6 text-center">
+                <button id="btn_reset_defaults" class="btn btn-primary btn-lg" title="Restart the App with its default parameters, as when it is opened with Load last config on init unchecked (no lock, ramp stopped, PID gains 0). The last config is kept: Load last config brings it back.">Reset to defaults</button>
               </div>
             </div> <!-- row end -->
             <hr>
