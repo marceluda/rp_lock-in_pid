@@ -272,6 +272,7 @@ controller, and update [FPGA.md](FPGA.md).
 | `reset_zoom_sim.js` | `node test/reset_zoom_sim.js [index.html] [--old]` | the real `resetZoom()` against a model of the time range code of `src/main.c`, incl. Square mod. (v2.2.9) |
 | `plot_wheel_sim.js` | `node test/plot_wheel_sim.js [index.html]` | mouse wheel on the plot: no key / SHIFT / ALT (one Y axis), limits, debounce, Capture Lock (v2.2.9) |
 | `osc_presets_sim.js` | `node test/osc_presets_sim.js [index.html]` | the OscA\|OscB presets, the `usr` dialog and the Ext Trig → Trigger panel rule (v2.2.10) |
+| `lock_quick_trig_sim.js` | `node test/lock_quick_trig_sim.js [index.html]` | the quick trigger buttons time / level / time+level of Lock Control: type set, pending click without POST, one click on the graph → values + one Trigger Lock (Capture Lock), cancel, ARMED / LOCKED, POST in flight (also LOCKED + POST in flight: release then request), message without layout shift, buttons in one centered flex row; uses the harness of `lock_capture_ui_sim.js` (v2.2.13, port of lock_in+pid_harmonic 2.3.28, 57 checks) |
 
 Run them from `lock_in+pid/`. All exit with code 1 on failure. Results of v2.2.6 (`devAgent.md` 2026-10-10 08:30 and
 09:14, `build_logs/rp_lock-in_pid_20261010_0914_v226b_sim.txt`): `lock_ctrl_sim` 35/35, `lock_bus_read_sim` PASS,

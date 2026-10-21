@@ -1,6 +1,31 @@
 
 # Devbuild  changes
 
+## v2.2.13 - 2026-10-20 - Quick trigger buttons time / level / time+level in Lock Control; fixed lost time/level and re-lock with a POST in flight (as lock_in+pid_harmonic 2.3.28)
+
+Port of lock_in+pid_harmonic 2.3.28 (web page only, no FPGA / C change; same code, the lock trigger options and
+the Choose from graph / Fire on click code of this App are the same as there). Requested by the user (2026-10-20).
+- ADDED: **Lock Control**: three small buttons stacked between **Trigger Lock** and **Lock Now**: **time** (orange),
+  **level** (blue), **time+level** (purple). A click on one of them sets the lock trigger type (Time trigger / Level
+  Trigger / Level+time Trigger) and waits for a click on the graph, as *Choose from graph* (the *config* section is not
+  opened): the button stays filled, the cursor over the scope is a crosshair and a short message
+  (`#lock_quick_trig_msg`) is drawn over the rows below (state label, checkboxes) without moving the panel. The click
+  on the graph sets the type and the time (from the scan floor) and / or the level and fires **Trigger Lock** at once
+  (whatever *Fire on click* says), with **Capture Lock** if it is checked. Nothing is sent while waiting (an ARMED /
+  LOCKED lock is kept until the click, then released and armed again). A 2nd click on the same button, Esc or
+  *Choose from graph* cancel; another of the three buttons changes the type.
+- CHANGED: layout of that row: *Trigger Lock*, the column of the three buttons and *Lock Now* are one centered flex row
+  (column as tall as the big buttons, which are a bit larger: 16 px font, 60 px high); a container query makes all of
+  them a bit smaller in a narrow left column (row < 235 px, e.g. 1366 px wide windows).
+- FIXED: a click with *Choose from graph* + *Fire on click* while another POST was in flight lost the new time / level
+  (`loadParams()`, `trigger_just_set`, wrote them as already sent; Trigger Lock fired with the old values). Now only
+  the values already sent are protected; pending ones are sent after that POST.
+- FIXED: with the lock LOCKED and a POST in flight at the click on the graph, neither the release nor the new request
+  was sent (the send queued during a POST runs 100 ms after its answer and `lockWhenIdle()` did not wait for it). Now
+  it is kept in `send_que_timer` and `lockWhenIdle()` waits for it: the release goes first, then the request.
+- Tests: new `test/lock_quick_trig_sim.js` (57 checks, harness of `lock_capture_ui_sim.js`; the page of 2.2.12 fails 51).
+  The other node tests unchanged and passing.
+
 ## 2.2.12 - "Load last config on init", Load last config / Reset to defaults; Lock Control below Outputs (as lock_in+pid_harmonic 2.3.27)
 
 Port of lock_in+pid_harmonic 2.3.27 (web page only, no FPGA / C change). Requested by the user (2026-10-20): the App

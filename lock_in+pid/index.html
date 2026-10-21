@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.12)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.13)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -47,6 +47,43 @@
     .btn.osc-preset:focus  { outline: 1px dotted #fff; outline-offset: -3px; }
     .btn.osc-preset.osc-preset-unset { border-style: dashed; opacity: .75; }
     @media (min-width: 768px) { #modal_osc_usr .modal-dialog { width: 380px; } }   /* Bootstrap 3.0: no .modal-sm */
+    /* Quick lock trigger buttons (time / level / time+level), between Trigger Lock and Lock Now, see lockQuickClick() */
+    /* the size follows the width of the panel (container query): narrow left column (e.g. 1366 px screens) -> smaller */
+    .lock-req-wrap { container-type: inline-size; margin: 0 0 14px; }
+    .lock-req-row { display: flex; flex-wrap: wrap; justify-content: center; align-items: stretch; gap: 8px; }
+    .btn.lock-req-btn { margin: 0; padding: 9px 12px; font-size: 16px; line-height: 1.25; }
+    .lock-quick { display: flex; flex-direction: column; justify-content: space-between; width: 62px; padding: 2px 0; }
+    @container (max-width: 235px) {
+      .lock-req-row { gap: 5px; }
+      .btn.lock-req-btn { padding: 8px 7px; font-size: 15px; }
+      .lock-quick { width: 56px; }
+      .btn.lock-quick-trig { height: 15px !important; font-size: 9px !important; line-height: 12px !important; }
+    }
+    .btn.lock-quick-trig { height: 16px; margin: 0; padding: 0 2px; font-size: 9.5px; line-height: 13px;
+                           font-weight: bold; white-space: nowrap; overflow: hidden; border: 1px solid; border-radius: 3px;
+                           background-image: none; box-shadow: none; text-shadow: none; }
+    .btn.lock-quick-time  { color: #7a4100; background-color: #fde8cc; border-color: #a85a00; }
+    .btn.lock-quick-level { color: #164a80; background-color: #dceafa; border-color: #1d5290; }
+    .btn.lock-quick-both  { color: #55247a; background-color: #eee0f7; border-color: #6a3496; }
+    .btn.lock-quick-time:hover,  .btn.lock-quick-time:focus  { color: #7a4100; background-color: #f9d7a8; }
+    .btn.lock-quick-level:hover, .btn.lock-quick-level:focus { color: #164a80; background-color: #bfd8f4; }
+    .btn.lock-quick-both:hover,  .btn.lock-quick-both:focus  { color: #55247a; background-color: #dcc4ee; }
+    /* waiting for the click on the graph: filled with the color of the border */
+    .btn.lock-quick-time.active  { color: #fff; background-color: #a85a00; box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    .btn.lock-quick-level.active { color: #fff; background-color: #1d5290; box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    .btn.lock-quick-both.active  { color: #fff; background-color: #6a3496; box-shadow: inset 0 2px 4px rgba(0,0,0,.35); }
+    .btn.lock-quick-trig:focus   { outline: 1px dotted #333; outline-offset: -3px; }
+    /* message of a pending quick trigger click: over the rows below the buttons (state, checkboxes), so the panel does
+       not grow nor move while it waits; clicks go through it (pointer-events: none) */
+    .lock-quick-msg-box { position: relative; height: 0; }
+    .lock-quick-msg { position: absolute; top: -4px; left: 6px; right: 6px; z-index: 20; padding: 3px 6px;
+                      font-size: 11px; line-height: 1.35; text-align: center; pointer-events: none;
+                      background-color: #fffdf3; border: 1px solid #a85a00; border-radius: 3px;
+                      box-shadow: 0 2px 6px rgba(0,0,0,.25); }
+    .lock-quick-msg.lock-quick-msg-2 { border-color: #1d5290; }
+    .lock-quick-msg.lock-quick-msg-3 { border-color: #6a3496; }
+    /* cursor of the scope while a click of "Choose from graph" / of a quick trigger button is pending */
+    #plot_holder.trig-pick, #plot_holder.trig-pick * { cursor: crosshair; }
   </style>
 
   <!--  ERASE ON NEXT COMMIT
@@ -130,7 +167,7 @@
   var downloading = false;
   var scope_stop = false;
   var sending = false;
-  var send_que = false;
+  var send_que = false, send_que_timer = null;   // send_que_timer: the queued send, 100 ms after the POST in flight ends
   var single_que = false;  // a Single click arrived while a POST was in flight: send it when the POST ends
   var send_que_all = false;              // The queued sendParams() must use send_all (config load during a POST)
   // v2.3.17: Config -> load. Time scale values that the server derives (or the forceX handshake) are never sent in
@@ -1301,6 +1338,11 @@
     });
     $(document).on('keydown', function(e) {
       if(set_trigger_val && isEscapeKey(e)) trigFromGraphCancel();
+    });
+    // Quick trigger buttons time / level / time+level (Lock Control, between Trigger Lock and Lock Now)
+    $('#lock_quick_trig_1,#lock_quick_trig_2,#lock_quick_trig_3').on('click', function() {
+      lockQuickClick(Number(this.id.slice(-1)));
+      $(this).blur();
     });
 
     // v2.3.14: Capture Lock / Fire on click (UI preferences, nothing is sent to the server)
@@ -3108,6 +3150,9 @@
   // settings are restored. The Autoscale button (autoscaleY(): local rescale of the Y axis) does not end it.
   var ui_capture_lock  = 1;              // UI preferences (checkboxes), saved in the state and in the configs
   var ui_fire_on_click = 1;
+  // Quick trigger buttons (v2.2.13): lock trigger type (1 time, 2 level, 3 level+time) of a pending click on
+  // the graph started by one of them, 0 = none (no click pending, or one of "Choose from graph"). See lockQuickClick().
+  var lock_quick_type = 0;
   var lock_cap_ext_trig = 128;           // lock_trig_sw (Ext Trig) value of "Lock control trig"
   var lock_cap_pre = 0.3;                // Part of the window before the lock when its position is not known
   var lock_cap_poll_ms = 500;            // GET /data period while the capture is frozen (lock state only)
@@ -3228,7 +3273,7 @@
   // lock_seq_timeout_ms)
   function lockWhenIdle(fn, no_get, t0) {
     if(t0 === undefined) t0 = Date.now();
-    if(!sending && !send_que && !post_rate_timer && !(no_get && downloading)) { fn(true); return; }
+    if(!sending && !send_que && !send_que_timer && !post_rate_timer && !(no_get && downloading)) { fn(true); return; }
     if(Date.now() - t0 > lock_seq_timeout_ms) { fn(false); return; }
     setTimeout(function() { lockWhenIdle(fn, no_get, t0); }, 20);
   }
@@ -3420,36 +3465,77 @@
     return '';
   }
 
+  // Lock trigger type used by a pending click: the one of a quick trigger button, else the one of the page
+  function trigFromGraphType() {
+    return lock_quick_type || (params.local ? params.local.lock_ctrl_aux_trig_type : 0);
+  }
+
   // Message under "Choose from graph" while a click is pending; recomputed on every change of the scope
   // trigger / lock trigger type / capture state. Trigger type OFF cancels the pending click.
+  // Quick trigger buttons: the same message also below them (the config section may be closed).
   function trigFromGraphMsg() {
-    if(!set_trigger_val || !params.local) { $('#btn_set_trig_msg').html(''); return; }
-    var tg = trigFromGraphTargets(params.local.lock_ctrl_aux_trig_type);
+    if(!set_trigger_val || !params.local) { $('#btn_set_trig_msg, #lock_quick_trig_msg').html(''); $('#lock_quick_trig_msg').hide(); return; }
+    var tg = trigFromGraphTargets(trigFromGraphType());
     if(!tg.time && !tg.level) { trigFromGraphCancel(); return; }
+    var fire = !!(ui_fire_on_click || lock_quick_type);
     var msg = 'Click on the graph to set the ' + (tg.time && tg.level ? 'time and level' : (tg.time ? 'time' : 'level')) +
-              ' trigger' + (ui_fire_on_click ? ' and fire Trigger Lock' : '') + ' (Esc or the button: cancel)';
+              ' trigger' + (fire ? ' and fire Trigger Lock' : '') +
+              (lock_quick_type ? ' (Esc or the same button: cancel)' : ' (Esc or the button: cancel)');
     var warn = trigFromGraphWarning(params.local, tg);
     if(warn) msg += '<br><span class="text-danger">' + warn + '</span>';
     $('#btn_set_trig_msg').html('<small>' + msg + '</small>');
+    // below the quick buttons: a shorter text, over the rows below (no layout shift), with the color of the button
+    var qmsg = 'Click on the graph: ' + (tg.time && tg.level ? 'time + level' : (tg.time ? 'time' : 'level')) +
+               ' &rarr; Trigger Lock &nbsp;(Esc: cancel)';
+    if(warn) qmsg += '<br><span class="text-danger">' + warn + '</span>';
+    $('#lock_quick_trig_msg').html(lock_quick_type ? qmsg : '')
+      .removeClass('lock-quick-msg-1 lock-quick-msg-2 lock-quick-msg-3').addClass('lock-quick-msg-' + (lock_quick_type || 1));
+    if(lock_quick_type) $('#lock_quick_trig_msg').show();
+    else                $('#lock_quick_trig_msg').hide();
   }
 
-  function trigFromGraphStart() {
+  // quick: lock trigger type of a quick trigger button (1, 2, 3); none / 0 for "Choose from graph"
+  function trigFromGraphStart(quick) {
     set_trigger_val = true;
+    lock_quick_type = (Number(quick) >= 1 && Number(quick) <= 3) ? Number(quick) : 0;
     $('#btn_set_trig').text('Cancel').removeClass('btn-primary').addClass('btn-warning');
+    $('#lock_quick_trig_1, #lock_quick_trig_2, #lock_quick_trig_3').removeClass('active');
+    if(lock_quick_type) $('#lock_quick_trig_' + lock_quick_type).addClass('active');
+    $('#plot_holder').addClass('trig-pick');
     trigFromGraphMsg();
   }
 
   function trigFromGraphCancel() {
     set_trigger_val = false;
+    lock_quick_type = 0;
     $('#btn_set_trig').text('Choose from graph').removeClass('btn-warning').addClass('btn-primary');
-    $('#btn_set_trig_msg').html('');
+    $('#lock_quick_trig_1, #lock_quick_trig_2, #lock_quick_trig_3').removeClass('active');
+    $('#plot_holder').removeClass('trig-pick');
+    $('#btn_set_trig_msg, #lock_quick_trig_msg').html('');
+    $('#lock_quick_trig_msg').hide();
+  }
+
+  // Quick trigger buttons time (1) / level (2) / time+level (3), between Trigger Lock and Lock Now: a click here and
+  // one on the graph do what Trigger type + Choose from graph + click + Fire on click do. The click here only starts
+  // the wait (nothing is sent, the config section is not opened, an ARMED / LOCKED lock is kept); the click on the
+  // graph sets the lock trigger type and the time and / or level, and always fires Trigger Lock (whatever Fire on
+  // click says): an active request is released and armed again with the new values, with Capture Lock if it is
+  // checked (lockRequest()). A 2nd click on the same button, Esc or "Choose from graph" cancel; another quick button
+  // changes the type of the pending click.
+  function lockQuickClick(type) {
+    type = Number(type);
+    if(!params.local || !(type >= 1 && type <= 3)) return;
+    if(set_trigger_val && lock_quick_type === type) { trigFromGraphCancel(); return; }
+    trigFromGraphStart(type);
   }
 
   // Click on the plot with "Choose from graph" pending: writes the value(s) of the lock trigger type and, with
   // "Fire on click", fires Trigger Lock (an active request is released and armed again with the new values).
+  // With a quick trigger button: also sets the lock trigger type, and always fires.
   function trigFromGraphClick(pos) {
     if(!set_trigger_val || !params.local) return false;
-    var tg = trigFromGraphTargets(params.local.lock_ctrl_aux_trig_type);
+    var quick = lock_quick_type;
+    var tg = trigFromGraphTargets(trigFromGraphType());
     var tu = (plot_time_units !== null ? plot_time_units : params.local.time_units);
     var x_floor = lockCaptureClickX(pos.x, tu);
     var time_val  = (x_floor === null ? null : clickToTrigTime(x_floor, tu, rampPeriodCycles(params.local)));
@@ -3458,6 +3544,10 @@
 
     user_editing = false;
     trigger_just_set = true;
+    if(quick) {
+      $('#lock_ctrl_aux_trig_type').val(quick);
+      params.local.lock_ctrl_aux_trig_type = quick;
+    }
     if(tg.time && time_val !== null) {
       $('#lock_lock_trig_time_val').val(time_val);
       params.local.lock_lock_trig_time_val = time_val;
@@ -3466,14 +3556,17 @@
       $('#lock_lock_trig_val').val(level_val);
       params.local.lock_lock_trig_val = level_val;
     }
-    console.log('Choose from graph: x=' + pos.x + ' [' + ['us','ms','s'][tu] + '] y=' + pos.y +
+    var fire = !!(ui_fire_on_click || quick);
+    console.log((quick ? 'Quick trigger ' + ['', 'time', 'level', 'time+level'][quick] : 'Choose from graph') +
+                ': x=' + pos.x + ' [' + ['us','ms','s'][tu] + '] y=' + pos.y +
                 (x_floor !== pos.x ? ' (x from the floor=' + x_floor + ')' : '') +
+                (quick ? ' -> trig_type=' + quick : '') +
                 (tg.time  ? ' -> lock_trig_time=' + time_val  : '') +
-                (tg.level ? ' -> lock_trig_val='  + level_val : '') + (ui_fire_on_click ? ' + Trigger Lock' : ''));
+                (tg.level ? ' -> lock_trig_val='  + level_val : '') + (fire ? ' + Trigger Lock' : ''));
     lock_ctrl_update();
     trigFromGraphCancel();
-    if(ui_fire_on_click) lockRequest('lock_ctrl_aux_launch_lock_trig');
-    else                 sendParams();
+    if(fire) lockRequest('lock_ctrl_aux_launch_lock_trig');
+    else     sendParams();
     return true;
   }
 
@@ -4463,9 +4556,17 @@
         orig_params.xmax = options.xaxes[0].max;
       }
       // LOLO
+      // Values of a click on the graph (Choose from graph / quick trigger buttons): a GET answer started before their
+      // POST does not bring them back to the old ones. v2.2.13: only the values already sent (in unsent_base);
+      // one still waiting for its POST (another POST in flight) is kept by unsentChanges() and sent after it.
+      // Written into orig_params it looked already sent and was never sent: the lock fired with the old values.
       if(trigger_just_set) {
-        orig_params.lock_lock_trig_val      = params.local.lock_lock_trig_val      ;
-        orig_params.lock_lock_trig_time_val = params.local.lock_lock_trig_time_val ;
+        var tjs_keys = ['lock_lock_trig_val', 'lock_lock_trig_time_val', 'lock_ctrl_aux_trig_type'];
+        for(var tjs = 0; tjs < tjs_keys.length; tjs++) {
+          var tjk = tjs_keys[tjs];
+          if(keep_unsent !== true || !unsent_base || unsent_base[tjk] == params.local[tjk])
+            orig_params[tjk] = params.local[tjk];
+        }
         //orig_params.lock_ctrl_aux_lock_trig_rise     = params.local.lock_ctrl_aux_lock_trig_rise     ;
         trigger_just_set=false;
       }
@@ -5082,7 +5183,10 @@
         send_que = false;
         send_que_all = false;
         single_que = false;
-        setTimeout(function(refresh_data) {
+        // v2.2.13: kept in send_que_timer, so that lockWhenIdle() waits for this send too (in the gap the lock
+        // request was written and sent first, and the release queued here was never sent: see lockRequest())
+        send_que_timer = setTimeout(function(refresh_data) {
+          send_que_timer = null;
           if(do_single) sendParams(true, true, true, false, que_all);
           else          sendParams(refresh_data, false, false, false, que_all);
         }, 100);
@@ -6264,7 +6368,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.12)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.13)</h2>
     </div>
   </div>
   <div class="container">
@@ -6929,21 +7033,21 @@
                       </div>
                     </div>
 
-                    <div class="row">
-                      <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg" data-checked="true" disabled>Trigger<br>Lock</button>
+                    <!-- Trigger Lock | quick trigger buttons | Lock Now: one flex row, the column of the quick buttons is as
+                         tall as the big buttons and centered with them (lockQuickClick()) -->
+                    <div class="lock-req-wrap">
+                        <div class="lock-req-row">
+                          <button id="lock_ctrl_aux_launch_lock_trig" class="btn btn-primary btn-lg lock-req-btn" data-checked="true" disabled>Trigger<br>Lock</button>
+                          <div class="lock-quick" role="group" aria-label="Quick lock trigger from the graph">
+                            <button type="button" id="lock_quick_trig_1" class="btn lock-quick-trig lock-quick-time" disabled title="Time trigger from the graph: click here, then on the graph. The time of the click (from the scan floor) becomes the Time trigger and Trigger Lock is fired (with Capture Lock if it is checked). Esc or a 2nd click here: cancel">time</button>
+                            <button type="button" id="lock_quick_trig_2" class="btn lock-quick-trig lock-quick-level" disabled title="Level trigger from the graph: click here, then on the graph. The level of the click becomes the Level trigger and Trigger Lock is fired (with Capture Lock if it is checked). Esc or a 2nd click here: cancel">level</button>
+                            <button type="button" id="lock_quick_trig_3" class="btn lock-quick-trig lock-quick-both" disabled title="Level+time trigger from the graph: click here, then on the graph. The time and the level of the click become the Time and Level triggers and Trigger Lock is fired (with Capture Lock if it is checked). Esc or a 2nd click here: cancel">time+level</button>
                           </div>
-                        </form>
-                      </div>
-                      <div class="panel-group col-xs-6">
-                        <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                          <div class="form-group text-center">
-                            <button id="lock_ctrl_aux_lock_now" class="btn btn-primary btn-lg" data-checked="true" disabled>Lock<br>Now</button>
-                          </div>
-                        </form>
-                      </div>
+                          <button id="lock_ctrl_aux_lock_now" class="btn btn-primary btn-lg lock-req-btn" data-checked="true" disabled>Lock<br>Now</button>
+                        </div>
+                    </div>
+                    <div class="lock-quick-msg-box">
+                      <div id="lock_quick_trig_msg" class="lock-quick-msg" style="display: none;"></div>
                     </div>
 
                     <div class="row">

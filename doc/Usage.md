@@ -179,6 +179,13 @@ From top to bottom:
   keeping the other enables.
 - **Trigger Lock**: arms the lock; it closes when the trigger of the *config* section happens. **Lock Now**: locks
   at once. Both stay pressed while requested; a second click releases the lock.
+- **time / level / time+level** (the three small colored buttons between Trigger Lock and Lock Now; since
+  v2.2.13): a shortcut for *Trigger type* + *Choose from graph* + *Fire on click*. Click one (it stays filled while
+  it waits, the cursor over the plot is a crosshair and a short note covers the state label and the checkboxes
+  below), then click on the plot: the trigger type is set, the time
+  and / or level are taken from the click, and *Trigger Lock* fires at once (with *Capture Lock* if checked, even if
+  *Fire on click* is unchecked). An active lock is kept until that click, then released and armed again. Esc or a
+  second click on the same button cancels.
 - **State label**: OFF / ARMED / LOCKED and the number of locks since the FPGA was loaded.
 - **Capture Lock** (on by default): every lock request from the page captures the closing of the loop in the scope
   and freezes the trace. **Fire on click** (on by default): with *Choose from graph*, a click on the plot sets the
@@ -322,6 +329,8 @@ The PID needs a signal that crosses zero at the point where the system has to st
 3. Choose the trigger:
    - **Time trigger**: press *Choose from graph* and click on the point of the scan where the lock must close. With
      *Fire on click* on, the click also fires *Trigger Lock*.
+   - Shortcut: press the small **time** (or **level**, **time+level**) button between *Trigger Lock* and
+     *Lock Now* and click on the plot: type, value and *Trigger Lock* in one go (steps 3 and 4).
    - **Level trigger**: Signal for trigger = error (or in1), Level = the value just before the crossing, *trig
      upward?* according to the slope. *Choose from graph* takes the level from the click.
    - **Lock Now**: locks immediately wherever the ramp is.

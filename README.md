@@ -14,7 +14,7 @@ the use of the App, its instruments and some suggested applications.
 
 ## Version 2.2.x (Ecosystem 2.0)
 
-Current version: **2.2.12** (branch `master`).
+Current version: **2.2.13** (branch `master`).
 
 This version is **based on the 0.2.x series (v0.2.4), but with the FPGA design built in Vivado 2020.1**,
 using the project structure of [RedPitaya-FPGA](https://github.com/RedPitaya/RedPitaya-FPGA)
@@ -57,6 +57,10 @@ Since 2026-10-15 the branch `master` holds the 2.x series; the 0.2.x series (FPG
   browser): the App opens with the last settings used in this browser (also in a new tab); unchecked, it opens with its
   defaults. Buttons **Load last config** and **Reset to defaults** restart the App with them. The **Lock Control**
   panel is now right below Outputs.
+- 2.2.13 (from lock_in+pid_harmonic 2.3.28): **Lock Control**: three small buttons **time** / **level** /
+  **time+level** between Trigger Lock and Lock Now: one click on a button and one on the graph set the trigger type and
+  value and fire Trigger Lock. Fixed: a click with Choose from graph + Fire on click during a POST in flight lost the new
+  values or the re-lock.
 - See the [CHANGELOG](CHANGELOG.md).
 
 ## Features
