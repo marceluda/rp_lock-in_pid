@@ -37,6 +37,11 @@
  *      stopped, window 0..0.1 s: forced after ~0.25 s, traces keep coming; 10.3 scan of 3 s seen in 0..0.1 s: the
  *      limit follows the ramp period, only floors; 10.4 Normal without trigger: nothing (no forcing in Normal).
  *      SIM_AUTO=1 test/auto_set_c_sim/run.sh runs only section 10.
+ *  11. v2.2.14: Raw Mode trigger level (lock_osc_raw_mode = 1): trig_level in ADC counts is written to the threshold
+ *      register of the scope as it is (before: taken as volts, 100 counts -> 8191), with the calibration offset of the
+ *      input selected by lock_oscA_sw / lock_oscB_sw (585 here: calib.c defaults) or none (internal signals); volts
+ *      mode unchanged; AUTO in Raw Mode: level and Y range in counts (Y was clipped to +-1000) and a threshold near
+ *      the middle of the signal. Runs after section 5 (instant acquisitions: sine +-3000 / +-1500 counts).
  *
  * Build and run: test/auto_set_c_sim/run.sh [src dir]     (exit code 1 if a check fails)
  */
@@ -735,6 +740,59 @@ int main(void)
         check("5.1 AUTO with noise only: window >= 1 us", span >= 0.999e-6 && dt < 5,
               "x %g..%g [units %g] = %.3g s, trig_mode %g, POST %.3f s", x0, x1, tu5, span, get("trig_mode"), dt);
         sig_noise = 0;
+    }
+
+    /* ---- 11. v2.2.14: Raw Mode trigger level */
+    {
+#define THR(r) ((int)((((uint32_t)(r) & 0x3FFF) ^ 0x2000)) - 0x2000)   /* 14-bit threshold register, signed */
+        float maxn;
+        int exp_v;
+        post("trig_mode", 1.0, "trig_source", 0.0, "lock_oscA_sw", 1.0, "lock_oscB_sw", 2.0, "lock_osc_raw_mode", 1.0,
+             "trig_level", 100.0, "xmin", 0.0, "xmax", 20.0, NULL);
+        usleep(100000);
+        check("11.1 Raw, Normal, CH1 = in1 (calib 585): level 100 counts -> threshold 100 (before: 100 V -> saturated, 8191 - 585)",
+              THR(osc->cha_thr) == 100, "cha_thr %d, trig_level %g", THR(osc->cha_thr), get("trig_level"));
+        post("trig_level", -3000.0, NULL);
+        usleep(100000);
+        check("11.2 Raw: level -3000 -> threshold -3000 (before: -3000 V -> -8192 - 585, wrapped to +7607)", THR(osc->cha_thr) == -3000,
+              "cha_thr %d", THR(osc->cha_thr));
+        post("trig_level", 8191.0, NULL);
+        usleep(100000);
+        check("11.3 Raw: level 8191 with calibration offset 585 -> saturated at 8191 - 585 (as volts mode)",
+              THR(osc->cha_thr) == 8191 - 585, "cha_thr %d", THR(osc->cha_thr));
+        post("trig_source", 1.0, "trig_level", 250.0, NULL);
+        usleep(100000);
+        check("11.4 Raw, source CH2 = in2: level 250 -> chb threshold 250", THR(osc->chb_thr) == 250,
+              "chb_thr %d", THR(osc->chb_thr));
+        post("trig_source", 0.0, "lock_oscA_sw", 3.0, "trig_level", -1234.0, NULL);
+        usleep(100000);
+        check("11.5 Raw, CH1 = internal signal (no calibration offset): level -1234 -> threshold -1234",
+              THR(osc->cha_thr) == -1234, "cha_thr %d", THR(osc->cha_thr));
+        /* volts: unchanged (the level in normalized volts, osc_fpga_cnv_v_to_cnt() with the calibration of in1) */
+        post("lock_oscA_sw", 1.0, "lock_osc_raw_mode", 0.0, "trig_level", 0.25, NULL);
+        usleep(100000);
+        maxn = get("gui_reset_y_range") / 2 / fmaxf(get("scale_ch1"), get("scale_ch2"));
+        exp_v = osc_fpga_cnv_v_to_cnt(0.25, maxn, 585, 0);
+        check("11.6 volts: level 0.25 V -> threshold as before (osc_fpga_cnv_v_to_cnt(0.25 V))",
+              THR(osc->cha_thr) == THR(exp_v), "cha_thr %d, expected %d (full scale %.4f V)", THR(osc->cha_thr), THR(exp_v), maxn);
+        /* AUTO in Raw Mode (sine +-3000 counts on CH1, +-1500 on CH2, raw samples) */
+        post("lock_osc_raw_mode", 1.0, "trig_mode", 0.0, NULL);
+        usleep(50000);
+        dt = post("auto_flag", 1.0, NULL);
+        usleep(150000);
+        check("11.7 AUTO in Raw: Normal on CH1, level in counts near the middle of the sine",
+              get("trig_mode") == 1 && get("trig_source") == 0 && fabsf(get("trig_level")) < 200 && dt < 5,
+              "trig_mode %g, source %g, level %g, POST %.3f s", get("trig_mode"), get("trig_source"), get("trig_level"), dt);
+        check("11.8 AUTO in Raw: Y range in counts, +-3000 * 1.2 (before: clipped to +-1000)",
+              get("min_y") <= -3500 && get("max_y") >= 3500 && get("min_y") > -4000 && get("max_y") < 4000,
+              "min_y %g, max_y %g", get("min_y"), get("max_y"));
+        check("11.9 AUTO in Raw: threshold of the acquisitions that follow = the level (counts)",
+              abs(THR(osc->cha_thr) - (int)lroundf(get("trig_level"))) <= 1, "cha_thr %d, level %g",
+              THR(osc->cha_thr), get("trig_level"));
+        /* back to volts */
+        post("lock_osc_raw_mode", 0.0, "trig_mode", 0.0, "trig_level", 0.0, NULL);
+        usleep(50000);
+#undef THR
     }
 
 

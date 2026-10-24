@@ -86,6 +86,11 @@ int rp_osc_decimate(float **cha_signal, int *in_cha_signal,
 /* v2.3.23: rp_osc_decimate_partial() (RP 0.9x) replaced by the long acquisition reader of worker.c
  * (rp_osc_long_rd_*(), static) */
 
+/* Trigger level for the FPGA (osc_fpga_update_params()): trig_level in normalized volts, or ADC counts in Raw Mode
+ * (lock_osc_raw_mode), turned into the voltage that gives exactly those counts with the calibration offsets of the
+ * channels as passed to osc_fpga_update_params() */
+float rp_osc_trig_level_v(rp_app_params_t *p, float adc_max_v, int ch1_calib_dc_off, int ch2_calib_dc_off);
+
 /* Auto-set algorithm */
 int rp_osc_auto_set(rp_app_params_t *orig_params, 
                     float ch1_max_adc_v, float ch2_max_adc_v,

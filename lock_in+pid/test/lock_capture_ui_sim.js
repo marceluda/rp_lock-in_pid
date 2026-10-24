@@ -420,6 +420,9 @@ function makeEnv(rig, clock) {
            'doGetData', 'runStop', 'singleUpdate', 'serverAutoScale', 'onDropdownChange', 'timeUnitFactor', 'rampPeriodCycles',
            'clickToTrigTime', 'clickToTrigLevel', 'trigFromGraphTargets'].map(fnSrc).join('\n');
   code += '\n' + js.slice(js.indexOf('// [LOCK CAPTURE BEGIN]'), js.indexOf('// [LOCK CAPTURE END]'));
+  // v2.2.14: [RAW TRIGGER] block of the page (trigLevelText() etc., used by loadParams()); absent in older pages
+  { const rb = js.indexOf('// [RAW TRIGGER BEGIN]'), re = js.indexOf('// [RAW TRIGGER END]');
+    if(rb >= 0 && re > rb) code += '\n' + js.slice(rb, re) + '\n'; }
   // updateGraphData() without the 2.0 claim checks (not part of this test)
   // (v2.3.18: scope_stop = Stop button, as the real one)
   code += '\nvar scope_stop = false;\nfunction updateGraphData() { if(downloading || scope_stop) return; if(update_timer) { clearTimeout(update_timer); update_timer = null; }' +

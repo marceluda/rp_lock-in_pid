@@ -627,6 +627,31 @@ int osc_fpga_cnv_v_to_cnt(float voltage, float adc_max_v,
 
 /*----------------------------------------------------------------------------*/
 /**
+ * @brief Trigger level given in ADC counts (Raw Mode) -> the voltage that osc_fpga_cnv_v_to_cnt() turns into
+ *        exactly those counts (its inverse; v2.2.14: before, the counts were taken as volts and the threshold
+ *        saturated at +-8191)
+ *
+ * A level beyond the 14-bit range once the calibration offset is added saturates (as in volts mode): with a
+ * calibration offset of +c counts the highest threshold is 8191 - c.
+ *
+ * @param[in] cnts           Level in raw ADC counts (-8192..8191, as shown in Raw Mode: no calibration offset)
+ * @param[in] adc_max_v      Maximal ADC voltage passed to osc_fpga_cnv_v_to_cnt(), specified in [V]
+ * @param[in] calib_dc_off   Calibrated DC offset passed to osc_fpga_cnv_v_to_cnt(), in ADC counts
+ * @param[in] user_dc_off    User DC offset passed to osc_fpga_cnv_v_to_cnt(), in [V]
+ * @retval    float          Voltage [V] for osc_fpga_cnv_v_to_cnt() / osc_fpga_update_params()
+ */
+float osc_fpga_cnv_cnt_to_trig_v(float cnts, float adc_max_v,
+                                 int calib_dc_off, float user_dc_off)
+{
+    float c = roundf(cnts);
+    if(c >  (float)((1<<(c_osc_fpga_adc_bits-1))-1)) c = (float)((1<<(c_osc_fpga_adc_bits-1))-1);
+    if(c < -(float)(1<<(c_osc_fpga_adc_bits-1)))     c = -(float)(1<<(c_osc_fpga_adc_bits-1));
+    return (c + calib_dc_off) * (2*adc_max_v) / (float)(1<<c_osc_fpga_adc_bits) + user_dc_off;
+}
+
+
+/*----------------------------------------------------------------------------*/
+/**
  * @brief Converts ADC counts to voltage [V]
  *
  * Function is used to publish captured signal data to external world in user units.

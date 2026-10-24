@@ -407,6 +407,22 @@ static int rp_osc_worker_sleep_until(long long t_end_us, rp_osc_worker_state_t s
     }
 }
 
+/* v2.2.14: trigger level for osc_fpga_update_params(), which converts volts to ADC counts with adc_max_v: the param
+ * trig_level is in normalized volts, or in Raw Mode (lock_osc_raw_mode) in raw ADC counts, as the page shows them;
+ * then it is turned into the voltage that gives exactly those counts (same adc_max_v, calibration offset of the
+ * channel and user offset as osc_fpga_update_params()). Before, the counts were taken as volts: 100 counts ->
+ * threshold 8191, Normal / Single never triggered for a level other than 0. */
+float rp_osc_trig_level_v(rp_app_params_t *p, float adc_max_v, int ch1_calib_dc_off, int ch2_calib_dc_off)
+{
+    float lev = p[TRIG_LEVEL_PARAM].value;
+    if(p[LOCK_OSC_RAW_MODE].value > 0) {
+        int ch1 = (p[TRIG_SRC_PARAM].value == 0);   /* osc_fpga_update_params(): CH1 values for source 0 */
+        lev = osc_fpga_cnv_cnt_to_trig_v(lev, adc_max_v, ch1 ? ch1_calib_dc_off : ch2_calib_dc_off,
+                                         ch1 ? p[GEN_DC_OFFS_1].value : p[GEN_DC_OFFS_2].value);
+    }
+    return lev;
+}
+
 /* v2.3.23: parameters that define an acquisition (FPGA settings, window, conversions of the trace). A new copy
  * of the parameters with all of them unchanged (e.g. the same Single POST sent again by the page, or
  * single_btn alone) does not abort the acquisition in progress: it is resumed. */
@@ -678,7 +694,8 @@ void *rp_osc_worker_thread(void *args)
                                        */
                                       /*curr_params[TRIG_DLY_PARAM].value,*/
                                       curr_params[MIN_GUI_PARAM].value,
-                                      curr_params[TRIG_LEVEL_PARAM].value,
+                                      rp_osc_trig_level_v(curr_params, max_adc_norm,
+                                                          fe_ch1_dc_offs, fe_ch2_dc_offs),
                                       curr_params[TIME_RANGE_PARAM].value,
                                       max_adc_norm, max_adc_norm,
                                       fe_ch1_dc_offs,
@@ -1528,13 +1545,12 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         TRACE("AUTO: trig level: %d\n", trig_level);
         TRACE("AUTO: min,max: %d  %d\n", min_y, max_y);
 
-        if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){ // LOLO
-            trig_level_v = (((trig_level) * max_adc_v)/
-                            (float)(1<<(c_osc_fpga_adc_bits-1))) ;
-        }else{
-            trig_level_v = (((trig_level + calib_dc_off) * max_adc_v)/
-                            (float)(1<<(c_osc_fpga_adc_bits-1))) ;
-        }
+        /* v2.2.14: the voltage that osc_fpga_update_params() below (same max_adc_v and calib_dc_off) turns into a
+         * threshold of exactly trig_level counts: the formula of volts mode, now in both modes. In Raw Mode the
+         * samples (min/max) have no calibration offset, so the threshold is the middle of the signal (before, the
+         * offset was left out there: threshold off by -calib_dc_off; and the level of the result, in counts, was then
+         * applied as volts by the acquisition path, see rp_osc_trig_level_v()) */
+        trig_level_v = osc_fpga_cnv_cnt_to_trig_v(trig_level, max_adc_v, calib_dc_off, 0);
         int loc_max = INT_MIN;
         int loc_min = INT_MAX;
 

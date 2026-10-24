@@ -196,6 +196,9 @@ function makeEnv(server) {
   code += ['unsentChanges', 'loadParams', 'updateTimeUnits', 'isParamChanged', 'splitParams', 'postParamsChunks', 'sendParams',
            'postEnd', 'sendableValue', 'isSendable', 'hasRealChange', 'lockStatus', 'lockSetBtn', 'lock_status_display']
           .map(fnSrc).join('\n');
+  // v2.2.14: [RAW TRIGGER] block of the page (trigLevelText() etc., used by loadParams()); absent in older pages
+  { const rb = js.indexOf('// [RAW TRIGGER BEGIN]'), re = js.indexOf('// [RAW TRIGGER END]');
+    if(rb >= 0 && re > rb) code += '\n' + js.slice(rb, re) + '\n'; }
   // v2.3.14: lock requests go through the [LOCK CAPTURE] block (lockRequest()/lockRelease()); Capture Lock is
   // tested by test/lock_capture_ui_sim.js, here it is off (plain lock chain, as v2.3.13)
   const cb = js.indexOf('// [LOCK CAPTURE BEGIN]'), ce = js.indexOf('// [LOCK CAPTURE END]');

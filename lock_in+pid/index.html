@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.13)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.14)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -440,16 +440,17 @@
         $(this).parent().removeClass('input-group');
 
         var tlev = parseLocalFloat($(this).val());
-        var scale = (params.local.trig_source == 0 ? params.local.scale_ch1 : params.local.scale_ch2);
         if(! isNaN(tlev)) {
-          params.local.trig_level = tlev / scale;
+          // v2.2.14: V, or ADC counts in Raw Mode (see [RAW TRIGGER]), limited to the range of the scope (the field
+          // shows the limited value)
+          params.local.trig_level = pageToTrigLevel(tlev, params.local, params.original);
+          $(this).val(floatToLocalString(trigLevelText(params.local.trig_level, params.local)));
           updateTriggerSlider(undefined, false);
           redrawPlot();
           sendParams();
         }
         else {
-          tlev = params.local.trig_level * scale;
-          $(this).val(tlev)
+          $(this).val(floatToLocalString(trigLevelText(params.local.trig_level, params.local)));
         }
         user_editing = false;
       })
@@ -1540,7 +1541,12 @@
     $(input_buttons).on('click', function() {
       $(this).toggleClass('btn-default btn-primary');
       params.local[this.id] = ($(this).is('.btn-primary') ? 1 : 0);
-      if(this.id === 'lock_osc_raw_mode') rawModeRescaleY();   // v2.3.21: Y in the new units
+      if(this.id === 'lock_osc_raw_mode') {
+        // v2.2.14: the trigger level is in ADC counts in Raw Mode: converted, so the scope triggers at the same point
+        if(params.local.trig_level !== undefined)
+          params.local.trig_level = trigLevelForRaw(params.local.trig_level, params.local, params.local[this.id] == 1);
+        rawModeRescaleY();   // v2.3.21: Y in the new units (also the level field and the slider)
+      }
       sendParams();
     });
 
@@ -3048,6 +3054,54 @@
   }
   // [TRIG FROM GRAPH END]
 
+  // [RAW TRIGGER BEGIN] v2.2.14 (pure functions, also run by test/raw_trigger_sim.js): units of the scope trigger level.
+  // Param trig_level: normalized volts (the page shows it multiplied by the scale of the trigger channel), or ADC
+  // counts in Raw Mode (lock_osc_raw_mode = 1; the controller writes them to the threshold of the scope as they are,
+  // src/worker.c rp_osc_trig_level_v()). Before, the page converted the level with the volts scale and limited it to
+  // +-gui_reset_y_range/2 (+-1) also in Raw Mode, and the controller took the counts as volts (threshold 8191).
+  function trigRaw(p) { return !!(p && Number(p.lock_osc_raw_mode)); }
+  function trigLevelScale(p) {
+    if(trigRaw(p)) return 1;
+    var s = Number(p && (p.trig_source == 0 ? p.scale_ch1 : p.scale_ch2));
+    return (s > 0 && isFinite(s)) ? s : 1;
+  }
+  // limits of the level in page units: +-gui_reset_y_range/2 V (of q, the server values, if given) or -8192..8191
+  function trigLevelLimits(p, q) {
+    if(trigRaw(p)) return [-8192, 8191];
+    var y = Number((q || p).gui_reset_y_range) / 2;
+    if(!(y > 0) || !isFinite(y)) y = 1;
+    return [-y, y];
+  }
+  // page value (V or counts) -> trig_level param, limited to trigLevelLimits(p, q) (the controller corrected
+  // out-of-range levels and logged "Incorrect parameters value"); whole counts in Raw Mode. And back.
+  function pageToTrigLevel(v, p, q) {
+    var lim = trigLevelLimits(p, q);
+    v = Math.min(Math.max(Number(v), lim[0]), lim[1]);
+    return trigRaw(p) ? Math.round(v) : v / trigLevelScale(p);
+  }
+  function trigLevelToPage(level, p) { return Number(level) * trigLevelScale(p); }
+  // text of the Level field: whole counts in Raw Mode (AUTO may give a half count), V as before
+  function trigLevelText(level, p) {
+    var v = trigLevelToPage(level, p);
+    return trigRaw(p) ? Math.round(v) : v;
+  }
+  // trig_level when Raw Mode is switched (counts <-> normalized V), so the scope triggers at about the same point:
+  // counts = V_norm * 8192 / max_norm, with max_norm = (gui_reset_y_range / 2) / max(scale_ch1, scale_ch2), the ADC
+  // full scale at gain 1 (src/main.c get_scales()). (The calibration offset of the input, a few counts, is not known
+  // by the page.)
+  function rawCountsPerVolt(p) {
+    var smax = Math.max(Number(p.scale_ch1) || 0, Number(p.scale_ch2) || 0);
+    var maxnorm = (smax > 0) ? Number(p.gui_reset_y_range) / 2 / smax : 1;
+    if(!(maxnorm > 0) || !isFinite(maxnorm)) maxnorm = 1;
+    return 8192 / maxnorm;
+  }
+  function trigLevelForRaw(level, p, to_raw) {
+    var v = Number(level), k = rawCountsPerVolt(p);
+    if(!isFinite(v)) return 0;
+    return to_raw ? Math.max(-8192, Math.min(8191, Math.round(v * k))) : v / k;
+  }
+  // [RAW TRIGGER END]
+
   // [RESET ZOOM BEGIN] v2.3.21 (pure functions, also run by test/reset_zoom_sim.js)
   // Decimation of each scope time_range (src/fpga.c, osc_fpga_cnv_time_range_to_dec()) and length of one memory of
   // the scope (16384 samples of 8 ns) at Dec 1, in seconds.
@@ -4151,6 +4205,7 @@
   function initPlot(init_params) {
     var plot_holder = $('#plot_holder');
     var ymax = init_params.gui_reset_y_range / 2;
+    if(Number(init_params.lock_osc_raw_mode)) ymax = 8192;   // v2.2.14: Raw Mode, counts (it was +-1 count)
     var ymin = ymax * -1;
 
     // Load received params
@@ -4590,8 +4645,7 @@
     $('#trig_mode').val(params.original.trig_mode);
     $('#trig_source').val(params.original.trig_source);
     $('#trig_edge').val(params.original.trig_edge);
-    var scale = (params.original.trig_source == 0 ? params.original.scale_ch1 : params.original.scale_ch2);
-    $('#trig_level').val(floatToLocalString(params.original.trig_level * scale));
+    $('#trig_level').val(floatToLocalString(trigLevelText(params.original.trig_level, params.original)));   // v2.2.14: V or counts
 
     if ((refresh_counter++ % meas_panel_dec) == 0) {
         $('#info_ch1_min').html(floatToLocalString(shortenFloat(params.original.meas_min_ch1)));
@@ -4891,6 +4945,7 @@
       last_unit_mode=params.local.lock_osc_raw_mode;
       unitval= params.local["lock_osc_raw_mode"]==1 ? 'int' : 'V';
       $('#ytitle').text('Voltage ['+unitval+']');
+      $('#trig_lev_units').text(params.local["lock_osc_raw_mode"]==1 ? 'counts' : 'V');   // v2.2.14: unit of the trigger level
 
       tmpsel=$('#measure >>>> span.unit');
       tmpsel[0].innerText=unitval ;
@@ -5252,9 +5307,8 @@
   // Add a data series for the trigger level line
   function addTriggerDataSet(dsets) {
 
-    // Transform trigger level to real values
-    var scale = (params.local.trig_source == 0 ? params.local.scale_ch1 : params.local.scale_ch2);
-    var tlev = params.local.trig_level * scale;
+    // Transform trigger level to real values (V, or counts in Raw Mode: v2.2.14)
+    var tlev = trigLevelToPage(params.local.trig_level, params.local);
 
     // Don't add trigger dataset if trigger level is outside the visible area...
     if(plot) {
@@ -5609,7 +5663,8 @@
     }
     updateTriggerSlider(y);
 
-    $('#trigger_tooltip').data('bs.tooltip').options.title = plot.getAxes().yaxis.c2p(y).toFixed(trigger_level_xdecimal_places);
+    $('#trigger_tooltip').data('bs.tooltip').options.title = (trigRaw(params.local) ?   // v2.2.14: whole counts in Raw Mode
+      String(Math.round(plot.getAxes().yaxis.c2p(y))) : plot.getAxes().yaxis.c2p(y).toFixed(trigger_level_xdecimal_places));
     $('#trigger_tooltip').tooltip('show');
   }
 
@@ -5626,8 +5681,9 @@
         y = evt.clientY - this.getBoundingClientRect().top - plot.getPlotOffset().top;
       }
 
-      var scale = (params.local.trig_source == 0 ? params.local.scale_ch1 : params.local.scale_ch2);
-      params.local.trig_level = parseFloat(plot.getAxes().yaxis.c2p(y).toFixed(trigger_level_xdecimal_places)) / scale;
+      // v2.2.14: V, or counts in Raw Mode, limited to the range of the scope
+      params.local.trig_level = pageToTrigLevel(parseFloat(plot.getAxes().yaxis.c2p(y).toFixed(trigger_level_xdecimal_places)),
+                                                params.local, params.original);
 
       updateTriggerSlider();
       redrawPlot();
@@ -5647,13 +5703,12 @@
     var canvas = $('#trigger_canvas')[0];
     var context = canvas.getContext('2d');
     var plot_offset = plot.getPlotOffset();
-    var ymax = params.original.gui_reset_y_range / 2;
-    var ymin = ymax * -1;
+    // v2.2.14: limits of the level: +-gui_reset_y_range/2 V, or -8192..8191 counts in Raw Mode (it was +-1 there too)
+    var lim  = trigLevelLimits(params.local, params.original);
+    var ymin = lim[0], ymax = lim[1];
 
-    // Transform trigger level to real values
-    // TODO: local or original params?
-    var scale = (params.local.trig_source == 0 ? params.local.scale_ch1 : params.local.scale_ch2);
-    var tlev = params.local.trig_level * scale;
+    // Transform trigger level to real values (V, or counts in Raw Mode)
+    var tlev = trigLevelToPage(params.local.trig_level, params.local);
 
     // If trigger level is outside the predefined ymin/ymax, change the level
 
@@ -5666,7 +5721,7 @@
 
     if(y === undefined) {
       if(update_input !== false) {
-        $('#trig_level').not(':focus').val(floatToLocalString(tlev));
+        $('#trig_level').not(':focus').val(floatToLocalString(trigRaw(params.local) ? Math.round(tlev) : tlev));
       }
       y = plot.getAxes().yaxis.p2c(tlev);
     }
@@ -6137,8 +6192,12 @@
     oscUsrConfigLoad(params.storage[num].ui);   // v2.2.10: "usr" preset of the config (if any; not sent to the server)
 
     // load into params
+    var cfg_raw_before = !!(params.local && Number(params.local.lock_osc_raw_mode));
     loadParams(params.storage[num].data);
     if(cfg_x_s) lockSetXWindow(cfg_x_s[0], cfg_x_s[1]);   // params.local.xmin/xmax and the plot axes
+    // v2.2.14: a config that changes Raw Mode: Y to the range of Reset zoom in its units (+-1 V / +-8192 counts), once
+    // (it stayed in the old units: +-8192 V or +-1 count). Its trigger level is already in its units: not converted.
+    if(params.local && !!Number(params.local.lock_osc_raw_mode) !== cfg_raw_before) rawModeRescaleY();
     config_load_x_pending = true;   // the answer of the last chunk sets the window (configLoadApplyX())
     // A POST in flight: its response must not overwrite the config (empty unsent_base -> all its values are
     // unsent changes until the queued sendParams(.., send_all) sends them)
@@ -6368,7 +6427,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.13)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.14)</h2>
     </div>
   </div>
   <div class="container">

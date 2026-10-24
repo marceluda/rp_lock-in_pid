@@ -90,10 +90,10 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
         "auto_flag", 0, 1, 0, 0, 1 },
     { /* min_y, max_y - Controller defined Y range when using auto-set or after
        * gain change y range */
-        "min_y", 0, 0, 0, -1000, +1000 },
+        "min_y", 0, 0, 0, -20000, +20000 },
     { /* min_y, max_y - Controller defined Y range when using auto-set or after
        * gain change y range */
-        "max_y", 0, 0, 0, -1000, +1000 },
+        "max_y", 0, 0, 0, -20000, +20000 },
     { /* forcex_flag:
        * Server sets this flag when X axis time units change
        * Client checks this flag, when set the server's xmin:xmax define the visualization range
@@ -152,9 +152,9 @@ static rp_app_params_t rp_main_params[PARAMS_NUM+1] = {
     { /* gui_xmax - Xmax as specified by GUI - not rounded to sampling engine quanta. */
         "gui_xmax",    131, 0, 1, -10000000, +10000000 },
     { /* min_y_norm, max_y_norm - Normalized controller defined Y range when using auto-set */
-        "min_y_norm", 0, 0, 0, -1000, +1000 },
+        "min_y_norm", 0, 0, 0, -20000, +20000 },
     { /* min_y_norm, max_y_norm - Normalized controller defined Y range when using auto-set */
-        "max_y_norm", 0, 0, 0, -1000, +1000 },
+        "max_y_norm", 0, 0, 0, -20000, +20000 },
     { /* gen_DC_norm_1 - DC offset for channel 1 expressed in normalized 1V */
         "gen_DC_norm_1", 0, 1, 0, -100, 100 },
     { /* gen_DC_norm_2 - DC offset for channel 2 expressed in normalized 1V */
@@ -795,6 +795,10 @@ void transform_to_iface_units(rp_app_params_t *p)
     /* Re-calculate output parameters */
     p[GUI_RST_Y_RANGE].value = 2.0 * maxv;
 
+    /* v2.2.14: Raw Mode: the auto-set gives the Y range in ADC counts, not scaled (the limits of min_y/max_y(_norm)
+     * are +-20000, so that +-8192 counts * 1.2 is not clipped to +-1000 as before) */
+    if(p[LOCK_OSC_RAW_MODE].value > 0)
+        scale = 1;
     p[MIN_Y_PARAM].value = p[MIN_Y_NORM].value * scale;
     p[MAX_Y_PARAM].value = p[MAX_Y_NORM].value * scale;
 

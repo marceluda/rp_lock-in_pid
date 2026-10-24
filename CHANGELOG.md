@@ -1,6 +1,30 @@
 
 # Devbuild  changes
 
+## v2.2.14 - 2026-10-24 - Raw Mode: scope trigger level in ADC counts (C controller + web page, no FPGA change; as lock_in+pid_harmonic 2.3.29)
+
+Port of lock_in+pid_harmonic 2.3.29 (same code in this App). Bug found in `rp_dummy2` (which inherited this code),
+present in all earlier versions: with **Raw Mode** on, the *Level* of the scope trigger did not work.
+- FIXED (C controller): in Raw Mode the page sends the level in ADC counts, but the controller passed it to
+  `osc_fpga_update_params()`, which converts **volts** to counts: 100 counts were taken as 100 V and the threshold
+  saturated (8191 minus the calibration offset; −3000 even wrapped to a positive threshold), so Normal / Single never
+  triggered for a level other than 0. Now `rp_osc_trig_level_v()` (`src/worker.c`) turns the counts into the voltage
+  that `osc_fpga_cnv_v_to_cnt()` maps back to exactly those counts (`osc_fpga_cnv_cnt_to_trig_v()`, `src/fpga.c`, with
+  the calibration offset of the input selected by OscA / OscB and the user offset). A level beyond 8191 − calibration
+  offset saturates there, as in volts mode.
+- FIXED (C controller): AUTO in Raw Mode: the level of its search left the calibration offset out, its result (counts)
+  was then applied as volts, and its Y range (counts) was scaled and clipped to ±1000 (`min_y` / `max_y` (`_norm`)
+  limits, now ±20000; not scaled in Raw Mode). Volts mode unchanged.
+- FIXED (web page): *Level* field, slider (and its drag) and trigger line in counts in Raw Mode (whole counts,
+  −8192 … 8191; they used the volts scale and ±1), in V otherwise (± full scale); out-of-range values limited before
+  sending; unit `counts` / `V` next to the field. The **Raw Mode** button converts the level (counts = V × 8192 / full
+  scale at gain 1). *Config → load* of a config with the other Raw Mode sets Y to the Reset zoom range of its mode
+  once (its level is not converted). The page opened in Raw Mode starts with Y ±8192 (it was ±1 count).
+- Tests: new `test/raw_trigger_sim.js` (45 checks; the page of 2.2.13 fails 31) and `test/trig_level_test.c` (real
+  `src/fpga.c`); `test/auto_set_c_sim` section 11 (thresholds written by the real controller in Raw Mode, AUTO in Raw
+  Mode; the sources of 2.2.13 fail 6 of its 10 checks); `lock_capture_ui_sim.js`, `lock_ctrl_ui_sim.js`,
+  `osc_presets_sim.js` load the new `[RAW TRIGGER]` block.
+
 ## v2.2.13 - 2026-10-20 - Quick trigger buttons time / level / time+level in Lock Control; fixed lost time/level and re-lock with a POST in flight (as lock_in+pid_harmonic 2.3.28)
 
 Port of lock_in+pid_harmonic 2.3.28 (web page only, no FPGA / C change; same code, the lock trigger options and

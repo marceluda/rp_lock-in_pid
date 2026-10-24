@@ -249,6 +249,8 @@ int   osc_fpga_cnv_time_range_to_dec(int time_range);
 int   osc_fpga_cnv_time_to_smpls(float time, int dec_factor);
 int   osc_fpga_cnv_v_to_cnt(float voltage, float max_adc_v,
                             int calib_dc_off, float user_dc_off);
+float osc_fpga_cnv_cnt_to_trig_v(float cnts, float adc_max_v,
+                                 int calib_dc_off, float user_dc_off);
 float osc_fpga_cnv_cnt_to_v(int cnts, float max_adc_v,
                             int calib_dc_off, float user_dc_off);
 float osc_fpga_calc_adc_max_v(uint32_t fe_gain_fs, int probe_att);

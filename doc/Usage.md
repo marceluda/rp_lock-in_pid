@@ -68,7 +68,7 @@ The mouse wheel over a number field changes it by 1 (SHIFT ×10, CTRL ×100); **
 | Stop | Stops the acquisition. |
 | Save Data | Plot data as Python/Numpy, Matlab/Octave or CSV ([Saving data](#saving-data)). |
 | Config | Save / load configurations ([below](#saving-and-loading-configurations)). |
-| Raw Mode | Values in counts instead of volts (also in the lock-in displays). |
+| Raw Mode | Values in counts instead of volts (also in the lock-in displays). Also the *Level* of the scope trigger (field, slider and line; −8192 … 8191, unit `counts`): switching Raw Mode converts it (counts = V × 8192 / full scale) and sets Y to −8192 … 8192 / −1 … 1 V. Before v2.2.14 the level in Raw Mode was taken as volts by the controller (Normal / Single did not trigger). |
 | Averaging | Average inside the decimation. |
 | **AUTO** | Auto-set of the scope in the controller (time range, trigger, Y range). Ends a lock capture. Not the same as *Autoscale*. |
 
@@ -215,8 +215,8 @@ How the lock control works inside: [`lock_control.md`](../lock_in+pid/doc/lock_c
 
 ### Right panels and displays
 
-- **Trigger**: *Source* (Channel 1, Channel 2, External), *Mode* (Auto, Normal, Single), *Edge*, *Level*, and the
-  *Single* button. External uses the *Ext Trig* of the Oscilloscope panel.
+- **Trigger**: *Source* (Channel 1, Channel 2, External), *Mode* (Auto, Normal, Single), *Edge*, *Level* (in V, or in
+  ADC counts in Raw Mode, −8192 … 8191, since v2.2.14), and the *Single* button. External uses the *Ext Trig* of the Oscilloscope panel.
   **Auto** (since v2.2.11) waits for the trigger as *Normal* does (the *Level* of the source channel, or the
   *Ext Trig* with Source = External) and forces an acquisition only when no trigger comes within a time limit:
   the largest of 0.25 s, 1.1 × the window + 50 ms and, when the period of the Ext Trig is known (Scan floor /

@@ -176,6 +176,9 @@ function makeEnv(init, ls) {
   // lock_in+pid_harmonic2: loadParams() calls warnNaSwitches() (console warning of the "(n/a)" options, DOM only)
   if(code.indexOf('function warnNaSwitches(') < 0) code += '\nfunction warnNaSwitches() {}\n';
   code += '\n' + blockSrc('LOCK CAPTURE') + '\n' + blockSrc('OSC PRESETS') + '\n';
+  // v2.2.14: [RAW TRIGGER] block of the page (trigLevelText() etc., used by loadParams()); absent in older pages
+  { const rb = js.indexOf('// [RAW TRIGGER BEGIN]'), re = js.indexOf('// [RAW TRIGGER END]');
+    if(rb >= 0 && re > rb) code += '\n' + js.slice(rb, re) + '\n'; }
   code += '\nvar scope_stop = false;\nfunction updateGraphData() { if(downloading || scope_stop) return; if(update_timer) { clearTimeout(update_timer); update_timer = null; }' +
           ' downloading = true; doGetData(); }\n';
   code += '\nthis.__get = function(e){return eval(e)};';
