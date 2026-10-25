@@ -1,6 +1,36 @@
 
 # Devbuild  changes
 
+## v2.2.15 - 2026-10-24 - AUTO trigger level at the middle of the signal with a calibration offset or a full scale other than 1 V; Raw Mode half counts (C controller; page: version and comments only; no FPGA change; as lock_in+pid_harmonic 2.3.30)
+
+Port of lock_in+pid_harmonic 2.3.30 (same code in this App). Issues of the AUTO found in the review of v2.2.14 (the half
+count was seen on RP2 by testAgent, 2026-10-24 21:44; the other two do not show on RP1 / RP2).
+
+- FIXED (C controller): **AUTO in volts with a calibration offset** (`fe_chX_dc_offs` of the input, from the EEPROM;
+  RP2's are 0): the AUTO measures the signal with samples corrected by the offset, but the threshold registers compare
+  raw samples. The threshold of its period search added the offset a second time (one offset **above** the middle),
+  and the level it left had no offset at all (threshold and page line one offset **below** the middle of the trace).
+  Now both are the middle of the signal in raw counts, and the level is the normalized voltage that the acquisition
+  path turns into that threshold (`osc_fpga_cnv_cnt_to_trig_v()` with the calibration and user offsets): the *Level*
+  shown by the page is the middle of the trace. Its period search compares raw samples with raw limits (a signal
+  smaller than the offset gave no period) and its Y range no longer mixes raw and corrected counts.
+- FIXED (C controller): **AUTO in volts with a normalized full scale other than 1 V** (`fe_ch1_fs_g_hi` of the EEPROM;
+  RP1 / RP2 have exactly 1 V, a typical factory calibration ~1.07 V): the level and the Y range were stored as
+  counts / 8192, but a normalized value is counts × full scale / 8192 (the acquisition converts the level with that
+  full scale, the page multiplies by chX full scale / that full scale): both were scaled by 1 / full scale (~7 %).
+- With offsets 0 and a full scale of 1 V (RP1 / RP2) the volts AUTO gives the same result as before.
+- FIXED (C controller): **Raw Mode, half counts**: the AUTO left a level of half a count (e.g. −2.5) that the page
+  showed as −2 (`Math.round`) while the controller wrote −3 (`roundf`). Now the AUTO gives a whole count rounded as the
+  page, and `osc_fpga_cnv_cnt_to_trig_v()` rounds a level with a fraction (e.g. from a remote client) the same way
+  (`floor(x + 0.5)`): the Level field and the threshold register always agree.
+- Tests: `test/auto_set_c_sim` section 11, new checks 11.10-11.16 (calibration offset 585 and normalized full scale
+  0.6543 V of the harness: volts AUTO threshold of the search and of the acquisitions that follow at the middle, level
+  shown by the page = middle of the trace, Y range in V, Raw AUTO with a middle of −2.5 → −2 in level and register,
+  half counts from a remote client; with the sources of v2.2.14, 6 fail: 11.13 already passed);
+  `test/trig_level_test.c`: levels with a fraction (±0.25, ±0.5, ±0.75) give the count the page shows (with the
+  `src/fpga.c` of v2.2.14, 64004 fail); `test/raw_trigger_sim.js`: section 9 (page and controller round half counts
+  the same way) and code checks 8.4, 8.6-8.9 (53 checks; with the sources of v2.2.14, 5 fail).
+
 ## v2.2.14 - 2026-10-24 - Raw Mode: scope trigger level in ADC counts (C controller + web page, no FPGA change; as lock_in+pid_harmonic 2.3.29)
 
 Port of lock_in+pid_harmonic 2.3.29 (same code in this App). Bug found in `rp_dummy2` (which inherited this code),

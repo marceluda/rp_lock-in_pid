@@ -634,6 +634,9 @@ int osc_fpga_cnv_v_to_cnt(float voltage, float adc_max_v,
  * A level beyond the 14-bit range once the calibration offset is added saturates (as in volts mode): with a
  * calibration offset of +c counts the highest threshold is 8191 - c.
  *
+ * v2.2.15: a level with a fraction is rounded to the nearest count with halves upwards (floor(x + 0.5), as Math.round()
+ * of the page, trigLevelText()): -2.5 -> -2, as the page shows it (roundf() gave -3).
+ *
  * @param[in] cnts           Level in raw ADC counts (-8192..8191, as shown in Raw Mode: no calibration offset)
  * @param[in] adc_max_v      Maximal ADC voltage passed to osc_fpga_cnv_v_to_cnt(), specified in [V]
  * @param[in] calib_dc_off   Calibrated DC offset passed to osc_fpga_cnv_v_to_cnt(), in ADC counts
@@ -643,7 +646,7 @@ int osc_fpga_cnv_v_to_cnt(float voltage, float adc_max_v,
 float osc_fpga_cnv_cnt_to_trig_v(float cnts, float adc_max_v,
                                  int calib_dc_off, float user_dc_off)
 {
-    float c = roundf(cnts);
+    float c = floorf(cnts + 0.5f);       /* v2.2.15: halves upwards, as the page (Math.round), not roundf() */
     if(c >  (float)((1<<(c_osc_fpga_adc_bits-1))-1)) c = (float)((1<<(c_osc_fpga_adc_bits-1))-1);
     if(c < -(float)(1<<(c_osc_fpga_adc_bits-1)))     c = -(float)(1<<(c_osc_fpga_adc_bits-1));
     return (c + calib_dc_off) * (2*adc_max_v) / (float)(1<<c_osc_fpga_adc_bits) + user_dc_off;

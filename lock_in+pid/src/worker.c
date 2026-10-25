@@ -1340,6 +1340,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
     // lolo
     int32_t  fe_ch1_dc_offs=0;
     int32_t  fe_ch2_dc_offs=0;
+    /* v2.2.15: full scale of the normalized volts of trig_level and min_y/max_y_norm (the acquisition path converts the
+     * level with it, rp_osc_worker_thread(); the page multiplies by scale_chX = chX full scale / max_adc_norm): a
+     * normalized value is counts * max_adc_norm / 8192 (it was counts / 8192: only right with a full scale of 1 V) */
+    float max_adc_norm = osc_fpga_calc_adc_max_v(rp_calib_params->fe_ch1_fs_g_hi, 0);
 
     // if oscilloscope channels are in in1 or in2, make offset correction
     if( rp_osc_params[LOCK_OSCA_SW].value==1 )
@@ -1505,8 +1509,9 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
             orig_params[MIN_Y_NORM].value = min_y ;
             orig_params[MAX_Y_NORM].value = max_y ;
         }else{
-            orig_params[MIN_Y_NORM].value = min_y / (float)(1 << (c_osc_fpga_adc_bits - 1));
-            orig_params[MAX_Y_NORM].value = max_y / (float)(1 << (c_osc_fpga_adc_bits - 1));
+            /* v2.2.15: x max_adc_norm (see its declaration) */
+            orig_params[MIN_Y_NORM].value = min_y * max_adc_norm / (float)(1 << (c_osc_fpga_adc_bits - 1));
+            orig_params[MAX_Y_NORM].value = max_y * max_adc_norm / (float)(1 << (c_osc_fpga_adc_bits - 1));
         }
 
 
@@ -1525,6 +1530,8 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
         int time_range;                /* decimation from 0 to 5 */
         float max_adc_v;
         int calib_dc_off;
+        float user_dc_off;
+        int smpl_off;                  /* v2.2.15: offset of min/max over the raw samples (calibration in volts) */
 
        int wr_ptr_curr, wr_ptr_trig;
 
@@ -1534,23 +1541,30 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
             trig_src_ch = 0;
             max_adc_v = ch1_max_adc_v;
             calib_dc_off = fe_ch1_dc_offs;
+            user_dc_off = ch1_user_dc_off;
         } else {
             min_y = min_chb;
             max_y = max_chb;
             trig_src_ch = 1;
             max_adc_v = ch2_max_adc_v;
             calib_dc_off = fe_ch2_dc_offs;
+            user_dc_off = ch2_user_dc_off;
         }
+        /* v2.2.15: min_y/max_y (and trig_level) include the calibration offset in volts mode (the samples were
+         * corrected above), not in Raw Mode; the threshold register and meas_period() work on raw samples */
+        smpl_off = (rp_osc_params[LOCK_OSC_RAW_MODE].value > 0) ? 0 : calib_dc_off;
         trig_level = (max_y + min_y) >> 1;
         TRACE("AUTO: trig level: %d\n", trig_level);
         TRACE("AUTO: min,max: %d  %d\n", min_y, max_y);
 
         /* v2.2.14: the voltage that osc_fpga_update_params() below (same max_adc_v and calib_dc_off) turns into a
-         * threshold of exactly trig_level counts: the formula of volts mode, now in both modes. In Raw Mode the
-         * samples (min/max) have no calibration offset, so the threshold is the middle of the signal (before, the
-         * offset was left out there: threshold off by -calib_dc_off; and the level of the result, in counts, was then
-         * applied as volts by the acquisition path, see rp_osc_trig_level_v()) */
-        trig_level_v = osc_fpga_cnv_cnt_to_trig_v(trig_level, max_adc_v, calib_dc_off, 0);
+         * threshold of exactly the middle of the signal in raw counts, in both modes (before, the offset was left out
+         * in Raw Mode: threshold off by -calib_dc_off; and the level of the result, in counts, was then applied as
+         * volts by the acquisition path, see rp_osc_trig_level_v()).
+         * v2.2.15: the middle in raw counts is trig_level - smpl_off: in volts mode trig_level already includes the
+         * calibration offset (corrected samples), and the formula added it again (all earlier versions): threshold of
+         * the search one offset above the middle */
+        trig_level_v = osc_fpga_cnv_cnt_to_trig_v(trig_level - smpl_off, max_adc_v, calib_dc_off, 0);
         int loc_max = INT_MIN;
         int loc_min = INT_MAX;
 
@@ -1605,8 +1619,10 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
 
             rp_osc_meas_res_t meas;
             rp_osc_meas_clear(&meas);
-            meas.min = min_y;
-            meas.max = max_y;
+            /* v2.2.15: raw min/max, as the samples meas_period() compares with them (in volts mode its thresholds
+             * were one calibration offset off: a signal smaller than the offset gave no period) */
+            meas.min = min_y - smpl_off;
+            meas.max = max_y - smpl_off;
 
             meas_period(&meas, sig_data, wr_ptr_trig, dec_factor, &loc_min, &loc_max);
             period = meas.period;
@@ -1632,11 +1648,18 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                 orig_params[TIME_RANGE_PARAM].value = time_range;
                 orig_params[TRIG_SRC_PARAM].value   = trig_src_ch;
 
+                /* v2.2.15: level at the middle of the signal (loc_min/loc_max: raw samples of meas_period()).
+                 * Raw Mode: whole counts, halves upwards as the page (Math.round in trigLevelText()) and
+                 * osc_fpga_cnv_cnt_to_trig_v() round them (before: -2.5, shown as -2 by the page and written as -3).
+                 * Volts: the normalized voltage that the acquisition path (osc_fpga_cnv_v_to_cnt() with max_adc_norm, the
+                 * calibration and user offsets) turns into that threshold, i.e. the middle of the trace as the page
+                 * shows it; before, (loc_max + loc_min) / 2 / 8192 had no calibration offset: threshold and level one
+                 * offset below the middle (and only exact with a normalized full scale of 1 V) */
                 if(rp_osc_params[LOCK_OSC_RAW_MODE].value>0){  // LOLO
-                    orig_params[TRIG_LEVEL_PARAM].value =((float)(loc_max + loc_min))/2 ;
+                    orig_params[TRIG_LEVEL_PARAM].value = floorf((float)(loc_max + loc_min + 1) / 2);
                 }else{
-                    orig_params[TRIG_LEVEL_PARAM].value = ((float)(loc_max + loc_min))/2 /
-                                            (float)(1<<(c_osc_fpga_adc_bits-1));
+                    orig_params[TRIG_LEVEL_PARAM].value =
+                        osc_fpga_cnv_cnt_to_trig_v((float)(loc_max + loc_min) / 2, max_adc_norm, calib_dc_off, user_dc_off);
                 }
 
 
@@ -1666,11 +1689,12 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                 min_y = (min_cha < min_chb) ? min_cha : min_chb;
                 max_y = (max_cha > max_chb) ? max_cha : max_chb;
 
-                if (loc_max > max_y)
-                    max_y = loc_max;
+                /* v2.2.15: loc_min/loc_max are raw samples, min_y/max_y include the calibration offset in volts */
+                if (loc_max + smpl_off > max_y)
+                    max_y = loc_max + smpl_off;
 
-                if (loc_min <  min_y)
-                    min_y = loc_min;
+                if (loc_min + smpl_off <  min_y)
+                    min_y = loc_min + smpl_off;
 
                 ave_y = (min_y + max_y) >> 1;
                 amp_y = ((max_y - min_y) >> 1) * 1.2;
@@ -1681,8 +1705,9 @@ int rp_osc_auto_set(rp_app_params_t *orig_params,
                     orig_params[MIN_Y_NORM].value = min_y ;
                     orig_params[MAX_Y_NORM].value = max_y ;
                 }else{
-                    orig_params[MIN_Y_NORM].value = min_y / (float)(1 << (c_osc_fpga_adc_bits - 1));
-                    orig_params[MAX_Y_NORM].value = max_y / (float)(1 << (c_osc_fpga_adc_bits - 1));
+                    /* v2.2.15: x max_adc_norm (see its declaration) */
+                    orig_params[MIN_Y_NORM].value = min_y * max_adc_norm / (float)(1 << (c_osc_fpga_adc_bits - 1));
+                    orig_params[MAX_Y_NORM].value = max_y * max_adc_norm / (float)(1 << (c_osc_fpga_adc_bits - 1));
                 }
 
                 // For POST response ...

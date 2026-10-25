@@ -42,6 +42,12 @@
  *      input selected by lock_oscA_sw / lock_oscB_sw (585 here: calib.c defaults) or none (internal signals); volts
  *      mode unchanged; AUTO in Raw Mode: level and Y range in counts (Y was clipped to +-1000) and a threshold near
  *      the middle of the signal. Runs after section 5 (instant acquisitions: sine +-3000 / +-1500 counts).
+ *      v2.2.15 (11.10-11.15): the AUTO threshold at the middle of the signal in both modes with a calibration offset
+ *      (585 here; RP2's is 0, so the board alone cannot show it): volts AUTO, its period search and the acquisitions
+ *      that follow (before: one offset above / below), level shown by the page = middle of the trace; Raw AUTO with a
+ *      middle of half a count (-2.5): whole count -2 as the page shows it (before: level -2.5, page -2, register -3);
+ *      half counts written by a remote client rounded as the page (Math.round); 11.16: the volts AUTO Y range in V with a
+ *      normalized full scale other than 1 V (0.6543 V here: calib.c defaults; counts / 8192 before, x max_adc_norm now).
  *
  * Build and run: test/auto_set_c_sim/run.sh [src dir]     (exit code 1 if a check fails)
  */
@@ -95,6 +101,12 @@ static void ring_tick(void);
  * default fe dc offset (calib.c, no EEPROM here), so that the corrected signal is centred at 0 (the period search
  * of the auto-set compares raw samples with thresholds of corrected values: the amplitude must exceed the offset) */
 static volatile int sig_noise = 0;
+/* v2.2.15: amplitudes of the positive / negative half of the sine (3005: middle of half a count), and a log of the armed
+ * acquisitions as the FPGA sees them when it triggers (trigger source register, thresholds) */
+static volatile int sig_amp_pos = 3000, sig_amp_neg = 3000;
+#define ACQ_LOG_N 4096
+static volatile int acq_log_n = 0;
+static volatile int acq_log_src[ACQ_LOG_N], acq_log_tha[ACQ_LOG_N], acq_log_thb[ACQ_LOG_N];
 static void *fpga_thread(void *arg)
 {
     (void)arg;
@@ -121,9 +133,17 @@ static void *fpga_thread(void *arg)
             usleep(1000);
             if(!cha)
                 osc_fpga_get_sig_ptr(&cha, &chb);
+            {                                          /* (circular: entry n at n % ACQ_LOG_N) */
+                int k = acq_log_n % ACQ_LOG_N;
+                acq_log_src[k] = osc->trig_source & OSC_FPGA_TRIG_SRC_RD_MASK;
+                acq_log_tha[k] = osc->cha_thr;
+                acq_log_thb[k] = osc->chb_thr;
+                acq_log_n = acq_log_n + 1;
+            }
             for(i = 0; i < OSC_FPGA_SIG_LEN; i++) {    /* 3000 counts, period 2000 samples */
+                double sn = sin(2 * M_PI * i / 2000.0);
                 int v = sig_noise ? (int)lround(1200.0 * sin(2 * M_PI * i / 12.4)) + (rand() % 201) - 100 - 585
-                                : (int)lround(3000.0 * sin(2 * M_PI * i / 2000.0));
+                                : (int)lround((sn >= 0 ? sig_amp_pos : sig_amp_neg) * sn);
                 cha[i] = v & 0x3fff;
                 chb[i] = (v / 2) & 0x3fff;
             }
@@ -789,6 +809,79 @@ int main(void)
         check("11.9 AUTO in Raw: threshold of the acquisitions that follow = the level (counts)",
               abs(THR(osc->cha_thr) - (int)lroundf(get("trig_level"))) <= 1, "cha_thr %d, level %g",
               THR(osc->cha_thr), get("trig_level"));
+        /* v2.2.15: the AUTO threshold at the middle of the signal in both modes, with the calibration offset of in1
+         * (585: calib.c defaults; RP2's offsets are 0). Sine +-3000 raw counts on CH1 (in1): middle 0 raw, +585 corrected.
+         * The period search of the AUTO is its first acquisition with a trigger source other than immediate (1) after its
+         * immediate ones (the scope may still acquire in Auto with the level of before when the POST arrives). */
+        {
+            int k, k0, ks, i;
+            float lev, sc1, maxn1, cnt_v, exp_v2;
+            post("lock_osc_raw_mode", 0.0, "lock_oscA_sw", 1.0, "lock_oscB_sw", 2.0, "trig_mode", 0.0, "trig_level", 0.0, NULL);
+            usleep(50000);
+            k0 = acq_log_n;
+            dt = post("auto_flag", 1.0, NULL);
+            usleep(150000);
+            for(ks = -1, k = k0, i = 0; k < acq_log_n; k++) {   /* after its immediate (1) acquisitions */
+                if(acq_log_src[k % ACQ_LOG_N] == 1) i = 1;
+                else if(i) { ks = k; break; }
+            }
+            check("11.10 volts AUTO (calibration 585): threshold of its period search = middle of the raw signal (0; before: +585)",
+                  ks >= 0 && abs(THR(acq_log_tha[ks % ACQ_LOG_N])) <= 1, "search acquisition %d, source %d, cha_thr %d, POST %.3f s",
+                  ks - k0, ks >= 0 ? acq_log_src[ks % ACQ_LOG_N] : -1, ks >= 0 ? THR(acq_log_tha[ks % ACQ_LOG_N]) : 99999, dt);
+            check("11.11 volts AUTO: threshold of the acquisitions that follow = middle (0; before: -585, level without the offset)",
+                  get("trig_mode") == 1 && get("trig_source") == 0 && abs(THR(osc->cha_thr)) <= 1,
+                  "trig_mode %g, source %g, level %g, cha_thr %d", get("trig_mode"), get("trig_source"), get("trig_level"), THR(osc->cha_thr));
+            /* the page shows trig_level x scale_ch1 [V]; the trace shows osc_fpga_cnv_cnt_to_v(raw, full scale of CH1,
+             * 585, user offset 0): its middle is cnt_to_v(0) */
+            lev = get("trig_level");
+            sc1 = get("scale_ch1");
+            maxn1 = get("gui_reset_y_range") / 2 / fmaxf(sc1, get("scale_ch2")) * sc1;   /* full scale of CH1 [V] */
+            cnt_v = maxn1 / 8192;
+            exp_v2 = osc_fpga_cnv_cnt_to_v(0, maxn1, 585, 0);
+            check("11.12 volts AUTO: the level shown by the page (trig_level x scale_ch1) = middle of the trace (585 counts in V)",
+                  fabsf(lev * sc1 - exp_v2) <= cnt_v, "page %.6f V, trace middle %.6f V (1 count = %.6f V)", lev * sc1, exp_v2, cnt_v);
+            /* Y range: corrected samples -2415 .. 3585 counts -> middle 585, +-3000 x 1.2 = -3015 .. 4185 counts, in V of the
+             * page (min_y / max_y = normalized x scale, scale_ch1 = scale_ch2 = 1 here) */
+            {
+                float ymin = get("min_y"), ymax = get("max_y"), emin = -3015 * cnt_v, emax = 4185 * cnt_v;
+                check("11.16 volts AUTO: Y range in V = -3015 .. 4185 counts of the trace with a normalized full scale other than 1 V (before: counts / 8192)",
+                      fabsf(ymin - emin) <= 2 * cnt_v && fabsf(ymax - emax) <= 2 * cnt_v, "full scale %.4f V: min_y %.5f, max_y %.5f, expected %.5f .. %.5f V",
+                      maxn1 / sc1, ymin, ymax, emin, emax);
+            }
+            /* Raw Mode, sine +3000 / -3005: middle -2.5 counts */
+            sig_amp_neg = 3005;
+            post("lock_osc_raw_mode", 1.0, "trig_mode", 0.0, NULL);
+            usleep(50000);
+            k0 = acq_log_n;
+            dt = post("auto_flag", 1.0, NULL);
+            usleep(150000);
+            for(ks = -1, k = k0, i = 0; k < acq_log_n; k++) {   /* after its immediate (1) acquisitions */
+                if(acq_log_src[k % ACQ_LOG_N] == 1) i = 1;
+                else if(i) { ks = k; break; }
+            }
+            check("11.13 Raw AUTO (calibration 585): threshold of its period search = middle of the signal (-2.5 +- 0.5)",
+                  ks >= 0 && abs(2 * THR(acq_log_tha[ks % ACQ_LOG_N]) + 5) <= 1, "cha_thr %d", ks >= 0 ? THR(acq_log_tha[ks % ACQ_LOG_N]) : 99999);
+            check("11.14 Raw AUTO, middle -2.5: level a whole count, -2 as the page shows it (Math.round), = threshold (before: level -2.5, page -2, register -3)",
+                  get("trig_level") == -2.0f && THR(osc->cha_thr) == -2 && get("trig_mode") == 1,
+                  "level %g, cha_thr %d, POST %.3f s", get("trig_level"), THR(osc->cha_thr), dt);
+            sig_amp_neg = 3000;
+            /* half counts from a remote client (Python writes trig_level): rounded as the page shows them */
+            {
+                static const float lv[] = { -2.5f, 2.5f, -0.5f, -1234.5f, 7.4f, -7.6f };
+                static const int   ex[] = { -2, 3, 0, -1234, 7, -8 };
+                int okh = 1;
+                char msg[256] = "";
+                post("trig_mode", 1.0, "trig_source", 0.0, "lock_oscA_sw", 1.0, NULL);
+                for(i = 0; i < 6; i++) {
+                    post("trig_level", (double)lv[i], NULL);
+                    usleep(100000);
+                    if(THR(osc->cha_thr) != ex[i]) okh = 0;
+                    snprintf(msg + strlen(msg), sizeof(msg) - strlen(msg), "%g->%d ", lv[i], THR(osc->cha_thr));
+                }
+                check("11.15 Raw: levels with a fraction (remote client) -> threshold = Math.round as the page (-2.5 -> -2; before: -3)",
+                      okh, "%s", msg);
+            }
+        }
         /* back to volts */
         post("lock_osc_raw_mode", 0.0, "trig_mode", 0.0, "trig_level", 0.0, NULL);
         usleep(50000);

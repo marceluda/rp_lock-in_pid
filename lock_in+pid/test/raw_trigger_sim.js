@@ -224,9 +224,38 @@ check('8.1 src/main.c: min_y/max_y(_norm) limits +-20000 (AUTO in Raw: +-8192 * 
 check('8.2 src/main.c: Y range of the auto-set not scaled in Raw Mode', /LOCK_OSC_RAW_MODE\][\s\S]{0,40}scale = 1/.test(mainc));
 check('8.3 src/worker.c: the acquisition path passes rp_osc_trig_level_v() to osc_fpga_update_params()',
       /curr_params\[MIN_GUI_PARAM\]\.value,\s*rp_osc_trig_level_v\(curr_params,/.test(workerc) && !/curr_params\[TRIG_LEVEL_PARAM\]\.value,\s*curr_params\[TIME_RANGE_PARAM\]/.test(workerc));
-check('8.4 src/worker.c: AUTO with the calibration offset in both modes', /trig_level_v = osc_fpga_cnv_cnt_to_trig_v\(trig_level, max_adc_v, calib_dc_off, 0\)/.test(workerc) &&
+check('8.4 src/worker.c: AUTO threshold at the middle in raw counts in both modes (v2.2.15: trig_level - smpl_off, the calibration offset was added twice in volts)',
+      /trig_level_v = osc_fpga_cnv_cnt_to_trig_v\(trig_level - smpl_off, max_adc_v, calib_dc_off, 0\)/.test(workerc) &&
+      /smpl_off = \(rp_osc_params\[LOCK_OSC_RAW_MODE\]\.value > 0\) \? 0 : calib_dc_off/.test(workerc) &&
       !/trig_level_v = \(\(\(trig_level\) \* max_adc_v\)/.test(workerc));
 check('8.5 src/fpga.c: osc_fpga_cnv_cnt_to_trig_v()', /float osc_fpga_cnv_cnt_to_trig_v\(/.test(fpgac));
+check('8.6 v2.2.15 src/worker.c: AUTO level in volts with the calibration offset (middle of the trace), in Raw a whole count rounded as the page',
+      /TRIG_LEVEL_PARAM\]\.value = floorf\(\(float\)\(loc_max \+ loc_min \+ 1\) \/ 2\)/.test(workerc) &&
+      /osc_fpga_cnv_cnt_to_trig_v\(\(float\)\(loc_max \+ loc_min\) \/ 2, max_adc_norm, calib_dc_off, user_dc_off\)/.test(workerc) &&
+      !/TRIG_LEVEL_PARAM\]\.value =\s*\(\(float\)\(loc_max \+ loc_min\)\)\/2/.test(workerc));
+check('8.7 v2.2.15 src/worker.c: period search of the AUTO with raw min/max', /meas\.min = min_y - smpl_off;/.test(workerc) && /meas\.max = max_y - smpl_off;/.test(workerc));
+check('8.8 v2.2.15 src/fpga.c: half counts rounded upwards as Math.round (floorf(cnts + 0.5f), not roundf)',
+      /float c = floorf\(cnts \+ 0\.5f\);/.test(fpgac) && !/float c = roundf\(cnts\)/.test(fpgac));
+check('8.9 v2.2.15 src/worker.c: AUTO in volts, normalized level / Y range = counts x max_adc_norm / 8192 (they were counts / 8192)',
+      (workerc.match(/MIN_Y_NORM\]\.value = min_y \* max_adc_norm \//g) || []).length == 2 &&
+      (workerc.match(/MAX_Y_NORM\]\.value = max_y \* max_adc_norm \//g) || []).length == 2 &&
+      !/MIN_Y_NORM\]\.value = min_y \/ \(float\)/.test(workerc) && /loc_max \+ smpl_off > max_y/.test(workerc));
+
+// ---- v2.2.15: the page and the controller round half counts the same way ----------------------------------------
+console.log('--- 9. v2.2.15: half counts (AUTO / remote client): the page shows what the controller writes');
+{
+  // the rule of the controller (src/fpga.c osc_fpga_cnv_cnt_to_trig_v(), src/worker.c AUTO in Raw): floor(x + 0.5)
+  const ctl = x => Math.floor(x + 0.5);
+  const xs = [-2.5, 2.5, -0.5, 0.5, -1234.5, 24.5, 7.4, -7.6, -8191.5, 8190.5];
+  const bad = xs.filter(x => Number(F('trigLevelText')(x, R)) !== ctl(x));
+  check('9.1 trigLevelText() in Raw = the rounding of the controller for half counts (-2.5 -> -2, 2.5 -> 3)', bad.length === 0, bad.join(' ') || 'all equal');
+  check('9.2 trigLevelText(-2.5) = -2 (the controller wrote -3 before v2.2.15)', Number(F('trigLevelText')(-2.5, R)) === -2, F('trigLevelText')(-2.5, R));
+  check('9.3 pageToTrigLevel(): typed half counts sent as the same whole count', xs.every(x => F('pageToTrigLevel')(x, R, V) === Math.max(-8192, Math.min(8191, ctl(x)))));
+  // AUTO in Raw: loc_min / loc_max integers -> level floor((max + min + 1) / 2) = Math.round((max + min) / 2)
+  const pairs = [[3000, -3005], [-100, -103], [8191, -8192], [7, 8], [-3, -2]];
+  check('9.4 AUTO in Raw: floorf((loc_max + loc_min + 1) / 2) of the controller = what trigLevelText() shows of the middle',
+        pairs.every(([a, b]) => Math.floor((a + b + 1) / 2) === Number(F('trigLevelText')((a + b) / 2, R))));
+}
 
 console.log(fails ? 'FAILED ' + fails + ' (' + (n - fails) + '/' + n + ')' : 'ALL OK (' + n + '/' + n + ')');
 process.exit(fails ? 1 : 0);
