@@ -193,6 +193,7 @@ function makeEnv(server) {
   code += '\nvar params = {original:null, local:null};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n';
   // v2.3.23: plot_epoch (Reset zoom) of the page, used by sendParams()
   if(js.includes('var plot_epoch = 0')) code += 'var plot_epoch = 0, plot_epoch_post = false;\n';
+  code += '\n' + (js.indexOf('// [FORCEX BEGIN]') >= 0 ? js.slice(js.indexOf('// [FORCEX BEGIN]'), js.indexOf('// [FORCEX END]')) : '') + '\n';   // v2.2.16 (plus 2.2.0-rc4): [FORCEX] (sendParams())
   code += ['unsentChanges', 'loadParams', 'updateTimeUnits', 'isParamChanged', 'splitParams', 'postParamsChunks', 'sendParams',
            'postEnd', 'sendableValue', 'isSendable', 'hasRealChange', 'lockStatus', 'lockSetBtn', 'lock_status_display']
           .map(fnSrc).join('\n');

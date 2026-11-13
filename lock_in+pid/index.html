@@ -16,7 +16,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Oscilloscope+lock-in+PID (v2.2.15)</title>
+  <title>Oscilloscope+lock-in+PID (v2.2.16)</title>
   <link href="../assets/bootstrap-3.0.0/css/bootstrap.css" rel="stylesheet" type="text/css">
   <link href="../assets/style.css?6" rel="stylesheet" type="text/css">
   <script src="../assets/bootstrap-3.0.0/js/jquery.js"></script>
@@ -34,6 +34,16 @@
     /* v2.3.22: cursor of the scope while SHIFT (wheel: X only) or ALT (wheel: Y only) is down, see [PLOT WHEEL] */
     #plot_holder.wheel-zoom-x, #plot_holder.wheel-zoom-x * { cursor: ew-resize !important; }
     #plot_holder.wheel-zoom-y, #plot_holder.wheel-zoom-y * { cursor: ns-resize !important; }
+    /* v2.2.16 (plus 2.2.0): tabs of the Ramp Controller (period | freq), see [RAMP UI] */
+    .nav-tabs.ramp-tabs { margin-bottom: 0; }
+    .nav-tabs.ramp-tabs > li > a { padding: 4px 16px; }
+    /* v2.2.16 (plus 2.2.0-rc3) (user): the content of the active tab is closed by the line of the tabs (Bootstrap .nav-tabs: 1px
+       #dddddd) on the sides and below, so it is clear which controls change with the tab. The tabs and the box span
+       the whole row (their column has no side padding); inside, the columns have 1px less of side padding, so the
+       form-groups (margin -15px) keep the width they had and the inputs do not change. */
+    .ramp-tabs-head { padding-left: 0; padding-right: 0; }
+    .ramp-tab-pane { clear: both; border: 1px solid #dddddd; border-top: 0; padding-top: 10px; margin-bottom: 10px; }
+    .ramp-tab-pane > .panel-group { padding-left: 14px; padding-right: 14px; }
     /* v2.2.10: presets of the scope signals (OscA|OscB), below Ext Trig, see [OSC PRESETS] */
     .osc-presets { display: flex; flex-wrap: wrap; width: 138px; padding-top: 2px; }
     .btn.osc-preset { width: 42px; height: 20px; margin: 0 4px 3px 0; padding: 1px 0; font-size: 10px; line-height: 16px;
@@ -302,6 +312,34 @@
   // at the click and at that answer; plot_epoch_post: the next POST carries the Reset zoom). The C also replaces the
   // trace of the old time units at once (src/worker.c): ~10 s of the old trace in ms were drawn on the new axis in s.
   var plot_epoch = 0, plot_epoch_post = false;
+  // [FORCEX BEGIN] v2.2.16 (plus 2.2.0-rc4) (bug of testAgent, reportes/lock-in_pid_plus/2026-11-13_1116_v220rc3.md): the "Force X"
+  // of a GET /data answer. After a POST that changes the time units, the server answers forcex_flag 1 (with its
+  // xmin/xmax in the new units) in that POST answer and in EVERY GET /data until the next POST. A GET that was in
+  // flight when the page set another window (e.g. the 2nd click of Reset Zoom, 0 .. T/2) brought the window of the
+  // 1st click ~70 ms later and put the axis back to it. Now the forceX of a GET is applied only if:
+  //   - the GET started after the last Reset zoom was answered (get_epoch === plot_epoch, as the data);
+  //   - the page did not set the X window itself since the GET started, and no POST was sent or answered since then
+  //     (xwin_gen: +1 at lockSetXWindow(), xWindowToParams(), X- / X+ and the X offset buttons, the X zoom of the
+  //     wheel, the start and the answer of every POST): plot_epoch alone moves only with Reset zoom / Lock osc.
+  //     screen, not with the box, the wheel or X+-, whose window waits up to 250 ms + the POST for the answer;
+  //   - its window (xmin, xmax, time_units) is not the one of the last forceX applied (POST or GET): the flag that the
+  //     server repeats is applied once, so it never undoes a later zoom of the page that sends no POST (the X zoom
+  //     during a Capture Lock is local).
+  // The forceX of the POST answer (the server converted the window the page has just sent) is applied as before.
+  var xwin_gen = 0;
+  var forcex_last = '';
+  function xWindowLocal() { xwin_gen++; }
+  function forceXKey(p) { return [Number(p.xmin), Number(p.xmax), Number(p.time_units)].join(','); }
+  // true: apply the forceX of the params p of a GET /data answer (get_epoch / get_xgen: plot_epoch / xwin_gen when it started)
+  function getForceXApply(p, get_epoch, get_xgen) {
+    if(!p || p.forcex_flag != 1) return false;
+    if(get_epoch !== plot_epoch || get_xgen !== xwin_gen) return false;
+    var k = forceXKey(p);
+    if(k === forcex_last) return false;
+    forcex_last = k;
+    return true;
+  }
+  // [FORCEX END]
   last_disp_units=false;
   lasttsp=Math.floor((new Date().getTime())/1000);
   last_unit_mode = 0 ;
@@ -469,6 +507,7 @@
       var nearest = $(this).data('nearest');
 
       if(nearest && plot) {
+        if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a zoom by hand, Reset Zoom starts again
         var options = plot.getOptions();
         var axes = plot.getAxes();
         var min = (options.xaxes[0].min !== null ? options.xaxes[0].min : axes.xaxis.min);
@@ -485,8 +524,16 @@
         min = center - half;
         max = center + half;
 
+        // v2.2.16 (plus 2.2.0): Lock osc. screen: the new window becomes ramp limits, the view stays on one period
+        if(typeof rampLockScreenTakesX === 'function' && rampLockScreenTakesX()) {
+          $(this).tooltip('hide');
+          rampLockScreenFromX(min, max);
+          return;
+        }
+
         options.xaxes[0].min = min;
         options.xaxes[0].max = max;
+        xWindowLocal();   // v2.2.16 (plus 2.2.0-rc4): see [FORCEX]
 
         plot.setupGrid();
         plot.draw();
@@ -504,6 +551,7 @@
       var nearest = $(this).data('nearest');
 
       if(nearest && plot) {
+        if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a zoom by hand, Reset Zoom starts again
         var options = plot.getOptions();
         var axes = plot.getAxes();
         var min = (options.yaxes[0].min !== null ? options.yaxes[0].min : axes.yaxis.min);
@@ -552,6 +600,7 @@
 
         options.xaxes[0].min = min;
         options.xaxes[0].max = max;
+        xWindowLocal();   // v2.2.16 (plus 2.2.0-rc4): see [FORCEX]
 
         plot.setupGrid();
         plot.draw();
@@ -1380,7 +1429,7 @@
                       'lock_ramp_step','lock_ramp_low_lim','lock_ramp_hig_lim','lock_ramp_B_factor','lock_pidA_sp','lock_pidA_kp','lock_pidA_ki',
                       'lock_pidA_kd','lock_pidB_sp','lock_pidB_kp','lock_pidB_ki','lock_pidB_kd','lock_aux_A','lock_aux_B'];
 
-    for(ii in input_number){
+    for(var ii in input_number){
       $('#'+input_number[ii])
         // on focus or paste, start editing mode
         .on('focus paste', function() {
@@ -1475,6 +1524,7 @@
         // v2.3.18: the text under the field (tau/f of Ramp period, mV, PID times...) is updated by its 'input' handler,
         // which a value changed by the wheel does not fire: it kept the old tau/f
         if(wheel_text_update[id]) wheel_text_update[id]();
+        if(typeof rampParamEdited === 'function') rampParamEdited(id);   // v2.2.16 (plus 2.2.0): Lock osc. screen window
         // 3rd arg is single_btn: must be false here (true made the scope stop after one acquisition and froze R/X/Y/phi)
         sendParams(true,true,false,true);
         //console.log('currVal='+$currVal);
@@ -1530,7 +1580,7 @@
                   '#lock_lpf_F3_tau','#lock_lpf_F3_order','#lock_lpf_sq_tau','#lock_lpf_sq_order','#lock_error_sw','#lock_read_ctrl','#lock_pidA_sw',
                   '#lock_pidA_PSR','#lock_pidA_ISR','#lock_pidA_DSR','#lock_pidA_SAT','#lock_pidB_sw','#lock_pidB_PSR','#lock_pidB_ISR',
                   '#lock_pidB_DSR','#lock_pidB_SAT','#lock_ctrl_aux_trig_type'];
-    for(ii in switches)
+    for(var ii in switches)
         $(switches[ii]).on('change', function() { onDropdownChange($(this), $(this)[0].id ); });
 
     // [LOLO DOCK PAGELOAD END]
@@ -1591,7 +1641,11 @@
                            '#lock_pidA_freeze,#lock_pidA_ifreeze,#lock_pidB_irst,#lock_pidB_freeze,#lock_pidB_ifreeze,#lock_ctrl_aux_set_pidB_enable,'+
                            '#lock_ctrl_aux_set_pidA_enable,#lock_ctrl_aux_set_ramp_enable,#lock_ctrl_aux_lock_trig_rise';
     $(input_checkboxes).on('change', function() {
+      var saw = (this.id === 'lock_ramp_sawtooth');
+      var f_keep = (saw ? rampSawtoothKeep() : NaN);   // v2.2.16 (plus 2.2.0): frequency kept (freq tab / Lock osc. screen)
       params.local[this.id] = ($(this).is(':checked') ? 1 : 0);
+      if(saw) rampSawtoothChanged(f_keep);
+      if(/^lock_ramp_/.test(this.id)) if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a change of the ramp
       sendParams();
     });
 
@@ -1778,6 +1832,23 @@
 
     });
 
+    // v2.2.16 (plus 2.2.0): Ramp Controller: tabs period | freq, fields of the frequency tab, Lock osc. screen (see [RAMP UI])
+    $('#ramp_tabs a[data-ramp-tab]').on('click', function(e) { e.preventDefault(); rampTabSet($(this).attr('data-ramp-tab')); });
+    $('#ramp_f_freq,#ramp_f_amp,#ramp_f_off')
+        .on('focus paste', function() { $(this).parent().addClass('input-group'); user_editing = true; })
+        .on('blur', function(event) {
+            $(this).parent().removeClass('input-group');
+            rampFreqApply(rampFieldWhich(this.id));
+            editRefocusCheck(event);
+            user_editing = false;
+        })
+        .on('input', function() { user_editing = true; rampFreqText(); })
+        .on('keypress', function(e) { if(e.keyCode == 13) { e.preventDefault(); $(this).blur(); } })
+        .on('keydown', function(e) { if(isEscapeKey(e)) { rampFreqShow(true); $(this).blur(); } })
+        .mousewheel(function(event, delta) { rampFreqWheel(this, event, delta); return false; });
+    $('#ramp_lock_screen').prop('checked', false).on('change', function() { rampLockScreenSet($(this).is(':checked')); });
+    { var rt0 = 'period'; try { rt0 = localStorage.getItem(ramp_tab_key) || 'period'; } catch(e) {} rampTabSet(rt0, true); }
+
     $('#btn_set_trig').prop('disabled', false);
     $('#btn_disp_sq').data('checked', false);
 
@@ -1814,6 +1885,12 @@
               "0": ' ',
               "1": '×10<sup>3</sup>', "2": '×10<sup>6</sup>', "3": '×10<sup>9</sup>', "4": '×10<sup>12</sup>' };
 
+  // v2.2.16 (plus 2.2.0-rc2): x.toFixed(d) without the sign of a value that rounds to zero ("-0 mV" with -2 counts -> "0 mV")
+  function toFixedNz(x, d) {
+    var s = Number(x).toFixed(d);
+    return (/^-0(\.0*)?$/.test(s) ? s.slice(1) : s);
+  }
+
   function lock_ramp_step_update() {
 
     ramp_step_arr          = $("#lock_ramp_step"    ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
@@ -1821,20 +1898,11 @@
     lock_ramp_hig_lim_arr  = $("#lock_ramp_hig_lim" ).val().trim().split(' ').filter( function(n,i){ return n!=="" } );
     lock_ramp_B_factor_arr = $("#lock_ramp_B_factor").val().trim().split(' ').filter( function(n,i){ return n!=="" } );
 
-    if( !$.isNumeric(ramp_step_arr[0]) ||
-        !$.isNumeric(lock_ramp_low_lim_arr[0]) ||
+    if( !$.isNumeric(lock_ramp_low_lim_arr[0]) ||
         !$.isNumeric(lock_ramp_hig_lim_arr[0]) ||
         !$.isNumeric(lock_ramp_B_factor_arr[0])
         ) return -1 ;
 
-    if (params) if (params.local)
-    if( parseLocalFloat(ramp_step_arr[0])          == ramp_step  &&
-        parseLocalFloat(lock_ramp_low_lim_arr[0])  == lock_ramp_low_lim &&
-        parseLocalFloat(lock_ramp_hig_lim_arr[0])  == lock_ramp_hig_lim &&
-        parseLocalFloat(lock_ramp_B_factor_arr[0]) == lock_ramp_B_factor
-        ) return -1 ;
-
-    ramp_step          = Math.abs( parseLocalFloat( ramp_step_arr[0] ) );
     lock_ramp_low_lim  = parseLocalFloat( lock_ramp_low_lim_arr[0]  ) ;
     lock_ramp_hig_lim  = parseLocalFloat( lock_ramp_hig_lim_arr[0]  ) ;
     lock_ramp_B_factor = parseLocalFloat( lock_ramp_B_factor_arr[0] ) ;
@@ -1864,18 +1932,22 @@
       $("#lock_ramp_low_lim").val(""+lock_ramp_low_lim);
     }
 
-    if( ramp_step_arr.length === 2) {
-      if ( ramp_step_arr[1].toLowerCase()=="s"  ||  ramp_step_arr[1].toLowerCase()=="seg" )
-        ramp_step = ramp_step / 8e-9 / Math.abs(lock_ramp_hig_lim - lock_ramp_low_lim) ;
-      if ( ramp_step_arr[1].toLowerCase()=="ms" )
-        ramp_step = Math.round( ramp_step / 8e-9 / 1000 / Math.abs(lock_ramp_hig_lim - lock_ramp_low_lim) );
-      $("#lock_ramp_step").val(""+ramp_step);
-    }
+    // v2.2.16 (plus 2.2.0-rc2): Ramp period: steps, or the period of the whole ramp with units (s, ms, us), converted with the
+    // formula of gen_ramp.v / the freq tab (rampParseStep(), [RAMP CALC]): T = N (step+1) 8 ns, N = 2 (high-low) (this App
+    // has the triangle only; before: s / ms gave the step of (high-low) steps, half the triangle period).
+    // Clamped to 0 .. ramp_step_max (the register is a float32). The field is a text input now (an <input type=number>
+    // never gave "10 ms" to .val()); it is rewritten in steps when the edit ends (numberInputBlur(), input_unit_parsers).
+    ramp_step = rampParseStep( $("#lock_ramp_step").val(), lock_ramp_hig_lim - lock_ramp_low_lim, 0 );
 
+    // v2.2.16 (plus 2.2.0): as gen_ramp.v (rampPeriodCycles()): triangle, 2*(high-low) steps of (step+1) cycles
+    period = (isFinite(ramp_step) ? rampPeriodCycles({ lock_ramp_step: ramp_step, lock_ramp_low_lim: lock_ramp_low_lim,
+                                                       lock_ramp_hig_lim: lock_ramp_hig_lim }) * 8e-9 : 0);
 
-    period = (lock_ramp_hig_lim - lock_ramp_low_lim) * (ramp_step+1) * 8e-9 * 2;
-
-    if ( period === 0 ){
+    if ( !isFinite(ramp_step) ){
+      txt = (lock_ramp_hig_lim > lock_ramp_low_lim || !/[a-z\u00b5\u03bc]/i.test($("#lock_ramp_step").val()) ?
+             "<small class=\"text-danger\">? steps, or a period with units: s, ms, us</small>" :
+             "<small class=\"text-danger\">? a period needs Ramp hig lim &gt; Ramp low lim</small>");
+    }else if ( period === 0 ){
       txt=" OFF ";
     }else{
       oom = Math.floor(Math.log10(period)/3);
@@ -1889,12 +1961,12 @@
 
     $('#lock_ramp_step_text').html( txt   );
 
-    $('#lock_ramp_low_lim_text').html( "<small><b>" + (lock_ramp_low_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
-    $('#lock_ramp_hig_lim_text').html( "<small><b>" + (lock_ramp_hig_lim/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" );
+    $('#lock_ramp_low_lim_text').html( "<small><b>" + toFixedNz(lock_ramp_low_lim/8192*1000, 0) + "&nbsp;mV</b></small>" );
+    $('#lock_ramp_hig_lim_text').html( "<small><b>" + toFixedNz(lock_ramp_hig_lim/8192*1000, 0) + "&nbsp;mV</b></small>" );
 
-    txt  =  "<p><b>" + ( (lock_ramp_hig_lim - lock_ramp_low_lim)/8192*1000 ).toFixed(0) + "&nbsp;mVpp</b>" ;
+    txt  =  "<p><b>" + toFixedNz( (lock_ramp_hig_lim - lock_ramp_low_lim)/8192*1000, 0 ) + "&nbsp;mVpp</b>" ;
     txt +=  " <br> " ;
-    txt +=  "<b>" + ( (lock_ramp_hig_lim + lock_ramp_low_lim)/2/8192*1000 ).toFixed(1) + "&nbsp;mVdc</b></p>" ;
+    txt +=  "<b>" + toFixedNz( (lock_ramp_hig_lim + lock_ramp_low_lim)/2/8192*1000, 1 ) + "&nbsp;mVdc</b></p>" ;
     $('#lock_ramp_text').html( txt );
 
     $('#lock_ramp_B_factor_text').html( "<small><b>" + (lock_ramp_B_factor/4096).toFixed(5) + "</b></small>" );
@@ -1906,7 +1978,7 @@
               4:'lock_lpf_F1_order' , 5:'lock_lpf_F2_order', 6:'lock_lpf_F3_order', 7:'lock_lpf_sq_order'   };
 
     if (params.local){
-        for ( i in lpfs){
+        for ( var i in lpfs){
           // A <select> without selection (val() null) gives NaN: keep params.local and show its value again
           var lv = parseInt($('#'+lpfs[i]).val());
           if(isFinite(lv)) params.local[lpfs[i]] = lv;
@@ -1915,7 +1987,7 @@
 
         sendParams(true);
 
-        for ( i in lpfs){
+        for ( var i in lpfs){
           $('#'+lpfs[i]        ).blur();
         }
     }
@@ -2307,7 +2379,10 @@
   }
 
   // Number inputs (input_number) whose text is converted by a parser (units): see numberInputValue()
-  var input_unit_parsers = { lock_lock_trig_time_val: parseTrigTime, lock_lock_trig_val: parseTrigLevel };
+  var input_unit_parsers = { lock_lock_trig_time_val: parseTrigTime, lock_lock_trig_val: parseTrigLevel,
+                             // v2.2.16 (from lock_in+pid_plus 2.2.0-rc2): Ramp period in steps or "10 ms" (late binding:
+                             // rampStepParseField() is in [RAMP UI])
+                             lock_ramp_step: function(str) { return rampStepParseField(str); } };
 
   // Last values shown by lock_ctrl_update() (they were implicit globals, created by its first call)
   var trig_time, trig_val, aux_trig_type;
@@ -2357,7 +2432,7 @@
     if ( isNaN(trig_val) )
       $('#lock_lock_trig_val_text').html( "<small class=\"text-danger\">? counts (1 V = 8192) or a voltage with units: V, mV</small>" ) ;
     else
-      $('#lock_lock_trig_val_text').html( "<small><b>V<sub>trg</sub>&nbsp;=&nbsp;" + (trig_val/8192*1000).toFixed(0) + "&nbsp;mV</b></small>" ) ;
+      $('#lock_lock_trig_val_text').html( "<small><b>V<sub>trg</sub>&nbsp;=&nbsp;" + toFixedNz(trig_val/8192*1000, 0) + "&nbsp;mV</b></small>" ) ;
 
 
     switch(lock_ctrl_aux_trig_type) {
@@ -2566,7 +2641,7 @@
         vectxt_py+="##################################################\n\n";
         vectxt_py+="t1  = array([ ";
 
-        for (i = 0; i < plot.getData()[0].data.length; i++) {
+        for (var i = 0; i < plot.getData()[0].data.length; i++) {
             addnum  = plot.getData()[0].data[i][0].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2578,7 +2653,7 @@
         vectxt_py += " ]) ;\n\n";
 
         vectxt_py+="ch1 = array([ ";
-        for (i = 0; i < plot.getData()[0].data.length; i++) {
+        for (var i = 0; i < plot.getData()[0].data.length; i++) {
             addnum  = plot.getData()[0].data[i][1].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2593,7 +2668,7 @@
         vectxt_py+="# Channel 2 data\n";
         vectxt_py+="##################################################\n\n";
         vectxt_py+="t2  = array([ ";
-        for (i = 0; i < plot.getData()[1].data.length; i++) {
+        for (var i = 0; i < plot.getData()[1].data.length; i++) {
             addnum  = plot.getData()[1].data[i][0].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2605,7 +2680,7 @@
         vectxt_py += " ]) ;\n\n";
 
         vectxt_py+="ch2 = array([ ";
-        for (i = 0; i < plot.getData()[1].data.length; i++) {
+        for (var i = 0; i < plot.getData()[1].data.length; i++) {
             addnum  = plot.getData()[1].data[i][1].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2642,7 +2717,7 @@
         vectxt_mat+="%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n\n";
         vectxt_mat+="t1  = [ ";
 
-        for (i = 0; i < plot.getData()[0].data.length; i++) {
+        for (var i = 0; i < plot.getData()[0].data.length; i++) {
             addnum  = plot.getData()[0].data[i][0].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2654,7 +2729,7 @@
         vectxt_mat += " ] ;\n\n";
 
         vectxt_mat+="ch1 = [ ";
-        for (i = 0; i < plot.getData()[0].data.length; i++) {
+        for (var i = 0; i < plot.getData()[0].data.length; i++) {
             addnum  = plot.getData()[0].data[i][1].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2669,7 +2744,7 @@
         vectxt_mat+="% Channel 2 data\n";
         vectxt_mat+="%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%\n\n";
         vectxt_mat+="t2  = array([ ";
-        for (i = 0; i < plot.getData()[1].data.length; i++) {
+        for (var i = 0; i < plot.getData()[1].data.length; i++) {
             addnum  = plot.getData()[1].data[i][0].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2681,7 +2756,7 @@
         vectxt_mat += " ] ;\n\n";
 
         vectxt_mat+="ch2 = array([ ";
-        for (i = 0; i < plot.getData()[1].data.length; i++) {
+        for (var i = 0; i < plot.getData()[1].data.length; i++) {
             addnum  = plot.getData()[1].data[i][1].toFixed(3);
             if(addnum.length<8)
               addnum = " ".repeat(8-addnum.length) + addnum ;
@@ -2707,7 +2782,7 @@
     if ($('#btn_ch' + 2).data('checked'))
       vectxt_csv+="t2      ,ch2     \n";
 
-    for (i = 0; i < plot.getData()[0].data.length; i++) {
+    for (var i = 0; i < plot.getData()[0].data.length; i++) {
       if ($('#btn_ch' + 1).data('checked')) {
         addnum  = plot.getData()[0].data[i][0].toFixed(3);
         if(addnum.length<8)
@@ -3154,8 +3229,14 @@
   // covers it): a period longer than the memory at the current Dec takes a larger Dec (coarser), a shorter one a
   // smaller Dec (finer), as a zoom does. Windows longer than the longest memory (68.72 s, Dec 524288) are clamped
   // to it. Y: -1 V .. +1 V, or -8192 .. 8192 (ADC counts) in raw mode.
-  // Returns { xmin_s, xmax_s, ymin, ymax, source: 'ramp' | 'mod' | 'square' | 'memory', period_s, dec, clamped }.
-  function resetZoomWindow(p, time_range) {
+  // v2.2.16 (plus 2.2.0-rc3): half (true): with Ext Trig = Scan floor (2), the rising half of the ramp only, 0 .. T/2
+  // (gen_ramp.v, triangle (the only shape of this App): after the scan floor the ramp always rises from low to high,
+  // whatever Scan direction, which only reverses the slope for one moment when it is changed; see resetZoomHalfOk()).
+  // It ends half a period before the next floor, so slow scans need no 0.98 (rearm false). Otherwise (another Ext
+  // Trig, no ramp) half is ignored: the window of one period / memory as above.
+  // Returns { xmin_s, xmax_s, ymin, ymax, source: 'ramp' | 'mod' | 'square' | 'memory', period_s (the whole period), dec,
+  // clamped, rearm, half (the window is the rising half) }.
+  function resetZoomWindow(p, time_range, half) {
     var tsw = Number(p.lock_trig_sw), cyc = 0, source = 'memory';
     if(tsw == 2 || tsw == 4) { cyc = rampPeriodCycles(p); if(cyc > 0) source = 'ramp'; }
     else if(tsw == 8)        { cyc = modPeriodCycles(p);  if(cyc > 0) source = 'mod';  }
@@ -3163,9 +3244,10 @@
     var tr = Math.round(Number(time_range));
     if(!(tr >= 0 && tr < scope_dec_list.length)) tr = 0;
     var period_s = (source === 'memory' ? scope_mem_s * scope_dec_list[tr] : cyc * 8e-9);
+    half = !!half && source === 'ramp' && tsw == 2 && !Number(p.lock_ramp_sawtooth);
     // v2.3.23: slow scan: the window ends a bit before the next trigger (see reset_zoom_long_s)
-    var win_s = period_s, rearm = false;
-    if(source !== 'memory' && period_s >= reset_zoom_long_s) {
+    var win_s = (half ? period_s / 2 : period_s), rearm = false;
+    if(!half && source !== 'memory' && period_s >= reset_zoom_long_s) {
       win_s = period_s - Math.max(period_s * reset_zoom_rearm_frac, reset_zoom_rearm_min_s);
       rearm = true;
     }
@@ -3177,8 +3259,37 @@
     var raw = !!Number(p.lock_osc_raw_mode);
     return { xmin_s: 0, xmax_s: Math.min(win_s, mem_s * (1 - reset_zoom_margin)),
              ymin: (raw ? -8192 : -1), ymax: (raw ? 8192 : 1),
-             source: source, period_s: period_s, dec: scope_dec_list[i], clamped: clamped, rearm: rearm };
+             source: source, period_s: period_s, dec: scope_dec_list[i], clamped: clamped, rearm: rearm, half: half };
   }
+
+  // v2.2.16 (plus 2.2.0-rc3) (user): Reset Zoom with Source External, Ext Trig = Scan floor and a triangle ramp (without Lock osc.
+  // screen): the first click gives one whole period (as before); a second click right after it, with the zoom not
+  // touched by hand, gives the rising half (resetZoomWindow(.., true)); while the zoom is not touched, each click
+  // alternates whole / half. Any zoom by hand (box, wheel with or without SHIFT / ALT, X / Y buttons, Autoscale,
+  // presets: resetZoomCycleBreak()) and any change of the ramp or of the trigger (the key below; also from another
+  // client or a config) starts the cycle again: the next click gives the whole period. The window that the last
+  // click set is also compared with the one on the plot (any other change of X that did not call the break).
+  // Sawtooth, Scan ceil, other Ext Trig or Source: Reset Zoom as before (always one period / memory).
+  var reset_zoom_cycle = { key: '', half: false, xmin_s: NaN, xmax_s: NaN };   // key '': no cycle
+  function resetZoomHalfOk(p) {
+    return Number(p.trig_source) == 2 && Number(p.lock_trig_sw) == 2 && !Number(p.lock_ramp_sawtooth) && rampPeriodCycles(p) > 0;
+  }
+  function resetZoomCycleKey(p) {
+    return [p.trig_source, p.trig_mode, p.lock_trig_sw, p.lock_ramp_step, p.lock_ramp_low_lim, p.lock_ramp_hig_lim, p.lock_ramp_sawtooth]
+             .map(function(v) { return Number(v); }).join(',');
+  }
+  // true: this click gives the half period (x0_s .. x1_s: the window on the plot now, in seconds)
+  function resetZoomCycleNext(p, x0_s, x1_s) {
+    var c = reset_zoom_cycle;
+    if(!c.key || !resetZoomHalfOk(p) || c.key !== resetZoomCycleKey(p)) return false;
+    var w = c.xmax_s - c.xmin_s, tol = 1e-3 * w;
+    if(!(w > 0) || !(Math.abs(x0_s - c.xmin_s) <= tol) || !(Math.abs(x1_s - c.xmax_s) <= tol)) return false;
+    return !c.half;
+  }
+  function resetZoomCycleSet(p, half, xmin_s, xmax_s) {
+    reset_zoom_cycle = { key: (resetZoomHalfOk(p) ? resetZoomCycleKey(p) : ''), half: !!half, xmin_s: xmin_s, xmax_s: xmax_s };
+  }
+  function resetZoomCycleBreak() { reset_zoom_cycle.key = ''; }
   // v2.3.23: clears the plotted trace and drops the data of the GET /data in flight and of those started before the
   // answer of the next POST (plot_epoch)
   function plotClearStale() {
@@ -3193,6 +3304,546 @@
     }
   }
   // [RESET ZOOM END]
+
+  // [RAMP CALC BEGIN] v2.2.16 (plus 2.2.0): ramp of gen_ramp.v in physical units (pure functions, also run by test/ramp_ui_sim.js).
+  // gen_ramp.v: the output moves one count every lock_ramp_step+1 clock cycles of 8 ns (cnt counts 0 .. step, 'go' at
+  // cnt == step; step 0: every cycle). One period, from scan floor to scan floor (trigger_low, Ext Trig "Scan floor"):
+  //   triangle: low -> high -> low, N = 2*(high-low) steps;
+  //   sawtooth: (high-low) steps and the jump back, N = (high-low)+1 steps
+  //             (Scan direction 1: rises from low and jumps to low; 0: jumps from low to high and falls to low);
+  //   T = N*(step+1)*8 ns, f = 125 MHz / (N*(step+1))   (rampPeriodCycles() of [TRIG FROM GRAPH] is N*(step+1)).
+  // Counts: 8192 = 1 V (the mV of the labels), limits -8192 .. 8191.
+  // lock_ramp_step is a float32 parameter of the C controller (src/main.c) and lock.c writes it with (int): above 2^24
+  // only the integers of a float32 exist (steps of 2, 4, ... 128), and above 2^31 - 1 the (int) of the ARM saturates.
+  // The frequency tab only uses steps that reach the register as they are: float32 integers up to 2^31 - 128.
+  var ramp_fclk     = 125e6;
+  var ramp_step_max = 2147483520;          // largest float32 below 2^31
+  var ramp_lim_min  = -8192, ramp_lim_max = 8191;
+
+  // steps of one period for a peak-to-peak amplitude amp (= high - low, counts), 0 if not a ramp
+  function rampStepsPerPeriod(amp, saw) {
+    amp = Math.round(Number(amp));
+    if(!(amp > 0)) return 0;
+    return (Number(saw) ? amp + 1 : 2 * amp);
+  }
+  // frequency [Hz] of a step / amplitude / waveform; NaN if not a ramp
+  function rampFreqOf(step, amp, saw) {
+    var n = rampStepsPerPeriod(amp, saw), s = Number(step);
+    if(!(n > 0) || !(s >= 0)) return NaN;
+    return ramp_fclk / (n * (s + 1));
+  }
+  // frequency of the params p (lock_ramp_step / low / hig / sawtooth)
+  function rampFreqOfP(p) {
+    return rampFreqOf(p.lock_ramp_step, Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim), p.lock_ramp_sawtooth);
+  }
+  // v2.2.16 (plus 2.2.0-rc2): step (float32 integer 0 .. ramp_step_max, as the register gets it) of the period T_s (seconds, one
+  // whole period as rampPeriodCycles(): T = N (step+1) 8 ns) for an amplitude amp (= high - low) and waveform saw:
+  // the nearest period that reaches the register, clamped to the possible range. NaN if T_s or amp are not valid.
+  function rampStepForPeriod(T_s, amp, saw) {
+    var n = rampStepsPerPeriod(amp, saw);
+    T_s = Number(T_s);
+    if(!(n > 0) || !(T_s >= 0) || !isFinite(T_s)) return NaN;
+    var x = Math.min(ramp_step_max, Math.max(0, T_s * ramp_fclk / n - 1));
+    return Math.fround(Math.round(x));
+  }
+  // v2.2.16 (plus 2.2.0-rc2): text of the Ramp period field (lock_ramp_step) -> step. A number: steps (integer, clamped to
+  // 0 .. ramp_step_max and rounded as the float32 register); with units s / seg / ms / us: the period of the whole
+  // ramp (rampStepForPeriod()), which depends on amp (= high - low) and saw. NaN if not valid (or a period with amp <= 0).
+  function rampParseStep(str, amp, saw) {
+    var m = String(str === undefined || str === null ? '' : str).trim().replace(',', '.')
+              .match(/^([+-]?(?:[0-9]+\.?[0-9]*|\.[0-9]+)(?:e[+-]?[0-9]+)?)\s*([a-z\u00b5\u03bc]*)$/i);
+    if(!m) return NaN;
+    var v = parseFloat(m[1]), u = m[2].toLowerCase();
+    if(!isFinite(v) || v < 0) return NaN;
+    if(u === '' || u === 'step' || u === 'steps' || u === 'tick' || u === 'ticks')
+      return Math.fround(Math.min(ramp_step_max, Math.round(v)));
+    var mult = { 's': 1, 'seg': 1, 'ms': 1e-3, 'us': 1e-6, '\u00b5s': 1e-6, '\u03bcs': 1e-6 }[u];
+    if(mult === undefined) return NaN;
+    return rampStepForPeriod(v * mult, amp, saw);
+  }
+  // largest / smallest frequency for an amplitude (step 0 / ramp_step_max)
+  function rampFreqLimits(amp, saw) { return [rampFreqOf(ramp_step_max, amp, saw), rampFreqOf(0, amp, saw)]; }
+  // step whose frequency is the nearest one to f (in Hz), among the steps that reach the register (0 .. ramp_step_max,
+  // float32 integers). NaN if f or amp are not valid.
+  function rampStepForFreq(f, amp, saw) {
+    var n = rampStepsPerPeriod(amp, saw);
+    f = Number(f);
+    if(!(n > 0) || !(f > 0) || !isFinite(f)) return NaN;
+    var x = ramp_fclk / (n * f) - 1;
+    if(x <= 0) return 0;
+    if(x >= ramp_step_max) return ramp_step_max;
+    var ulp = (x >= 16777216 ? Math.pow(2, Math.floor(Math.log(x) / Math.LN2) - 23) : 1);
+    var a = Math.floor(x / ulp) * ulp, b = Math.min(a + ulp, ramp_step_max);
+    return (Math.abs(rampFreqOf(a, amp, saw) - f) <= Math.abs(rampFreqOf(b, amp, saw) - f) ? a : b);
+  }
+  // amplitude / offset of the limits: amp = high - low, off = floor((high + low)/2) (an odd amp has its center at
+  // half a count: off is the count below it). rampLimsOf() is the inverse: low = off - floor(amp/2), high = low + amp.
+  function rampAmpOffOf(low, hig) {
+    low = Math.round(Number(low)); hig = Math.round(Number(hig));
+    return { amp: hig - low, off: Math.floor((hig + low) / 2) };
+  }
+  function rampLimsOf(amp, off) {
+    var low = Math.round(off) - Math.floor(Math.round(amp) / 2);
+    return { low: low, hig: low + Math.round(amp) };
+  }
+  // largest amplitude that fits with the offset off, and offsets that fit with the amplitude amp (limits -8192 .. 8191)
+  function rampAmpMax(off) { return Math.max(0, Math.min(2 * (off - ramp_lim_min) + 1, 2 * (ramp_lim_max - off))); }
+  function rampOffRange(amp) { return [ramp_lim_min + Math.floor(amp / 2), ramp_lim_max - Math.ceil(amp / 2)]; }
+  // amp / off (integers) limited so that the limits fit; keep = 'amp': the amplitude is limited for the offset (the
+  // offset only if it is out of range itself), 'off': the offset is limited for the amplitude
+  function rampClampAmpOff(amp, off, keep) {
+    amp = Math.round(amp); off = Math.round(off);
+    amp = Math.min(ramp_lim_max - ramp_lim_min, Math.max(1, amp));
+    if(keep === 'off') {
+      var r = rampOffRange(amp);
+      off = Math.min(r[1], Math.max(r[0], off));
+    } else {
+      off = Math.min(ramp_lim_max - 1, Math.max(ramp_lim_min, off));
+      amp = Math.max(1, Math.min(amp, rampAmpMax(off)));
+    }
+    return { amp: amp, off: off };
+  }
+  // counts of the Amp. p-p / Offset fields: integer, or with units "500 mV", "0.5 V" (8192 counts = 1 V); NaN if not valid
+  function parseRampCounts(str) {
+    if(str === undefined || str === null) return NaN;
+    var m = String(str).trim().replace(',', '.').match(/^([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s*(mv|v)?$/i);
+    if(!m) return NaN;
+    var v = parseFloat(m[1]);
+    if(m[2]) v = v * 8192 / (m[2].toLowerCase() === 'mv' ? 1000 : 1);
+    return (isFinite(v) ? Math.round(v) : NaN);
+  }
+  // Hz of the Frequency field ("2.5 kHz", "500 mHz", "1e3", as the Frequency of the lock-in), NaN if not valid or 0
+  function parseRampFreq(str) {
+    var m = String(str === undefined || str === null ? '' : str).trim().replace(',', '.')
+              .match(/^([-+]?[0-9]*\.?[0-9]+(?:[eE][-+]?[0-9]+)?)\s*([a-zA-Z]*)$/);
+    if(!m) return NaN;
+    var v = parseFloat(m[1]), u = m[2], mult;
+    if(u === 'MHz' || u === 'M' || u === 'Mhz' || u === 'MHZ') mult = 1e6;
+    else if(u === 'mHz' || u === 'mhz')                          mult = 1e-3;
+    else mult = { '': 1, 'hz': 1, 'khz': 1e3, 'k': 1e3 }[u.toLowerCase()];
+    if(mult === undefined || !isFinite(v)) return NaN;
+    v = v * mult;
+    return (v > 0 && v <= ramp_fclk / 2 ? v : NaN);
+  }
+  // Neighbour of the step s in the direction dir (+1 / -1) among the steps that reach the register (float32 integers:
+  // above 2^24 they are 2, 4, ... 128 apart). NaN out of 0 .. ramp_step_max.
+  function rampStepNeighbor(s, dir) {
+    s = Math.round(Number(s));
+    for(var k = 1; k <= 256; k++) {
+      var c = Math.fround(s + dir * k);
+      if(c !== s) return (c >= 0 && c <= ramp_step_max ? c : NaN);
+    }
+    return NaN;
+  }
+  // Mouse wheel on the Frequency field (user, 2026-11-12): f +/- mult Hz (1 Hz, SHIFT 10, CTRL 100, both 1000 Hz, as the
+  // Frequency of the lock-in), from the frequency f (the nominal one). The step of the register is the one nearest to the
+  // new f; if that is still the current step (the resolution of the integer step is coarser than mult Hz there, or
+  // the f asked is below 0), the minimum move of the instrument: the step one place up / down (frequency down / up),
+  // never no move. At the ends (step 0, the highest f; ramp_step_max) null.
+  // Returns { step, f_nominal } (f_nominal: f +/- mult, or the real f of the minimum move).
+  function rampFreqWheelTarget(p, f, up, mult) {
+    var amp = Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim), saw = p.lock_ramp_sawtooth;
+    var cur = Math.round(Number(p.lock_ramp_step));
+    if(!(rampStepsPerPeriod(amp, saw) > 0) || !(cur >= 0)) return null;
+    var nf = Number(f) + (up ? 1 : -1) * (mult || 1);
+    var fl = rampFreqLimits(amp, saw);
+    var step = (nf > 0 && nf <= fl[1] * (1 + 1e-12) ? rampStepForFreq(nf, amp, saw) : NaN);
+    if(!isFinite(step) || (up ? step >= cur : step <= cur)) {
+      step = rampStepNeighbor(cur, up ? -1 : 1);
+      if(!isFinite(step)) return null;
+      nf = rampFreqOf(step, amp, saw);
+    }
+    return { step: step, f_nominal: +nf.toPrecision(12) };
+  }
+  // Frequency to keep when the amplitude / waveform / limits change: the nominal one the user set (no drift from the
+  // rounding of the step), while it is still the one of the step in p; otherwise the real one of p
+  function rampKeepFreq(p, nominal) {
+    var amp = Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim);
+    if(nominal > 0 && isFinite(nominal) && rampStepForFreq(nominal, amp, p.lock_ramp_sawtooth) === Math.round(Number(p.lock_ramp_step)))
+      return nominal;
+    return rampFreqOfP(p);
+  }
+  // Frequency tab: frequency f (Hz), amplitude, offset and waveform -> registers. keep: 'amp' or 'off' (rampClampAmpOff).
+  // Returns { step, low, hig, amp, off, f (real), f_nominal (f, or the real one if f was out of the possible range) }.
+  function rampFreqTabSet(f, amp, off, saw, keep) {
+    var ao = rampClampAmpOff(amp, off, keep), lim = rampLimsOf(ao.amp, ao.off);
+    var step = rampStepForFreq(f, ao.amp, saw);
+    if(!isFinite(step)) return null;
+    var fr = rampFreqOf(step, ao.amp, saw), fl = rampFreqLimits(ao.amp, saw);
+    var in_range = (f >= fl[0] * (1 - 1e-12) && f <= fl[1] * (1 + 1e-12));
+    return { step: step, low: lim.low, hig: lim.hig, amp: ao.amp, off: ao.off, f: fr, f_nominal: (in_range ? Number(f) : fr) };
+  }
+  // Value of the ramp (counts) at the time t_s after the scan floor (the trigger of the scope with Ext Trig = Scan
+  // floor), continuous approximation of gen_ramp.v; outside 0 .. T the straight line of the sawtooth goes on, the
+  // triangle is periodic
+  function rampValueAt(p, t_s) {
+    var low = Number(p.lock_ramp_low_lim), hig = Number(p.lock_ramp_hig_lim), amp = hig - low;
+    var T = rampPeriodCycles(p) * 8e-9;
+    if(!(T > 0)) return NaN;
+    var u = t_s / T;
+    if(Number(p.lock_ramp_sawtooth)) {
+      // k: steps since the floor (N = amp+1 per period). Rising: low + k up to high (the last step, at low, is the
+      // jump). Falling: the first step is the jump to high, then high - (k-1). Straight lines outside 0 .. T.
+      var k = u * (amp + 1);
+      if(Number(p.lock_ramp_direction)) return (u >= 0 && u <= 1 ? Math.min(hig, low + k) : low + k);
+      return (u >= 0 && u <= 1 ? Math.min(hig, hig - (k - 1)) : hig - (k - 1));
+    }
+    u = u - Math.floor(u);
+    return (u <= 0.5 ? low + 2 * amp * u : low + 2 * amp * (1 - u));
+  }
+  // "Lock osc. screen": a time zoom of the plot to the window a_s .. b_s (seconds after the scan floor) -> new
+  // limits that make the ramp scan the zone of values that the ramp had in that window, at the frequency f_keep
+  // (step recomputed: the frequency of the whole period, N = 2 (high - low) in triangle).
+  //   sawtooth: the plot shows one period 0 .. T; the values at a_s and b_s of the straight line (also outside
+  //             0 .. T: zoom out / pan widen or move the scan);
+  //   triangle (v2.2.16 (plus 2.2.0-rc3), user): the plot shows the rising half 0 .. T/2 only (scan floor -> high; gen_ramp.v
+  //             always rises after the floor, whatever Scan direction): the straight line of that rise, low at t = 0
+  //             and high at t = T/2, at a_s and b_s (also outside 0 .. T/2: zoom out / pan). Before (rc1 / rc2) the
+  //             plot showed the whole triangle and the extremes of the periodic triangle in the window were taken.
+  // The result is limited to -8192 .. 8191 with at least 1 count. null: not possible (no ramp, empty window).
+  // Returns { low, hig, step, f_keep }.
+  function rampZoomToLims(p, a_s, b_s, f_keep) {
+    a_s = Number(a_s); b_s = Number(b_s);
+    var low = Number(p.lock_ramp_low_lim), hig = Number(p.lock_ramp_hig_lim), amp = hig - low;
+    var T = rampPeriodCycles(p) * 8e-9;
+    if(!(T > 0) || !(b_s > a_s) || !isFinite(a_s) || !isFinite(b_s)) return null;
+    var lo, hi;
+    if(Number(p.lock_ramp_sawtooth)) {
+      var va = rampValueAt(p, a_s), vb = rampValueAt(p, b_s);
+      lo = Math.min(va, vb); hi = Math.max(va, vb);
+    } else {
+      // rising half: v(t) = low + amp t / (T/2)
+      lo = low + amp * a_s / (T / 2);
+      hi = low + amp * b_s / (T / 2);
+    }
+    lo = Math.round(lo); hi = Math.round(hi);
+    lo = Math.min(ramp_lim_max - 1, Math.max(ramp_lim_min, lo));
+    hi = Math.min(ramp_lim_max, Math.max(ramp_lim_min + 1, hi));
+    if(hi <= lo) { if(lo < ramp_lim_max) hi = lo + 1; else lo = hi - 1; }
+    if(!(f_keep > 0)) f_keep = rampFreqOfP(p);
+    var step = rampStepForFreq(f_keep, hi - lo, p.lock_ramp_sawtooth);
+    if(!isFinite(step)) return null;
+    return { low: lo, hig: hi, step: step, f_keep: f_keep };
+  }
+  // A window a .. b that is (almost) the whole view v0 .. v1 (2 % of it at each end): no time zoom (e.g. a box
+  // selection made only for Y)
+  function rampZoomIsView(a, b, v0, v1) {
+    var w = v1 - v0, tol = 0.02 * Math.abs(w);
+    return (w > 0 && Math.abs(a - v0) <= tol && Math.abs(b - v1) <= tol);
+  }
+  // [RAMP CALC END]
+
+  // [RAMP UI BEGIN] v2.2.16 (plus 2.2.0): tabs of the Ramp Controller (period | freq) and "Lock osc. screen" (doc in CHANGELOG 2.2.0)
+  // Tabs: only the active one is visible, so only one way of editing at a time. Changing the tab ends the edit in
+  // progress (blur: applied) and loads the fields of the new tab from params.local (the values of the board, plus the
+  // changes already sent). The fields of the period tab are those of before (lock_ramp_step / hig / low, ScrollIncrement()).
+  // Frequency tab: ramp_f_freq (Hz with units), ramp_f_amp and ramp_f_off (counts, or mV / V). Enter / blur / wheel
+  // apply the field edited (rampFreqApply()): step, low and hig are sent together in one POST. ramp_f_nominal is the
+  // frequency the user set: the step is computed from it (also when Amp. p-p or Sawtooth change), so it does not drift
+  // with the rounding of the step; the field shows the real frequency.
+  var ramp_tab = 'period';
+  var ramp_tab_key = 'lockin_ramp_tab_' + app_id;   // localStorage (the last tab, survives a reload; own key of each App)
+  var ramp_f_nominal = NaN;
+  var ramp_f_shown = {};                            // text written to each field by rampFreqShow() (unchanged = no edit)
+  var ramp_ls = { on: false, key: '', xmax_s: NaN };   // Lock osc. screen (xmax_s: the last window applied)
+  var ramp_ls_tol = 1e-4;                              // v2.2.16 (plus 2.2.0-rc4): relative tolerance of the window (rampLockScreenSync())
+
+  // v2.2.16 (plus 2.2.0-rc2): parser of the Ramp period field (input_unit_parsers): steps, or a period with units for the limits of the
+  // fields of the period tab (params.local if they are not valid) and the waveform of params.local
+  function rampStepParseField(str) {
+    var p = params.local || {};
+    var low = parseLocalFloat(String($('#lock_ramp_low_lim').val())), hig = parseLocalFloat(String($('#lock_ramp_hig_lim').val()));
+    if(!isFinite(low) || !isFinite(hig)) { low = Number(p.lock_ramp_low_lim); hig = Number(p.lock_ramp_hig_lim); }
+    return rampParseStep(str, hig - low, p.lock_ramp_sawtooth);
+  }
+
+  function rampFmtSI(v, unit, digits) {
+    if(!isFinite(v) || v === 0) return '-';
+    var oom = Math.floor(Math.log10(Math.abs(v)) / 3);
+    oom = Math.max(-4, Math.min(4, oom));
+    return (v / Math.pow(10, 3 * oom)).toFixed(digits === undefined ? 2 : digits) + '&nbsp;' + units[oom.toString()].replace('&nbsp;', '') + unit;
+  }
+  function rampMv(counts, digits) { return toFixedNz(counts / 8192 * 1000, digits === undefined ? 0 : digits) + '&nbsp;mV'; }
+  function rampFieldWhich(id) { return { ramp_f_freq: 'freq', ramp_f_amp: 'amp', ramp_f_off: 'off' }[id]; }
+
+  function rampTabSet(name, no_save) {
+    if(name !== 'freq') name = 'period';
+    var a = document.activeElement;
+    if(a && $(a).closest('#ramp_tab_period,#ramp_tab_freq').length) $(a).blur();   // the edit in progress is applied
+    ramp_tab = name;
+    $('#ramp_tabs li').removeClass('active');
+    $('#ramp_tabs a[data-ramp-tab="' + name + '"]').parent().addClass('active');
+    $('#ramp_tab_period').toggle(name === 'period');
+    $('#ramp_tab_freq').toggle(name === 'freq');
+    if(params.local) {
+      if(name === 'period') {
+        $('#lock_ramp_step').val(params.local.lock_ramp_step);
+        $('#lock_ramp_hig_lim').val(params.local.lock_ramp_hig_lim);
+        $('#lock_ramp_low_lim').val(params.local.lock_ramp_low_lim);
+        lock_ramp_step_update();
+      }
+      else rampFreqShow(true);
+    }
+    if(!no_save) { try { localStorage.setItem(ramp_tab_key, name); } catch(e) {} }
+  }
+
+  // Fields of the frequency tab from params.local (a field with the focus is not changed, unless force)
+  function rampFreqShow(force) {
+    if(!params.local) return;
+    var p = params.local, ao = rampAmpOffOf(p.lock_ramp_low_lim, p.lock_ramp_hig_lim);
+    var f = rampFreqOfP(p);
+    var v = { ramp_f_freq: (isFinite(f) ? String(+f.toPrecision(7)) : ''), ramp_f_amp: String(ao.amp), ramp_f_off: String(ao.off) };
+    for(var id in v) {
+      var el = $('#' + id);
+      if(force || !el.is(':focus')) { el.val(v[id]); ramp_f_shown[id] = v[id]; }
+    }
+    rampFreqText();
+  }
+
+  // Texts under the fields of the frequency tab (values of params.local; a field with a text not valid is marked)
+  function rampFreqText() {
+    if(!params.local) return;
+    var p = params.local, low = Number(p.lock_ramp_low_lim), hig = Number(p.lock_ramp_hig_lim);
+    var ao = rampAmpOffOf(low, hig), f = rampFreqOfP(p), bad = ' <span class="text-danger">(not valid)</span>';
+    var t = '<small><b>f&nbsp;=&nbsp;' + rampFmtSI(f, 'Hz', 4) + '</b>, <b>&tau;&nbsp;=&nbsp;' + rampFmtSI(1 / f, 's', 3) + '</b>' +
+            '<br>step&nbsp;' + Math.round(Number(p.lock_ramp_step)) +
+            (Number(p.lock_ramp_sawtooth) ? ', sawtooth' : ', triangle') +
+            (ramp_f_nominal > 0 && rampKeepFreq(p, ramp_f_nominal) === ramp_f_nominal && Math.abs(ramp_f_nominal - f) > 1e-9 * f ?
+              ', set&nbsp;' + rampFmtSI(ramp_f_nominal, 'Hz', 4) : '');
+    if(isNaN(parseRampFreq($('#ramp_f_freq').val()))) t += bad;
+    $('#ramp_f_freq_text').html(t + '</small>');
+    t = '<small><b>' + rampMv(ao.amp) + 'pp</b> (low&nbsp;' + rampMv(low) + ', high&nbsp;' + rampMv(hig) + ')';
+    if(isNaN(parseRampCounts($('#ramp_f_amp').val()))) t += bad;
+    $('#ramp_f_amp_text').html(t + '</small>');
+    t = '<small><b>' + rampMv((low + hig) / 2, 1) + 'dc</b>';
+    if(isNaN(parseRampCounts($('#ramp_f_off').val()))) t += bad;
+    $('#ramp_f_off_text').html(t + '</small>');
+  }
+
+  // Enter / blur / wheel of a field of the frequency tab: which = 'freq' | 'amp' | 'off' (the field edited; the other
+  // two values are those of params.local). An unchanged text does nothing (the nominal frequency is kept).
+  function rampFreqApply(which) {
+    if(!params.local) return;
+    var id = { freq: 'ramp_f_freq', amp: 'ramp_f_amp', off: 'ramp_f_off' }[which];
+    if(!id) return;
+    var txt = $('#' + id).val();
+    if(txt === ramp_f_shown[id]) { rampFreqShow(true); return; }
+    var p = params.local, cur = rampAmpOffOf(p.lock_ramp_low_lim, p.lock_ramp_hig_lim), saw = Number(p.lock_ramp_sawtooth) ? 1 : 0;
+    var val = (which === 'freq' ? parseRampFreq(txt) : parseRampCounts(txt));
+    if(isNaN(val)) { rampFreqShow(true); return; }
+    var f = (which === 'freq' ? val : rampKeepFreq(p, ramp_f_nominal));
+    var r = rampFreqTabSet(f, (which === 'amp' ? val : cur.amp), (which === 'off' ? val : cur.off), saw, (which === 'off' ? 'off' : 'amp'));
+    if(!r) { rampFreqShow(true); return; }
+    ramp_f_nominal = r.f_nominal;
+    rampSetRegs(r.step, r.low, r.hig);
+  }
+
+  // New step / low / high in params.local and in the (hidden) fields of the period tab, texts, scope window of Lock
+  // osc. screen; sent (one POST) if something changed. The frequency tab is shown again.
+  function rampSetRegs(step, low, hig, no_send) {
+    var p = params.local;
+    var changed = (Number(p.lock_ramp_step) !== step || Number(p.lock_ramp_low_lim) !== low || Number(p.lock_ramp_hig_lim) !== hig);
+    if(changed) resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a change of the ramp starts Reset Zoom again
+    p.lock_ramp_step = step; p.lock_ramp_low_lim = low; p.lock_ramp_hig_lim = hig;
+    $('#lock_ramp_step').val(step); $('#lock_ramp_low_lim').val(low); $('#lock_ramp_hig_lim').val(hig);
+    lock_ramp_step_update();
+    rampFreqShow(true);
+    rampLockScreenSync(false);
+    if(changed && !no_send) sendParams();
+    return changed;
+  }
+
+  // Mouse wheel on a field of the frequency tab (SHIFT x10, CTRL x100, both x1000, as ScrollIncrement())
+  function rampFreqWheel(that, event, delta) {
+    event.preventDefault();
+    event.stopPropagation();
+    if(!params.local) return;
+    var mult = 1;
+    if(event.shiftKey) mult *= 10;
+    if(event.ctrlKey)  mult *= 100;
+    var wheel_dir = event.deltaY || -event.deltaX || delta || 0;   // SHIFT + wheel: deltaX in Chrome
+    if(!wheel_dir) return;
+    var up = ((event.deltaFactor || 1) * wheel_dir > 0), which = rampFieldWhich(that.id), p = params.local;
+    if(which === 'freq') {
+      var amp = Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim), saw = p.lock_ramp_sawtooth;
+      var f = parseRampFreq($(that).val()), fk = rampKeepFreq(p, ramp_f_nominal);
+      // a valid text with another step (typed, not applied yet) is the base; otherwise the nominal frequency
+      if(!(f > 0) || rampStepForFreq(f, amp, saw) === Math.round(Number(p.lock_ramp_step))) f = fk;
+      var t = rampFreqWheelTarget(p, f, up, mult);
+      if(!t) { rampFreqShow(true); return; }
+      ramp_f_nominal = t.f_nominal;
+      rampSetRegs(t.step, Number(p.lock_ramp_low_lim), Number(p.lock_ramp_hig_lim));
+      return;
+    } else {
+      var ao = rampAmpOffOf(p.lock_ramp_low_lim, p.lock_ramp_hig_lim);
+      var v = parseRampCounts($(that).val());
+      if(isNaN(v)) v = (which === 'amp' ? ao.amp : ao.off);
+      $(that).val(String(v + (up ? mult : -mult)));
+    }
+    rampFreqApply(which);
+  }
+
+  // Sawtooth checkbox: in the frequency tab and with Lock osc. screen the frequency is kept (step recomputed for the
+  // new number of steps per period). rampSawtoothKeep() runs before params.local changes (old waveform).
+  function rampSawtoothKeep() {
+    if(!params.local || !(ramp_tab === 'freq' || ramp_ls.on)) return NaN;
+    return rampKeepFreq(params.local, ramp_f_nominal);
+  }
+  function rampSawtoothChanged(f_keep) {
+    var p = params.local;
+    if(f_keep > 0) {
+      var step = rampStepForFreq(f_keep, Number(p.lock_ramp_hig_lim) - Number(p.lock_ramp_low_lim), p.lock_ramp_sawtooth);
+      if(isFinite(step)) {
+        ramp_f_nominal = f_keep;
+        rampSetRegs(step, Number(p.lock_ramp_low_lim), Number(p.lock_ramp_hig_lim), true);   // the caller sends
+        return;
+      }
+    }
+    lock_ramp_step_update();
+    rampFreqShow(false);
+    rampLockScreenSync(false);
+  }
+
+  // A field of the period tab was sent (numberInputBlur / numberInputInput / ScrollIncrement): the scope window of
+  // Lock osc. screen follows (the caller sends)
+  function rampParamEdited(id) {
+    if(id === 'lock_ramp_step' || id === 'lock_ramp_low_lim' || id === 'lock_ramp_hig_lim') {
+      resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a change of the ramp starts Reset Zoom again
+      rampLockScreenSync(false);
+    }
+  }
+
+  // ---- Lock osc. screen -----------------------------------------------------------------------------------------
+  // On: the scope triggers on the scan floor (Ext Trig = Scan floor, Source External, Mode Normal) with the window of one period of the ramp
+  // (resetZoomWindow() with Scan floor: 0 .. T; slow scans (T >= 1.5 s, long acquisitions read while they are written
+  // by src/worker.c): 0 .. 0.98 T so that every scan is acquired; longer than 68.7 s: clamped to the longest memory).
+  // v2.2.16 (plus 2.2.0-rc3) (user): in triangle the window is the rising half only, 0 .. T/2 (floor -> high; it ends T/2 before the
+  // next floor, so no 0.98), and the time zoom maps that half (rampZoomToLims()); in sawtooth one period as above.
+  // The window follows the ramp (rampLockScreenSync(), when step / limits / waveform change: any tab, the wheel,
+  // another client, a config load). The time zoom of the plot (SHIFT + wheel, box selection, X- / X+) does not
+  // change the window: rampLockScreenFromX() turns it into new limits at the same frequency (rampZoomToLims()), and
+  // the window goes back to one period of the new ramp. The wheel without keys zooms Y only.
+  // Continuous update (acquisition windows >= 1.5 s, long_acq of src/worker.c: the trace is published while the FPGA
+  // writes it, from the trigger on): the scope is armed in Normal on the scan floor, so the trace always starts at the
+  // floor (t = 0) and grows towards 0.98 T; the next acquisition is armed before the next floor. The time zoom is
+  // mapped with the model of the ramp (rampValueAt(): the values the ramp has at the ends of the window), not with the
+  // samples, so a trace still incomplete does not matter.
+  // Off (unchecked, another trigger source / Ext Trig / Mode picked by the user, AUTO): trigger and window stay as
+  // they are (user, 2026-11-12), the full zoom comes back. A Capture Lock suspends it (the capture saves and restores
+  // the scope settings of Lock osc. screen).
+  function rampLockScreenTakesX() { return ramp_ls.on && !!params.local && !lockCaptureActive(); }
+
+  // v2.2.16 (plus 2.2.0-rc3) (user): triangle: the rising half only, 0 .. T/2 (scan floor -> high, resetZoomWindow(.., true));
+  // sawtooth: one whole period as before
+  function rampLockScreenWindow(p) {
+    var q = $.extend({}, p, { lock_trig_sw: 2 });   // also before the answer of the POST that sets Scan floor
+    return resetZoomWindow(q, p.time_range, true);
+  }
+
+  function rampLockScreenUi(w) {
+    var t = '';
+    if(ramp_ls.on && params.local) {
+      if(!w) w = rampLockScreenWindow(params.local);
+      t = '<small>Scope on <b>Scan floor</b>, window 0 .. ' + rampFmtSI(w.xmax_s, 's', 3);
+      if(w.source !== 'ramp') t += ' <span class="text-danger">(no ramp: high &le; low)</span>';
+      else if(w.clamped) t += ' <span class="text-warning">(longest memory, the ' + (w.half ? 'half ' : '') + 'period is ' +
+                              rampFmtSI(w.half ? w.period_s / 2 : w.period_s, 's', 3) + ')</span>';
+      else if(w.half) t += ' (rising half: T/2)';
+      else if(w.rearm) t += ' (slow scan: 0.98&nbsp;T)';
+      t += '<br>Time zoom (SHIFT+wheel, box, X&plusmn;) &rarr; ramp limits</small>';
+    }
+    $('#ramp_lock_screen_text').html(t);
+  }
+
+  // Scope window to one period of the ramp of params.local, if the ramp changed since the last time (force: always).
+  // send: POST here (otherwise the caller sends). Returns true if the window changed.
+  function rampLockScreenSync(send, force) {
+    if(!ramp_ls.on || !params.local || lockCaptureActive()) return false;
+    var p = params.local;
+    var key = [p.lock_ramp_step, p.lock_ramp_low_lim, p.lock_ramp_hig_lim, p.lock_ramp_sawtooth].join(',');
+    if(!force && key === ramp_ls.key) return false;
+    ramp_ls.key = key;
+    var w = rampLockScreenWindow(p);
+    rampLockScreenUi(w);
+    if(!plot) return false;
+    var tu = Number(p.time_units), fu = timeUnitFactor(isFinite(tu) ? tu : 0), o = plot.getOptions();
+    var x0 = (o.xaxes[0].min !== null ? o.xaxes[0].min : Number(p.xmin)) / fu;
+    var x1 = (o.xaxes[0].max !== null ? o.xaxes[0].max : Number(p.xmax)) / fu;
+    // v2.2.16 (plus 2.2.0-rc4): 1e-4 of the window (it was 0.1 % / 0.5 %: the axis stayed at 0 .. 5.011 ms for a window of 4.992 ms).
+    // Far above the float32 rounding of the server (~1e-7) and of the units conversion; and the window is re-fixed
+    // only when the ramp changed (ramp_ls.key), so no loop.
+    if(!force && Math.abs(x0 - w.xmin_s) <= ramp_ls_tol * w.xmax_s && Math.abs(x1 - w.xmax_s) <= ramp_ls_tol * w.xmax_s) return false;
+    // The trace on the plot is cleared only if the window really changes (on, or another period). A time zoom that
+    // keeps the frequency keeps the window: the acquisition in progress goes on (src/worker.c keeps it across
+    // parameters that do not change it; in the continuous update of windows >= 1.5 s the trace is drawn while it is
+    // acquired) and the next one starts on the next scan floor of the new ramp.
+    if(!(Math.abs(w.xmax_s - ramp_ls.xmax_s) <= 0.05 * w.xmax_s)) plotClearStale();
+    ramp_ls.xmax_s = w.xmax_s;
+    lockSetXWindow(w.xmin_s, w.xmax_s);
+    $.extend(true, plot_options, { xaxis: { min: params.local.xmin, max: params.local.xmax } });
+    updateRanges();
+    updateTriggerSlider();
+    if(send) sendParams(true, true);
+    return true;
+  }
+
+  function rampLockScreenSet(on) {
+    if(on) rampLockScreenOn();
+    else   rampLockScreenOff();
+  }
+
+  function rampLockScreenOn() {
+    if(ramp_ls.on) return;
+    if(!params.local || !plot) { $('#ramp_lock_screen').prop('checked', false); return; }
+    var restored = lockCaptureLeave('', 'Lock osc. screen');
+    var restart = restored || Number(params.local.trig_mode) != 1;
+    params.local.trig_source  = 2;
+    params.local.trig_mode    = 1;
+    params.local.lock_trig_sw = 2;
+    lockScopeSelects();
+    ramp_ls.on = true;
+    ramp_ls.key = '';
+    ramp_ls.xmax_s = NaN;
+    $('#ramp_lock_screen').prop('checked', true);
+    rampLockScreenSync(false, true);
+    plotWheelCursor();
+    console.log('Lock osc. screen: on (Scan floor, window of one ramp period; triangle: its rising half)');
+    if(restart) runStop();
+    sendParams(true, true);
+    trigFromGraphMsg();
+  }
+
+  // Off (user, 2026-11-12): the trigger and the zoom stay as they are; only the full time zoom of the plot comes back
+  function rampLockScreenOff() {
+    if(!ramp_ls.on) return false;
+    ramp_ls.on = false;
+    ramp_ls.key = '';
+    $('#ramp_lock_screen').prop('checked', false);
+    rampLockScreenUi();
+    plotWheelCursor();
+    console.log('Lock osc. screen: off (trigger and window kept)');
+    return true;
+  }
+
+  // Time zoom of the plot (min .. max in the current time units) with Lock osc. screen: new limits, same frequency,
+  // and the window back to one period. A window that is the whole view (box selection for Y only) changes nothing.
+  function rampLockScreenFromX(min, max) {
+    var p = params.local, tu = Number(p.time_units), fu = timeUnitFactor(isFinite(tu) ? tu : 0);
+    var w = rampLockScreenWindow(p);
+    var r = (rampZoomIsView(min / fu, max / fu, w.xmin_s, w.xmax_s) ? null :
+             rampZoomToLims(p, min / fu, max / fu, rampKeepFreq(p, ramp_f_nominal)));
+    var changed = false;
+    if(r) {
+      console.log('Lock osc. screen: time zoom ' + (min / fu).toPrecision(4) + ' .. ' + (max / fu).toPrecision(4) +
+                  ' s -> ramp low ' + r.low + ', high ' + r.hig + ', step ' + r.step + ' (f ' + r.f_keep.toPrecision(6) + ' Hz kept)');
+      ramp_f_nominal = r.f_keep;
+      changed = rampSetRegs(r.step, r.low, r.hig, true);
+    }
+    rampLockScreenSync(false, true);
+    sendParams(true, true);
+    return changed;
+  }
+  // [RAMP UI END]
 
   // [LOCK CAPTURE BEGIN] v2.3.14: "Capture Lock" and "Fire on click" (doc/lock_capture.md). Also run by
   // test/lock_capture_ui_sim.js.
@@ -3272,6 +3923,7 @@
 
   // x window of the plot and of params.local, in seconds (converted to the current time units)
   function lockSetXWindow(xmin_s, xmax_s) {
+    if(typeof xWindowLocal === 'function') xWindowLocal();   // v2.2.16 (plus 2.2.0-rc4): see [FORCEX]
     var tu = Number(params.local.time_units), f = timeUnitFactor(isFinite(tu) ? tu : 0);
     params.local.xmin = xmin_s * f;
     params.local.xmax = xmax_s * f;
@@ -3732,6 +4384,7 @@
     if(!params.local) return false;
     a = Number(a);  b = Number(b);
     if(!oscSwName(a) || !oscSwName(b)) return false;
+    if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3) (user): presets start Reset Zoom again
     params.local.lock_oscA_sw = a;
     params.local.lock_oscB_sw = b;
     $('#lock_oscA_sw').val(a);
@@ -4021,6 +4674,7 @@
     var long_timeout_used = use_long_timeout;
     var cap_state0 = lock_cap.state;  // v2.3.14: capture state when this GET starts (lockCaptureOnData())
     var get_epoch = plot_epoch;       // v2.3.23: see plot_epoch
+    var get_xgen = xwin_gen;          // v2.2.16 (plus 2.2.0-rc4): see [FORCEX]
 
     $.ajax({
       url: get_url,
@@ -4117,8 +4771,8 @@
             updateTimeUnits(dresult.datasets.params);
           }
 
-          // Force X min/max
-          if(dresult.datasets.params.forcex_flag == 1) {
+          // Force X min/max (v2.2.16 (plus 2.2.0-rc4): not a stale one, see [FORCEX])
+          if(getForceXApply(dresult.datasets.params, get_epoch, get_xgen)) {
             var options = plot.getOptions();
             options.xaxes[0].min = dresult.datasets.params.xmin;
             options.xaxes[0].max = dresult.datasets.params.xmax;
@@ -4231,6 +4885,18 @@
 
     // Selection
     plot_holder.on('plotselected', function(event, ranges) {
+      if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a zoom by hand, Reset Zoom starts again
+
+      // v2.2.16 (plus 2.2.0): Lock osc. screen: Y zoomed here, X turned into ramp limits (rampLockScreenFromX())
+      if(typeof rampLockScreenTakesX === 'function' && rampLockScreenTakesX()) {
+        if(plot.clearSelection) plot.clearSelection(true);
+        if(ranges.yaxis.to - ranges.yaxis.from >= 0.00001) resetZoomY(ranges.yaxis.from, ranges.yaxis.to);
+        plot.setupGrid();
+        plot.draw();
+        updateTriggerSlider();
+        rampLockScreenFromX(ranges.xaxis.from, ranges.xaxis.to);
+        return;
+      }
 
       // Clamp the zooming to prevent eternal zoom
       if(ranges.xaxis.to - ranges.xaxis.from < 0.00001) {
@@ -4266,8 +4932,10 @@
 
       zoompan_timer = setTimeout(function() {
         zoompan_timer = null;
+        if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): wheel / pan / touch zoom by hand, Reset Zoom starts again
 
         var xaxis = plot.getAxes().xaxis;
+        if(typeof rampLockScreenTakesX === 'function' && rampLockScreenTakesX()) { rampLockScreenFromX(xaxis.min, xaxis.max); return; }   // v2.2.16 (plus 2.2.0)
         xWindowToParams(xaxis.min, xaxis.max);   // v2.3.22 (build 50): no toFixed(2), see xWindowToParams()
 
         updateTriggerSlider();
@@ -4304,6 +4972,7 @@
   // zoom-in burst) was sent as xmin = xmax = 0 and the server answered 0..1 us. Now 12 significant digits (only to
   // drop float noise such as 0.30000000000000004), and never xmax <= xmin (then the unrounded values).
   function xWindowToParams(min, max) {
+    if(typeof xWindowLocal === 'function') xWindowLocal();   // v2.2.16 (plus 2.2.0-rc4): see [FORCEX]
     min = Number(min); max = Number(max);
     var a = parseFloat(min.toPrecision(12)), b = parseFloat(max.toPrecision(12));
     if(!(b > a)) { a = min; b = max; }
@@ -4351,7 +5020,7 @@
       var tu = Number(params.local.time_units), f = timeUnitFactor(isFinite(tu) ? tu : 0);
       var xr = wheelZoomRange(axes.xaxis.min, axes.xaxis.max, axes.xaxis.c2p(cx), amount,
                               plot_wheel_xlim[0] * f, plot_wheel_xlim[1] * f);
-      if(xr) { o.xaxes[0].min = xr.min; o.xaxes[0].max = xr.max; res.x = true; }
+      if(xr) { o.xaxes[0].min = xr.min; o.xaxes[0].max = xr.max; res.x = true; if(typeof xWindowLocal === 'function') xWindowLocal(); }   // v2.2.16 (plus 2.2.0-rc4)
     }
     if(mode !== 'x') {
       var yl = plotWheelYLimits();
@@ -4381,8 +5050,11 @@
     var dir = event.deltaY || -event.deltaX || delta || 0;
     if(!dir) return false;
     var off = plot.offset();
-    var r = plotWheelZoom(plotWheelMode(event.shiftKey, event.altKey), event.pageX - off.left, event.pageY - off.top, dir > 0);
+    var mode = plotWheelMode(event.shiftKey, event.altKey);
+    if(mode === 'xy' && typeof rampLockScreenTakesX === 'function' && rampLockScreenTakesX()) mode = 'y';   // v2.2.16 (plus 2.2.0): Lock osc. screen: time zoom only with SHIFT
+    var r = plotWheelZoom(mode, event.pageX - off.left, event.pageY - off.top, dir > 0);
     if(r.x || r.y) {
+      if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): also ALT (Y only)
       updateRanges();
       updateTriggerSlider();
     }
@@ -4446,6 +5118,12 @@
     // v2.2.10: Ext Trig before this change (the rule below applies only to a new value)
     var ext_prev = (param_name == 'lock_trig_sw' && params.local ? Number(params.local.lock_trig_sw) : null);
     var restart = false;
+    // v2.2.16 (plus 2.2.0): the user picks another scope trigger: Lock osc. screen ends (the choice is kept)
+    if((param_name == 'trig_source' || param_name == 'lock_trig_sw' || param_name == 'trig_mode') && typeof rampLockScreenOff === 'function')
+      rampLockScreenOff();
+    // v2.2.16 (plus 2.2.0-rc3): a change of the trigger by the user starts Reset Zoom again (whole period), also when it comes back
+    // to the same value before the next click
+    if(param_name == 'trig_source' || param_name == 'lock_trig_sw' || param_name == 'trig_mode' || param_name == 'trig_edge') if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();
     // v2.3.14: the user takes the scope trigger during a capture: it ends, the other settings are restored
     if(param_name == 'trig_source' || param_name == 'lock_trig_sw') {
       if(lockCaptureLeave(param_name)) { do_get = true; restart = true; }
@@ -4514,12 +5192,14 @@
     if(! isNaN(val)) {
       if(input_unit_parsers[iname]) $(that).val('' + val);
       params.local[iname] = val;
+      if(typeof rampParamEdited === 'function') rampParamEdited(iname);   // v2.2.16 (plus 2.2.0): Lock osc. screen window
       sendParams();
     }
     else if(params.local && params.local[iname] !== undefined) {
       $(that).val(params.local[iname]);
     }
     if(input_unit_parsers[iname]) lock_ctrl_update();   // .val() does not fire 'input': refresh T / Vtrg
+    if(iname == 'lock_ramp_step') lock_ramp_step_update();   // v2.2.16 (plus 2.2.0-rc2): "10 ms" rewritten in steps: tau / f
     editRefocusCheck(event);
     user_editing = false;
   }
@@ -4539,6 +5219,7 @@
         var v = numberInputValue(iname, $(that).val());
         if(v == val && ! isNaN(v)) {
           params.local[iname] = v;
+          if(typeof rampParamEdited === 'function') rampParamEdited(iname);   // v2.2.16 (plus 2.2.0): Lock osc. screen window
           sendParams();
         }
       }
@@ -4922,6 +5603,10 @@
 
 
     lock_ramp_step_update();
+    if(typeof rampFreqShow === 'function') {   // v2.2.16 (plus 2.2.0) (the node sims take loadParams() alone)
+      rampFreqShow(false);       // frequency tab of the Ramp Controller
+      rampLockScreenSync(true);  // Lock osc. screen: the window follows the ramp
+    }
     lock_modulation_update();
     lock_ctrl_update();
     lock_pidA_update();
@@ -5137,6 +5822,7 @@
     use_long_timeout = !!auto_flag;
     var epoch_post = plot_epoch_post;      // v2.3.23: this POST carries a Reset zoom (see plot_epoch)
     plot_epoch_post = false;
+    xWindowLocal();                        // v2.2.16 (plus 2.2.0-rc4): GET /data in flight: no forceX (see [FORCEX])
 
     // Send only the params that changed (same comparison as isParamChanged()), plus always_send_params.
     // Ecosystem 2.0 hangs with big POST bodies (E3), so all the ~220 params can not be sent every time.
@@ -5162,6 +5848,7 @@
       if(dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
         serverScopeGen(dresult.datasets.params);     // v2.3.23
         if(epoch_post) plot_epoch++;                 // v2.3.23: GET /data started before this answer are not drawn
+        xWindowLocal();                              // v2.2.16 (plus 2.2.0-rc4): nor take their forceX (see [FORCEX])
 
         // Use the provided min/max values only once after AUTO button was clicked
         if(auto_flag == 1 && dresult.datasets.params.min_y !== dresult.datasets.params.max_y) {
@@ -5186,6 +5873,7 @@
         }
 
         if(auto_flag == 0 && dresult.datasets.params.forcex_flag == 1) {
+          forcex_last = forceXKey(dresult.datasets.params);   // v2.2.16 (plus 2.2.0-rc4): the GET that repeat it do not apply it again
           var options = plot.getOptions();
 
           options.xaxes[0].min = dresult.datasets.params.xmin;
@@ -5282,7 +5970,7 @@
         continue;
       }
 
-      i = Math.min(l, dsets.length - 1);
+      var i = Math.min(l, dsets.length - 1);
 
       filtered.push({ color: dsets[i].color, label: dsets[i].label, data: [] });
 
@@ -5397,6 +6085,9 @@
 
   function singleUpdate() {
     lockCaptureLeave('single');  // v2.3.14: new acquisition with the scope settings saved before the capture
+    // v2.2.16 (plus 2.2.0-rc2) (user): Single ends Lock osc. screen too, as the other changes of the scope trigger (trigger and window
+    // kept, full time zoom back: rampLockScreenOff())
+    if(typeof rampLockScreenOff === 'function') rampLockScreenOff();
     if(! autorun) {
       single_seq++;              // v2.3.18: its acquisition is waited for with fast polling (see single_poll_ms)
       sendParams(true, true, true);
@@ -5441,6 +6132,7 @@
     if(! plot) {
       return;
     }
+    if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3): a zoom by hand (Y), Reset Zoom starts again
 
     var options = plot.getOptions();
     var axes = plot.getAxes();
@@ -5490,8 +6182,15 @@
     // Y -1..1 V (raw mode -8192..8192). Before, X went to 0..130 us (Dec 1, server reset of xmin/xmax = -1e6/1e6)
     // and Y to +-gui_reset_y_range/2 also in raw mode (+-1 count).
     var tr = (params.original && isFinite(params.original.time_range) ? params.original.time_range : params.local.time_range);
-    var w = resetZoomWindow(params.local, tr);
-    console.log('Reset zoom: ' + (w.source === 'ramp' ? 'ramp period' : (w.source === 'mod' ? 'modulation period' :
+    // v2.2.16 (plus 2.2.0-rc3): with Lock osc. screen, its window (the rising half in triangle); otherwise whole period / rising half
+    // alternating (resetZoomCycleNext())
+    var ls = (typeof ramp_ls !== 'undefined' && ramp_ls.on && typeof rampLockScreenWindow === 'function');
+    var tu = Number(params.local.time_units), fu = timeUnitFactor(isFinite(tu) ? tu : 0), xo = plot.getOptions().xaxes[0];
+    var half = !ls && resetZoomCycleNext(params.local, (xo.min !== null ? xo.min : Number(params.local.xmin)) / fu,
+                                         (xo.max !== null ? xo.max : Number(params.local.xmax)) / fu);
+    var w = (ls ? rampLockScreenWindow(params.local) : resetZoomWindow(params.local, tr, half));
+    console.log('Reset zoom: ' + (ls ? 'Lock osc. screen, ' : '') + (w.half ? 'rising half (0 .. T/2) of the ' : '') +
+                (w.source === 'ramp' ? 'ramp period' : (w.source === 'mod' ? 'modulation period' :
                 (w.source === 'square' ? 'square modulation period' : 'one memory of the scope'))) + ' ' + w.period_s.toPrecision(6) + ' s -> window 0 .. ' +
                 w.xmax_s.toPrecision(6) + ' s (Dec ' + w.dec + ')' + (w.clamped ? ', clamped to the longest memory' : '') +
                 (w.rearm && !w.clamped ? ' (slow scan: it ends before the next trigger, so that every scan is acquired)' : ''));
@@ -5505,6 +6204,8 @@
     // params.local.xmin/xmax and the plot x axis, in the current time units; the server picks the Dec from them and,
     // if the units change, answers with forceX in the new ones (as a zoom, Choose from graph or Config load)
     lockSetXWindow(w.xmin_s, w.xmax_s);
+    if(ls) { resetZoomCycleBreak(); ramp_ls.xmax_s = w.xmax_s; }
+    else resetZoomCycleSet(params.local, w.half, w.xmin_s, w.xmax_s);   // v2.2.16 (plus 2.2.0-rc3): the next click alternates
 
     $.extend(true, plot_options, { xaxis: { min: params.local.xmin, max: params.local.xmax } });
 
@@ -5540,6 +6241,7 @@
     if(! plot) {
       return;
     }
+    if(typeof resetZoomCycleBreak === 'function') resetZoomCycleBreak();   // v2.2.16 (plus 2.2.0-rc3)
 
     params.local.xmin = 0;
     params.local.xmax = time_range_max[params.local.time_range];
@@ -5861,6 +6563,7 @@
 
   function serverAutoScale() {
     var restored = lockCaptureLeave('', 'AUTO');  // v2.3.14: ends a capture, scope settings back
+    if(typeof rampLockScreenOff === 'function') rampLockScreenOff();   // v2.2.16 (plus 2.2.0): AUTO picks its own trigger and window
     params.local.auto_flag = 1;
     sendParams(true);
     if(restored) runStop();
@@ -6097,7 +6800,7 @@
     }
 
     // check if name is repeated
-    for(i in params.storage){
+    for(var i in params.storage){
       if(name==params.storage[i].name) {
         console.log('config_save_storage: Storage name repeated - ' + params.storage[i].name ) ;
         alert("Error: Storage name repeated");
@@ -6107,7 +6810,7 @@
 
     // create new element
     var tmp_storage_elem = {'name':name , 'datetime':new Date().toJSON(), 'data':{} };
-    for(i in config_params_keys){
+    for(var i in config_params_keys){
       if(params.local[ config_params_keys[i] ]!= null )
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
@@ -6310,7 +7013,7 @@
     var txt='<table class="table text-left">';
     txt += '<thead><tr><th>Number</th><th>Name</th><th>DateTime</th><th colspan="3">Actions</th></tr></thead>';
     txt += '<tbody>';
-    for(i in params.storage){
+    for(var i in params.storage){
       txt += '<tr>';
       txt += '<td>' + $("<div />").text( i ).html() + '</td>';
       txt += '<td>' + $("<div />").text( params.storage[i].name ).html().replace('_','_<wbr>') + '</td>';
@@ -6324,7 +7027,7 @@
 
     $("#config_storage_table").html(txt);
     var save_text = "";
-    for(i in params.storage){
+    for(var i in params.storage){
       save_text = JSON.stringify(params.storage[i]);
       $('#btn_save_config_file_'+i)[0].download = params.storage[i].name + ".json";
       $('#btn_save_config_file_'+i)[0].href     = "data:text/text;charset=utf-8," + encodeURIComponent(save_text);
@@ -6339,7 +7042,7 @@
 
     // create new element
     var tmp_storage_elem = {'name':name , 'datetime':new Date().toJSON(), 'data':{} };
-    for(i in config_params_keys){
+    for(var i in config_params_keys){
       if(params.local[ config_params_keys[i] ]!= null )
         tmp_storage_elem.data[ config_params_keys[i] ] = params.local[ config_params_keys[i] ];
     }
@@ -6372,7 +7075,7 @@
       var tmp_storage_elem = JSON.parse(text);
 
       // check if name is repeated
-      for(i in params.storage){
+      for(var i in params.storage){
         if(tmp_storage_elem.name==params.storage[i].name) {
           console.log('config_save_storage: Storage name repeated - ' + params.storage[i].name ) ;
           return -1;
@@ -6429,7 +7132,7 @@
     <div class="container">
       <a id="btn_exit" class="pull-left" href="/index.html"><span class="glyphicon glyphicon-chevron-left" title="Exit" alt="Exit"></span></a>
       <img class="logo pull-left" src="../assets/images/logo_white.png">
-      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.15)</h2>
+      <h2 class="page-title">Oscilloscope+Lock-in+PID (v2.2.16)</h2>
     </div>
   </div>
   <div class="container">
@@ -6438,7 +7141,7 @@
         <button id="btn_autoscale_y" class="btn btn-primary btn-lg" data-autozoom="false" onclick="autoscaleY()" title="Rescales the Y axis to the data on the screen (in this page only: the scope settings do not change). It is not AUTO: it does not end a Capture Lock, so it can be used on a frozen capture.">
           <span class="glyphicon glyphicon-resize-vertical"></span> Autoscale
         </button>
-        <button class="btn btn-primary btn-lg" onclick="resetZoom()" title="X: one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod.), one period of the square modulation (Ext Trig = Square mod.) or one whole memory of the scope at the current Dec (otherwise), from t = 0. Y: -1 V .. 1 V (raw mode: -8192 .. 8192)">
+        <button class="btn btn-primary btn-lg" onclick="resetZoom()" title="X: one period of the ramp (Ext Trig = Scan floor / Scan ceil), one period of the harmonic modulation (Ext Trig = harmonic mod.), one period of the square modulation (Ext Trig = Square mod.) or one whole memory of the scope at the current Dec (otherwise), from t = 0. Source External + Scan floor: a second click (zoom not touched) gives the rising half of the ramp, and the clicks alternate. With Lock osc. screen: its window. Y: -1 V .. 1 V (raw mode: -8192 .. 8192)">
           <span class="glyphicon glyphicon-retweet"></span> Reset zoom
         </button>
         <div id="selzoompan" class="btn-group" data-toggle="buttons">
@@ -7753,56 +8456,107 @@
               <div class="panel-group col-xs-12 col-sm-12 col-md-12">
 
                 <div class="row">
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                      <div class="form-group">
-                        <label for="lock_ramp_step" class="col-xs-4 control-label"
-                          data-toggle="tooltip" data-placement="right" title="Sets Ramp Period in a way I should tell you"> Ramp period: </label>
-                        <div class="col-xs-4 col-sm-8">
-                          <input type="number" autocomplete="off" class="form-control" value="0" id="lock_ramp_step" step="1" min="0" max="4294967295">
-                          <span style="display: none;" class="input-group-btn" id="lock_ramp_step_apply">
-                            <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                          </span>
-                        </div>
-                        <div class="col-xs-12 col-sm-12 text-center">
-                          <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_step_text">lock_ramp_step</div>
-                        </div>
-                      </div>
-                    </form>
+                  <!-- v2.2.16 (plus 2.2.0): two ways of editing the ramp (tabs, only the active one is editable), see [RAMP UI] -->
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12 ramp-tabs-head">
+                    <ul class="nav nav-tabs ramp-tabs" id="ramp_tabs">
+                      <li class="active"><a href="#" data-ramp-tab="period" title="Ramp period (clock ticks), high and low limits (counts), as before">period</a></li>
+                      <li><a href="#" data-ramp-tab="freq" title="Frequency, peak-to-peak amplitude and offset of the ramp">freq</a></li>
+                    </ul>
                   </div>
+                  <div id="ramp_tab_period" class="ramp-tab-pane clearfix">
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_ramp_step" class="col-xs-4 control-label"> Ramp period: </label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="text" autocomplete="off" spellcheck="false" class="form-control" value="0" id="lock_ramp_step" step="1" min="0" max="2147483520">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_step_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_step_text">lock_ramp_step</div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
 
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                      <div class="form-group">
-                        <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Ramp hig&nbsp;lim:</label>
-                        <div class="col-xs-4 col-sm-8">
-                          <input type="number" autocomplete="off" class="form-control" value="5000" id="lock_ramp_hig_lim" step="1" min="-8192" max="8191">
-                          <span style="display: none;" class="input-group-btn" id="lock_ramp_hig_lim_apply">
-                            <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                          </span>
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_ramp_hig_lim" class="col-xs-4 control-label">Ramp hig&nbsp;lim:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="number" autocomplete="off" class="form-control" value="5000" id="lock_ramp_hig_lim" step="1" min="-8192" max="8191">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_hig_lim_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_hig_lim_text">lock_ramp_hig_lim</div>
+                          </div>
                         </div>
-                        <div class="col-xs-12 col-sm-12 text-center">
-                          <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_hig_lim_text">lock_ramp_hig_lim</div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Ramp low&nbsp;lim:</label>
+                          <div class="col-xs-4 col-sm-8">
+                            <input type="number" autocomplete="off" class="form-control" value="-5000" id="lock_ramp_low_lim" step="1" min="-8192" max="8191">
+                            <span style="display: none;" class="input-group-btn" id="lock_ramp_low_lim_apply">
+                              <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
+                            </span>
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center">
+                            <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_low_lim_text">lock_ramp_low_lim</div>
+                          </div>
                         </div>
-                      </div>
-                    </form>
+                      </form>
+                    </div>
                   </div>
+                  <div id="ramp_tab_freq" class="ramp-tab-pane clearfix" style="display: none;">
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="ramp_f_freq" class="col-xs-4 control-label">Frequency:</label>
+                          <div class="col-xs-8">
+                            <input type="text" autocomplete="off" class="form-control" value="" id="ramp_f_freq">
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center" style="clear: both;">
+                            <div style="padding: 7px 0 0;" class="col-xs-12" id="ramp_f_freq_text"></div>
+                          </div>
+                        </div>
+                      </form>
+                    </div>
 
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
-                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
-                      <div class="form-group">
-                        <label for="lock_ramp_low_lim" class="col-xs-4 control-label">Ramp low&nbsp;lim:</label>
-                        <div class="col-xs-4 col-sm-8">
-                          <input type="number" autocomplete="off" class="form-control" value="-5000" id="lock_ramp_low_lim" step="1" min="-8192" max="8191">
-                          <span style="display: none;" class="input-group-btn" id="lock_ramp_low_lim_apply">
-                            <button type="button" class="btn btn-primary btn-lg"><span class="glyphicon glyphicon-ok-circle"></span></button>
-                          </span>
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="ramp_f_amp" class="col-xs-4 control-label" title="Peak-to-peak amplitude of the ramp, in machine units (counts: 8192 = 1 V): Ramp hig lim - Ramp low lim. Also 500 mV or 0.5 V. Changing it keeps the frequency set above (Ramp period recomputed). Wheel: +/- 1, SHIFT x10, CTRL x100, both x1000.">Amp.&nbsp;p-p:</label>
+                          <div class="col-xs-8">
+                            <input type="text" autocomplete="off" class="form-control" value="" id="ramp_f_amp" title="Peak-to-peak amplitude of the ramp, in machine units (counts: 8192 = 1 V): Ramp hig lim - Ramp low lim. Also 500 mV or 0.5 V. Changing it keeps the frequency set above (Ramp period recomputed). Wheel: +/- 1, SHIFT x10, CTRL x100, both x1000.">
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center" style="clear: both;">
+                            <div style="padding: 7px 0 0;" class="col-xs-12" id="ramp_f_amp_text"></div>
+                          </div>
                         </div>
-                        <div class="col-xs-12 col-sm-12 text-center">
-                          <div style="padding: 7px 0 0;" class="col-xs-8" id="lock_ramp_low_lim_text">lock_ramp_low_lim</div>
+                      </form>
+                    </div>
+
+                    <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                      <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                        <div class="form-group">
+                          <label for="ramp_f_off" class="col-xs-4 control-label" title="Center of the ramp, in machine units (counts: 8192 = 1 V): floor((hig + low)/2). Also -200 mV or 0.1 V. The frequency does not change. Wheel: +/- 1, SHIFT x10, CTRL x100, both x1000.">Offset:</label>
+                          <div class="col-xs-8">
+                            <input type="text" autocomplete="off" class="form-control" value="" id="ramp_f_off" title="Center of the ramp, in machine units (counts: 8192 = 1 V): floor((hig + low)/2). Also -200 mV or 0.1 V. The frequency does not change. Wheel: +/- 1, SHIFT x10, CTRL x100, both x1000.">
+                          </div>
+                          <div class="col-xs-12 col-sm-12 text-center" style="clear: both;">
+                            <div style="padding: 7px 0 0;" class="col-xs-12" id="ramp_f_off_text"></div>
+                          </div>
                         </div>
-                      </div>
-                    </form>
+                      </form>
+                    </div>
                   </div>
 
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12">
@@ -7824,6 +8578,19 @@
 
                   <hr>
 
+                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                    <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
+                      <div class="checkbox" style="padding-bottom: 4px;">
+                        <label class="group-label" title="Lock osc. screen: the scope triggers on the scan floor (Ext Trig = Scan floor, Source External, Mode Normal) and its window is fixed to the rising half of the ramp (0 .. T/2, from the scan floor to the top). The time zoom of the plot (SHIFT + wheel, a box selection, X- / X+) does not move the window: it sets the ramp high / low limits so that the scan covers the zone chosen, at the same frequency. The wheel without keys (or ALT) zooms Y only. Unchecking it leaves the trigger and the window as they are and gives back the full time zoom.">
+                          <input type="checkbox" id="ramp_lock_screen">Lock osc. screen
+                        </label>
+                      </div>
+                      <div class="text-center" style="clear: both;" id="ramp_lock_screen_text"></div>
+                    </form>
+                  </div>
+
+                  <hr>
+
                   <div class="panel-group col-xs-12 col-sm-12 col-md-12 text-center">
                     <div class="col-xs-12 col-sm-12">
                       <div style="padding: 7px 0 0;" class="col-xs-12" id="lock_ramp_text">lock_ramp_text</div>
@@ -7832,7 +8599,8 @@
 
                   <hr>
 
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <!-- v2.2.16 (plus 2.2.0): two columns: Scan reset / Scan enable | Scan direction (no Sawtooth in this App) -->
+                  <div class="panel-group col-xs-6 col-sm-6 col-md-6">
                     <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
@@ -7840,8 +8608,6 @@
                         </label>
                       </div>
                     </form>
-                  </div>
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
                     <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">
@@ -7850,7 +8616,7 @@
                       </div>
                     </form>
                   </div>
-                  <div class="panel-group col-xs-12 col-sm-12 col-md-12">
+                  <div class="panel-group col-xs-6 col-sm-6 col-md-6">
                     <form class="form-horizontal" role="form" onsubmit="return false;" novalidate>
                       <div class="checkbox" style="padding-bottom: 12px;">
                         <label class="group-label">

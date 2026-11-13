@@ -1,6 +1,56 @@
 
 # Devbuild  changes
 
+## v2.2.16 - 2026-11-13 - Ramp Controller of lock_in+pid_plus 2.2.0 (as lock_in+pid_harmonic 2.3.31): tabs period / freq, Ramp period in s / ms, Lock osc. screen, Reset zoom whole / half, no stale Force X (web page only, no FPGA / C change)
+
+Port of the Ramp Controller of `rp_lock-in_pid_plus` v2.2.0, taken from its port to `rp_lock-in_pid_h` v2.3.31
+(`git diff v2.3.30 v2.3.31` of `index.html` and `test/`). Only `index.html` (and its tests): the FPGA
+(`fpga.bit.bin` `3ba3b00a…`, `red_pitaya.bit` `963dc38d…`) and the sources of the C controller are those of 2.2.15
+(`controllerhf.so` only rebuilt).
+
+**This App has the triangle ramp only:** its `gen_ramp.v` is another version of the file (no `ramp_sawtooth` input,
+no `lock_ramp_sawtooth` parameter in `src/main.c`), but its triangle is the same logic as the one of lock_in+pid_harmonic
+/ pid_plus (`floor ? +1 : ceil ? -1 : slope ? +1 : -1`, one count every `step + 1` cycles of 8 ns), so: one period
+N = 2·(hig − low) steps, T = N·(step+1)·8 ns, f = 125 MHz / (N·(step+1)), and the ramp always rises after the scan floor
+(whatever *Scan direction*). Checked on the RTL by `test/ramp_mod_period_sim.sh` (PASS, 14 checks: triangle in both
+directions, 400 / 1600 / 1140 cycles). `lock_ramp_step` is a float32 parameter of the controller written with `(int)`
+(as in the other Apps): steps 0 … 2147483520 ($2^{31}-128$). The JavaScript formulas are the same as in the other
+Apps: without `lock_ramp_sawtooth` (undefined) they give the triangle.
+
+- ADDED **tabs *period* / *freq*** in the Ramp Controller (only the active one visible; changing the tab ends the edit
+  in progress and reloads the fields from the board; last tab in `localStorage`, key `lockin_ramp_tab_lock_in+pid`;
+  *Ramp B factor* outside the tabs). *freq*: **Frequency** (Hz, `2.5 kHz`, `500 mHz`) set to the nearest reachable
+  frequency (float32 steps of `lock_ramp_step`), wheel ±1 / 10 / 100 / 1000 Hz (SHIFT / CTRL / both) with at least one
+  step of the register; **Amp. p-p** / **Offset** in counts (also `mV` / `V`), text in mVpp / mVdc; changing the
+  amplitude keeps the frequency set by the user. The content of the active tab is boxed by the line of the tabs.
+- ADDED **Lock osc. screen** (checkbox under *Ramp B factor*, with a separator; off by default, not saved): Ext Trig =
+  Scan floor, Source External, Mode Normal, window 0 … T/2 (the rise of the triangle); the time zoom (box,
+  SHIFT + wheel, X±) becomes new ramp limits at the same frequency; the window follows any change of the ramp
+  (tolerance $10^{-4}$); off: trigger and window kept, full time zoom back; Single, another Source / Ext Trig / Mode,
+  AUTO turn it off; suspended during a Capture Lock.
+- ADDED **Reset zoom alternates whole period / rising half** with Source External and Ext Trig = Scan floor (without
+  Lock osc. screen) while the zoom is not touched; with Lock osc. screen, its window. Scan ceil, harmonic mod.,
+  Square mod. and the other Ext Trig: one period / one memory as before.
+- CHANGED **Ramp period** (tab *period*) is a text field: a number is steps, `s` / `seg` / `ms` / `us` give the whole
+  period T = 2·(hig − low)·(step+1)·8 ns (nearest step; before, `s` / `ms` gave the step of (hig − low) steps, half the
+  period); while typing nothing is sent, Enter / blur rewrite it in steps; a text that is not valid (or hig lim = low
+  lim) restores the last value. Steps limited to 0 … 2147483520.
+- CHANGED the three ramp checkboxes in two columns (Scan reset / Scan enable | Scan direction); no tooltips on
+  *Ramp period* / *Frequency* (the help on a click on the *Ramp period* label stays). No Sawtooth checkbox is added.
+- FIXED "-0 mV" labels (Ramp low / hig lim, mVpp / mVdc, Vtrg of the lock trigger): `toFixedNz()`.
+- FIXED implicit global loop variables (`window.i`, `window.ii`): `var` in the loops.
+- FIXED stale **Force X** of `GET /data` (`[FORCEX]` block, `getForceXApply()`): a GET that started before the last
+  Reset zoom answer, or before a window set by the page / a POST, does not move the X axis back; the flag the server
+  repeats is applied once. The forceX of the POST answer and of another client are applied as before.
+- Tests: new `test/ramp_ui_sim.js` (65 checks; its sawtooth cases 1, 2.2, 4.6, 5.6, 6.2, 6.3 and 7.3 run only if the
+  page has the `lock_ramp_sawtooth` checkbox: skipped here; 73/73 on the page of lock_in+pid_harmonic 2.3.31) and
+  `test/forcex_race_sim.js` (7/7; with `--old` on 2.2.15: 4/6); `test/reset_zoom_sim.js` C1–C15 without the sawtooth
+  case C9 (61 checks; the params have no `lock_ramp_sawtooth`, as the server); `test/trig_input_units_sim.js` case 10
+  without the sawtooth sub-case (42); `minor_ui_sim.js` takes the new ramp functions; `config_load_window_sim`,
+  `lock_capture_ui_sim`, `lock_ctrl_ui_sim`, `osc_presets_sim` take the `[FORCEX]` block. All 15 node sims pass.
+- Pending (as in pid_plus 2.2.0): *Ramp hig / low lim* do not take mV / V; the wheel over *Ramp period* does not move
+  the step above $2^{24}$ (float32). Board test (testAgent) pending.
+
 ## v2.2.15 - 2026-10-24 - AUTO trigger level at the middle of the signal with a calibration offset or a full scale other than 1 V; Raw Mode half counts (C controller; page: version and comments only; no FPGA change; as lock_in+pid_harmonic 2.3.30)
 
 Port of lock_in+pid_harmonic 2.3.30 (same code in this App). Issues of the AUTO found in the review of v2.2.14 (the half

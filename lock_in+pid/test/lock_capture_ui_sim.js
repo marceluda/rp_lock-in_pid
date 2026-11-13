@@ -412,6 +412,7 @@ function makeEnv(rig, clock) {
   code += '\n' + ['server_ro_keys', 'single_poll_ms', 'single_seq', 'single_seq_done'].map(varSrcOpt).join('\n');
   // v2.3.23: plot_epoch (Reset zoom), absent in older pages
   code += '\n' + (js.includes('var plot_epoch = 0') ? 'var plot_epoch = 0, plot_epoch_post = false;' : '') + '\n';
+  code += '\n' + (js.indexOf('// [FORCEX BEGIN]') >= 0 ? js.slice(js.indexOf('// [FORCEX BEGIN]'), js.indexOf('// [FORCEX END]')) : '') + '\n';   // v2.2.16 (plus 2.2.0-rc4): [FORCEX] (sendParams(), doGetData()), absent in older pages
   code += '\nvar params = {original:null, local:null};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n' +
           'var set_trigger_val = false, plot_time_units = null, update_timer = null, datasets = [];\n';
   if(js.includes('function scheduleSinglePoll(')) code += fnSrc('scheduleSinglePoll') + '\n';

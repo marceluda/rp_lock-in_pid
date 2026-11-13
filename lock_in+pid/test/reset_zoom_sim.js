@@ -36,6 +36,7 @@ const args = process.argv.slice(2);
 const OLD = args.includes('--old');
 const file = args.find(a => !a.startsWith('--')) || path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(file, 'utf8');
+const HAS_SAW = /id="lock_ramp_sawtooth"/.test(html);   // lock_in+pid v2.2.16: C9 (sawtooth) only with the checkbox
 const js = [...html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n');
 
 function braceFrom(i) {
@@ -316,6 +317,124 @@ for(const raw of [1, 0]) {
   if(!ok) fails++;
   console.log((ok ? 'ok   ' : 'FAIL ') + `R${raw} Raw Mode ${raw ? 'on' : 'off'}: Y ${o.yaxes[0].min}..${o.yaxes[0].max} (expected ${ey.join('..')}), ` +
               `X unchanged, no POST of its own` + (err ? ' (' + err + ')' : ''));
+}
+
+// ---- v2.2.16 (plus 2.2.0-rc3) (user): Reset Zoom alternates whole period / rising half (Source External, Scan floor, triangle,
+// without Lock osc. screen); a zoom by hand or a change of the ramp / trigger starts again (whole period)
+if(!OLD) {
+  console.log('--- v2.2.16 (plus 2.2.0-rc3): whole period / rising half');
+  function cyc(name, fn) {
+    let r;
+    try { r = fn(); } catch(e) { r = [false, 'exception: ' + e.message]; }
+    n++;
+    if(!r[0]) fails++;
+    console.log((r[0] ? 'ok   ' : 'FAIL ') + name + (r[1] !== undefined ? '  [' + r[1] + ']' : ''));
+  }
+  // triangle -4000..4000 step 99: T = 12.8 ms, T/2 = 6.4 ms
+  function mk(extra) {
+    const srv = { time_range: 0, time_units: 0, xmin: 0, xmax: 131, trig_mode: 1, forcex_flag: 0, gui_reset_y_range: 2 };
+    const local = Object.assign({ trig_mode: 1, trig_source: 2, lock_trig_sw: 2, lock_osc_raw_mode: 0, lock_ramp_low_lim: -4000,
+                                  lock_ramp_hig_lim: 4000, lock_ramp_step: 99, lock_ramp_direction: 0,   // no lock_ramp_sawtooth (v2.2.16)
+                                  lock_ref_sw: 0, lock_lia_ftw_hi: 26, lock_lia_ftw_lo: 416 }, srv, extra || {});
+    return makeSandbox(srv, local);
+  }
+  function win(sb) {   // x window on the plot, seconds
+    const f = unitF(sb.srv.time_units);
+    return [Number(sb.plotOpts.xaxes[0].min) / f, Number(sb.plotOpts.xaxes[0].max) / f];
+  }
+  const isWin = (w, a, b) => nearAbs(w[0], a) && near(w[1], b, 1e-6);
+  const T = 12.8e-3;
+  cyc('C1 clicks 1..5: whole, half, whole, half, whole (0 .. 12.8 ms / 0 .. 6.4 ms); one POST each; Y -1 .. 1 V each time', () => {
+    const sb = mk(), got = [];
+    for(let k = 0; k < 5; k++) { sb.plotOpts.yaxes[0].min = -0.3; sb.resetZoom(); got.push(win(sb)); }
+    const exp = [T, T / 2, T, T / 2, T];
+    return [got.every((w, k) => isWin(w, 0, exp[k])) && sb.posts.length === 5 && sb.plotOpts.yaxes[0].min === -1,
+            got.map(w => (w[1] * 1e3).toPrecision(4)).join(', ') + ' ms'];
+  });
+  cyc('C2 the half: Dec 64 (8.39 ms memory) instead of Dec 128, console "rising half"', () => {
+    const sb = mk(); sb.resetZoom(); sb.resetZoom();
+    return [DEC[sb.srv.time_range] === 64 && sb.logs.some(m => /rising half/.test(m)), 'Dec ' + DEC[sb.srv.time_range]];
+  });
+  // zooms by hand between the clicks: the break of the handlers, or only a different window on the plot
+  cyc('C3 whole, then a zoom by hand (resetZoomCycleBreak(), e.g. ALT + wheel: Y only, X unchanged): whole again, then half', () => {
+    const sb = mk(); sb.resetZoom(); sb.resetZoomCycleBreak(); sb.resetZoom(); const a = win(sb); sb.resetZoom(); const b = win(sb);
+    return [isWin(a, 0, T) && isWin(b, 0, T / 2), `${a[1]} ${b[1]}`];
+  });
+  cyc('C4 half, then a zoom by hand: the next click gives the whole period (not the half again)', () => {
+    const sb = mk(); sb.resetZoom(); sb.resetZoom(); sb.resetZoomCycleBreak(); sb.resetZoom();
+    return [isWin(win(sb), 0, T), win(sb)[1]];
+  });
+  cyc('C5 whole, then the X window changed on the plot without the break (any other way): whole again', () => {
+    const sb = mk(); sb.resetZoom();
+    const f = unitF(sb.srv.time_units); sb.plotOpts.xaxes[0].min = 1e-3 * f; sb.plotOpts.xaxes[0].max = 5e-3 * f;
+    sb.resetZoom();
+    return [isWin(win(sb), 0, T), win(sb)[1]];
+  });
+  cyc('C6 whole, then a change of the ramp (step 99 -> 199, T 25.6 ms; another client, config, tab): whole of the new ramp', () => {
+    const sb = mk(); sb.resetZoom(); sb.params.local.lock_ramp_step = 199; sb.resetZoom();
+    return [isWin(win(sb), 0, 2 * T), win(sb)[1]];
+  });
+  cyc('C7 whole, then the limits change (-2000 .. 2000) without changing the window: whole', () => {
+    const sb = mk(); sb.resetZoom(); sb.params.local.lock_ramp_low_lim = -2000; sb.params.local.lock_ramp_hig_lim = 2000; sb.resetZoom();
+    return [isWin(win(sb), 0, T / 2), win(sb)[1]];   // T of the new ramp = 6.4 ms, whole period
+  });
+  cyc('C8 whole, Trigger Mode changed (Normal -> Auto): whole', () => {
+    const sb = mk(); sb.resetZoom(); sb.params.local.trig_mode = 0; sb.resetZoom(); const a = win(sb);
+    return [isWin(a, 0, T), a[1]];
+  });
+  if(!HAS_SAW) console.log('skip C9 sawtooth (Scan floor, External): no Sawtooth in this App');
+  else cyc('C9 sawtooth (Scan floor, External): always the whole period (clicks 1..3)', () => {
+    const sb = mk({ lock_ramp_sawtooth: 1, lock_ramp_low_lim: 0, lock_ramp_hig_lim: 999, lock_ramp_step: 99 }), got = [];
+    for(let k = 0; k < 3; k++) { sb.resetZoom(); got.push(win(sb)[1]); }
+    return [got.every(v => near(v, 1000 * 100 * 8e-9, 1e-6)), got.join(', ')];
+  });
+  cyc('C10 Scan ceil, triangle: always the whole period (the half after the ceil is the fall, not the rise)', () => {
+    const sb = mk({ lock_trig_sw: 4 }), got = [];
+    for(let k = 0; k < 3; k++) { sb.resetZoom(); got.push(win(sb)[1]); }
+    return [got.every(v => near(v, T, 1e-6)), got.join(', ')];
+  });
+  cyc('C11 Source Ch1 (not external), Ext Trig Scan floor, triangle: always the whole period', () => {
+    const sb = mk({ trig_source: 0 }), got = [];
+    for(let k = 0; k < 3; k++) { sb.resetZoom(); got.push(win(sb)[1]); }
+    return [got.every(v => near(v, T, 1e-6)), got.join(', ')];
+  });
+  cyc('C12 Ext Trig None: always one memory (as before)', () => {
+    const sb = mk({ lock_trig_sw: 0 }), got = [];
+    for(let k = 0; k < 3; k++) { sb.resetZoom(); got.push(win(sb)[1]); }
+    return [got.every(v => near(v, MEM, 1e-5)), got.join(', ')];
+  });
+  cyc('C13 slow triangle (T = 8 s): whole 0 .. 0.98 T = 7.84 s, half 0 .. 4 s (no 0.98: it ends T/2 before the next floor)', () => {
+    const sb = mk({ lock_ramp_low_lim: -8000, lock_ramp_hig_lim: 8000, lock_ramp_step: 31249 });
+    sb.resetZoom(); const a = win(sb); sb.resetZoom(); const b = win(sb);
+    return [isWin(a, 0, 7.84) && isWin(b, 0, 4), `${a[1]} ${b[1]}`];
+  });
+  cyc('C14 with Lock osc. screen on: its window (triangle: the rising half) on every click, no cycle', () => {
+    const sb = mk();
+    vm.runInContext('var ramp_ls = { on: true, xmax_s: NaN }; function rampLockScreenWindow(p) { return resetZoomWindow(p, p.time_range, true); }', sb);
+    const got = [];
+    for(let k = 0; k < 3; k++) { sb.resetZoom(); got.push(win(sb)[1]); }
+    vm.runInContext('ramp_ls.on = false', sb);
+    sb.resetZoom(); const off = win(sb)[1];
+    return [got.every(v => near(v, T / 2, 1e-6)) && near(off, T, 1e-6) && near(vm.runInContext('ramp_ls.xmax_s', sb), T / 2, 1e-9),
+            got.join(', ') + ' | off: ' + off];
+  });
+  // the handlers of the zooms by hand call resetZoomCycleBreak() (source of index.html)
+  {
+    const has = src => /resetZoomCycleBreak\(\)/.test(src);
+    const sel = js.slice(js.indexOf("plot_holder.on('plotselected'"), js.indexOf("plot_holder.on('plotzoom plotpan"));
+    const zp = js.slice(js.indexOf("plot_holder.on('plotzoom plotpan"), js.indexOf('plotWheelBind();  //'));
+    const rx = js.slice(js.indexOf("$('#range_x_minus, #range_x_plus').on('click'"), js.indexOf("$('#range_y_minus, #range_y_plus').on('click'"));
+    const ry = braceFrom(js.indexOf("$('#range_y_minus, #range_y_plus').on('click'"));
+    const list = { 'box selection (plotselected)': sel, 'wheel X / pan / touch / zoom-out tool (plotzoom plotpan)': zp,
+                   'wheel X / Y / ALT (plotWheelEvent)': fnSrc('plotWheelEvent', true), 'X- / X+': rx, 'Y- / Y+': ry,
+                   'Autoscale (autoscaleY)': fnSrc('autoscaleY', true), 'updateZoom': fnSrc('updateZoom', true),
+                   'presets (oscPresetApply)': fnSrc('oscPresetApply', true),
+                   'trigger selects (onDropdownChange: Source / Mode / Ext Trig / Edge, also changed and back)': fnSrc('onDropdownChange', true),
+                   'ramp fields of the period tab (rampParamEdited)': fnSrc('rampParamEdited', true),
+                   'freq tab / Lock osc. screen zoom (rampSetRegs)': fnSrc('rampSetRegs', true),
+                   'ramp checkboxes (sawtooth / direction / ...)': js.slice(js.indexOf('$(input_checkboxes).on(\'change\''), js.indexOf('// More Switches')) };
+    for(const k in list) cyc('C15 ' + k + ' calls resetZoomCycleBreak()', () => [list[k].length > 0 && has(list[k])]);
+  }
 }
 
 // The margin under one memory is needed: with the float32 xmin/xmax of the server, exactly one memory at Dec 1

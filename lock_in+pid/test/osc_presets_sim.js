@@ -165,6 +165,7 @@ function makeEnv(init, ls) {
     'single_poll_ms', 'single_seq', 'single_seq_done', 'send_all_skip', 'state_transient_zero', 'config_load_x_pending',
     'config_storage_key', 'config_storage_old_key'].map(varSrc).join('\n');
   code += '\nvar plot_epoch = 0, plot_epoch_post = false, server_scope_gen = null;\n';
+  code += '\n' + (js.indexOf('// [FORCEX BEGIN]') >= 0 ? js.slice(js.indexOf('// [FORCEX BEGIN]'), js.indexOf('// [FORCEX END]')) : '') + '\n';   // v2.2.16 (plus 2.2.0-rc4): [FORCEX] (sendParams())
   code += 'var params = {original:null, local:null, storage: []};\nvar post_max_bytes = 600;\nvar post_inflight = 0, last_post_end = 0;\n' +
           'var set_trigger_val = false, plot_time_units = null, update_timer = null, datasets = [];\n';
   const ct = (js.match(/config_params_txts = [\s\S]*?;\n/) || [''])[0];

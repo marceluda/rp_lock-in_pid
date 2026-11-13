@@ -13,6 +13,7 @@ const args = process.argv.slice(2);
 const OLD = args.includes('--old');
 const file = args.find(a => !a.startsWith('--')) || path.join(__dirname, '..', 'index.html');
 const html = fs.readFileSync(file, 'utf8');
+const HAS_SAW = /id="lock_ramp_sawtooth"/.test(html);   // lock_in+pid v2.2.16: the sawtooth sub-case of case 10 only with the checkbox
 const js = [...html.matchAll(/<script(?![^>]*src=)[^>]*>([\s\S]*?)<\/script>/g)].map(m => m[1]).join('\n');
 
 function braceFrom(i) {
@@ -88,11 +89,17 @@ const ctx = {
 vm.createContext(ctx);
 const need = ['getLocalDecimalSeparator', 'parseLocalFloat', 'lock_ctrl_update', 'editTimerCancel', 'isEscapeKey',
               'editRefocusCheck', 'numberInputBlur', 'numberInputInput', 'numberInputKeydown'];
-const needNew = ['parseUnitValue', 'parseTrigTime', 'parseTrigLevel', 'numberInputValue'];
+const needNew = ['parseUnitValue', 'parseTrigTime', 'parseTrigLevel', 'numberInputValue', 'toFixedNz'];   // toFixedNz: v2.2.16 (Vtrg)
 let src = 'var edit_timers = {};\n' + varSrc('units') + '\n';
 if(!OLD) src += varSrc('lock_trig_time_units') + '\n' + varSrc('lock_trig_level_units') + '\n';
 for(const n of need.concat(OLD ? [] : needNew)) { const s = fnSrc(n); if(!s) throw new Error('not found: ' + n); src += s + '\n'; }
 if(!OLD) src += varSrc('input_unit_parsers') + '\n';
+// v2.2.16 (from lock_in+pid_plus 2.2.0-rc2): Ramp period (lock_ramp_step) with units: the parser of the page and the ramp
+// functions of [RAMP CALC] / [RAMP UI]
+if(!OLD && fnSrc('rampStepParseField')) {
+  src += varSrc('ramp_fclk') + '\n' + varSrc('ramp_step_max') + '\n';
+  for(const f of ['rampStepsPerPeriod', 'rampStepForPeriod', 'rampParseStep', 'rampStepParseField']) src += fnSrc(f) + '\n';
+}
 src += 'var trig_time, trig_val, aux_trig_type;\n';
 // v2.3.18: wheel_text_update (assigned in the page load handler): the real assignment, other updaters as stubs
 src += 'var wheel_text_update = {};\nfunction lock_modulation_update() {}\nfunction lock_pidA_update() {}\n' +
@@ -236,6 +243,33 @@ if(OLD) obs(`kp emptied with Backspace -> sent ${JSON.stringify(sent.map(s => s.
 else check(sent.length == 0 && el('lock_pidA_kp').raw === '-500', `kp emptied -> not sent, restored "${el('lock_pidA_kp').raw}"`);
 setField('lock_pidA_kp', -500); sent = []; focus('lock_pidA_kp'); el('lock_pidA_kp').raw = ''; type('lock_pidA_kp', '-450'); enter('lock_pidA_kp');
 if(!OLD) check(lastSent() && lastSent().lock_pidA_kp === -450, `kp typed -450 + Enter -> sent -450`);
+
+// Case 10 (v2.2.16 (plus 2.2.0-rc2)): Ramp period typed with units, key by key + Enter: converted with the limits / mode, field rewritten
+// in steps; triangle (N = 2 (hig-low)) and sawtooth (N = (hig-low)+1); clamp of the steps; not valid -> restored
+if(!OLD) {
+  const R = 'lock_ramp_step';
+  el(R).attrs = { min: '0', max: '2147483520' };
+  el('lock_ramp_low_lim').raw = '-4000'; el('lock_ramp_hig_lim').raw = '4000';
+  Object.assign(ctx.params.local, { lock_ramp_low_lim: -4000, lock_ramp_hig_lim: 4000 });
+  if(HAS_SAW) ctx.params.local.lock_ramp_sawtooth = 0;
+  setField(R, 400); sent = []; focus(R); el(R).raw = ''; type(R, '10 ms'); runTimers(150);
+  const typing = sent.length;
+  enter(R);
+  check(el(R).type == 'text' && typing == 0 && lastSent() && lastSent()[R] === 77 && el(R).raw === '77',
+        `Ramp period "10 ms" (triangle, -4000 .. 4000) + Enter -> sent ${lastSent() && lastSent()[R]}, field "${el(R).raw}" (77: T = 9.984 ms)`);
+  if(HAS_SAW) {
+  ctx.params.local.lock_ramp_sawtooth = 1;
+  setField(R, 400); sent = []; focus(R); el(R).raw = ''; type(R, '10 ms'); enter(R);
+  check(lastSent() && lastSent()[R] === 155 && el(R).raw === '155', `Ramp period "10 ms" (sawtooth) -> sent ${lastSent() && lastSent()[R]} (155: T = 9.985 ms)`);
+  ctx.params.local.lock_ramp_sawtooth = 0;
+  } else console.log('  skip Ramp period "10 ms" (sawtooth): no Sawtooth in this App');
+  setField(R, 400); sent = []; focus(R); el(R).raw = ''; type(R, '4294967295'); enter(R);
+  check(lastSent() && lastSent()[R] === 2147483520 && el(R).raw === '2147483520', `Ramp period 4294967295 steps -> clamped: ${lastSent() && lastSent()[R]}`);
+  setField(R, 400); sent = []; focus(R); el(R).raw = ''; type(R, '10 kg'); enter(R);
+  check(sent.length == 0 && el(R).raw === '400', `Ramp period "10 kg" -> not sent, restored "${el(R).raw}"`);
+  setField(R, 400); sent = []; wheel(R, true);
+  check(lastSent() && lastSent()[R] === 401, `wheel up on the Ramp period -> ${lastSent() && lastSent()[R]}`);
+}
 
 console.log(OLD ? `== observed (old version)` : `== ${n - fails}/${n} ok`);
 process.exit(fails ? 1 : 0);

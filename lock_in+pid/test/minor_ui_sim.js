@@ -89,6 +89,10 @@ function check(name, cond, extra) {
   let src = varSrc('units') + '\nvar wheel_text_update = {};\n';
   src += 'var ramp_step, lock_ramp_low_lim, lock_ramp_hig_lim, lock_ramp_B_factor, lock_ramp_sawtooth, period, oom, val, txt;\n';
   src += fnSrc('lock_ramp_step_update') + '\n';
+  // v2.2.16 (from lock_in+pid_plus 2.2.0-rc2): lock_ramp_step_update() uses toFixedNz() and the ramp functions of
+  // [RAMP CALC] (steps / s / ms)
+  src += varSrc('ramp_fclk') + '\n' + varSrc('ramp_step_max') + '\n';
+  for(const f of ['toFixedNz', 'rampPeriodCycles', 'rampStepsPerPeriod', 'rampStepForPeriod', 'rampParseStep']) src += fnSrc(f) + '\n';
   // the other updaters are counted (their own texts are not checked here)
   src += 'var calls = {};\n';
   for(const f of ['lock_ctrl_update', 'lock_modulation_update', 'lock_pidA_update', 'lock_pidB_update'])

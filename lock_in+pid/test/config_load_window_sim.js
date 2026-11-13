@@ -292,6 +292,7 @@ function race(name, page, cfg, exp_s) {
   let src = ['always_send_params', 'last_send_params', 'send_all_skip', 'config_load_x_pending', 'readonly_keys', 'display_keep_keys',
              'server_ro_keys'].map(varSrc).join('\n');
   src += fns.map(f => fnSrc(f, !opt.includes(f))).join('\n');
+  src += '\n' + (js.indexOf('// [FORCEX BEGIN]') >= 0 ? js.slice(js.indexOf('// [FORCEX BEGIN]'), js.indexOf('// [FORCEX END]')) : '');   // v2.2.16 (plus 2.2.0-rc4): xWindowLocal() of sendParams()
   vm.runInContext(src, sb);
 
   sb.localStorage[sb.config_storage_key] = JSON.stringify([ { name: 'c', datetime: '', data: Object.assign({}, cfg) } ]);
