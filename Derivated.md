@@ -8,6 +8,10 @@ cards:
     descripcion: Harmonic lock-in up to 50 kHz, PID filters and lock control.
     imagen: /img/cards/rp_lock-in_pid_h.png
     url: "#lock-in-pid-h"
+  - nombre: Lock-in+PID Plus
+    descripcion: Lock-in with frequency-set DDS reference, harmonic demodulation, external reference (ADPLL), PID and ramp controller.
+    imagen: /img/cards/rp_lock-in_pid_plus.png
+    url: "#lock-in-pid-plus"
   - nombre: Lock-in+PID SQ
     descripcion: Version of Lock-in+PID with only the square (fast) lock-in.
     imagen: /img/cards/rp_lock-in_pid_sq.png
@@ -81,6 +85,38 @@ The source code can be found in the [github rp_lock-in_pid_h repository](https:/
   - [ChangeLog](https://github.com/marceluda/rp_lock-in_pid_h/blob/master/CHANGELOG.md) in the [project page](https://github.com/marceluda/rp_lock-in_pid_h)
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/330eYE75MYQ" frameborder="0" allow="accelerometer; autoplay; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+
+{% include section-title.html id="lock-in-pid-plus" title="Lock-in+PID Plus" %}
+
+{% include repo-badges.html repo="marceluda/rp_lock-in_pid_plus" %}
+
+Derived from [Lock-in+PID H](#lock-in-pid-h) (v2.3.30). It replaces the period-based modulation generator with a
+32-bit DDS, so the reference is set **by frequency**, and adds an external reference.
+
+New features:
+  - **Reference by frequency (32-bit DDS):** from 0 to 62.5 MHz in steps of 0.029 Hz. The page takes the frequency
+    in Hz (also `49.6 kHz`, `1 MHz`, `100 mHz`) and shows the real one.
+  - **Three oscillators:** the output reference `cos_ref` (added to out1 / out2 with *Modulation*) and the in-phase
+    and quadrature local oscillators `x_ref` / `y_ref`, with an adjustable demodulation phase.
+  - **Demodulation on a harmonic:** X / Y can demodulate at 1 … 32 times the reference frequency (*Harmonic*), while
+    the output reference stays on the fundamental. It replaces the F1, F2 and F3 demodulations of Lock-in+PID H.
+  - **External reference:** from the DIO0_P pin, IN1 or IN2. An ADPLL locks to its rising edges and generates the
+    local oscillators; the page shows its state (LOCKED / NO REF), the measured frequency and the phase error.
+  - **Ramp controller** set by period or by frequency, amplitude and offset.
+  - PID filters, lock control, streaming and HTTP remote control, as in Lock-in+PID H.
+
+It is only available as a 2.x version, for the Red Pitaya Ecosystem 2.0.
+
+The source code can be found in the [github rp_lock-in_pid_plus repository](https://github.com/marceluda/rp_lock-in_pid_plus).
+
+**Downloads:**
+
+| For | Downloads |
+|-----|-----------|
+| **Ecosystem 2.0** | {% include download-badge.html file="lock_in+pid_plus-2.2.0-18-devbuild.tar.gz" label="v2.2.0-18" %} {% include download-badge.html file="lock_in+pid_plus-2.2.0-18-devbuild.zip" label="v2.2.0-18" %} |
+
+  - [ChangeLog](https://github.com/marceluda/rp_lock-in_pid_plus/blob/master/CHANGELOG.md) in the [project page](https://github.com/marceluda/rp_lock-in_pid_plus)
 
 
 {% include section-title.html id="lock-in-pid-sq" title="Lock-in+PID SQ" %}
