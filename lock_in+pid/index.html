@@ -268,6 +268,7 @@
   // updated to the server values by each loadParams(). A key of params.local that differs from unsent_base and
   // from the server value is an unsent user change: loadParams(.., true) keeps it (see unsentChanges()).
   var unsent_base = null;
+  // v2.2.16 (plus 2.2.1): post_sent (params of the POST in flight) is in the [FORCEX] block
   // Read-only params that the display uses but that are not saved in a config (config_params_keys).
   // When they are missing (e.g. loading a saved config) the previous values of params.local are kept.
   // v2.2.6: lock_lock_control is read-only on the server (written only through the lock buttons, see lockRequest())
@@ -326,17 +327,80 @@
   //     server repeats is applied once, so it never undoes a later zoom of the page that sends no POST (the X zoom
   //     during a Capture Lock is local).
   // The forceX of the POST answer (the server converted the window the page has just sent) is applied as before.
+  //
+  // v2.2.16 (plus 2.2.1) (bug of testAgent, reportes/lock-in_pid/2026-11-13_1806_v2216.md): the forceX of a POST answer. The POST of
+  // the 1st click of Reset Zoom (0 .. T) got no answer in post_chunk_timeout (nginx hung ~2 s) and postParamsChunks()
+  // sent the same body again; the 2nd click (0 .. T/2) came meanwhile (its POST waits in send_que). The answer of the
+  // retry (forcex_flag 1, 0 .. T in the new units) put the axis back to 0 .. T, and loadParams() (a window from t = 0
+  // is not kept, `min && max`) gave params.local the window of the server: the queued POST sent 0 .. T again.
+  // Now, if the page set the X window itself while the POST was in flight (xwin_gen moved since the POST started), its
+  // answer does not set the window (forceX, xmin/xmax): forceXStaleKeep() keeps the window of the page, converted to
+  // the time units of the answer (the server is already in them), and xwin_resend makes the next sendParams() send it
+  // (even if nothing else changed). The retry itself still sends the same body (see postParamsChunks()).
+  // Also for GET /data: while the page has a window that no POST has sent yet (xwin_pending: from xWindowLocal() to
+  // the start of the next POST) no forceX of a GET is applied (a GET that started after the 2nd click and was answered
+  // before the retry brought the window of the 1st click), and a forceX of a GET that is not applied does not change
+  // the time units of the page either (forceXUnitsKeep()): the axis keeps being in params.local.time_units, which is
+  // what forceXStaleKeep() converts from.
   var xwin_gen = 0;
   var forcex_last = '';
-  function xWindowLocal() { xwin_gen++; }
+  var xwin_resend = null;   // {min, max}: X window of the page, in the units of the server, that the next POST must send
+  var xwin_pending = false; // the page set the X window and no POST has sent it yet
+  // v2.2.16 (plus 2.2.1): params of the POST in flight (sendParams(), all its chunks; null when none). A GET /data answered while it
+  // is in flight may carry the values the server had before it (more likely when it is retried after a timeout, ~2 s):
+  // for these keys the value of the GET does not replace params.local, and unsent_base keeps the sent value, so a
+  // change back to the old value made meanwhile is still an unsent change when the POST is answered (it was lost: the
+  // GET made it look already on the server and the answer of the POST put the sent value back).
+  var post_sent = null;
+  function xWindowGen() { xwin_gen++; }       // a POST starts or is answered (no window of the page)
+  // The page sets the X window itself (and sends it with the next POST)
+  function xWindowLocal() {
+    xwin_gen++;
+    xwin_resend = null;
+    xwin_pending = true;
+  }
   function forceXKey(p) { return [Number(p.xmin), Number(p.xmax), Number(p.time_units)].join(','); }
+  // POST answer srv when the page set another X window while that POST was in flight: keep the window of the page
+  // (axis), in the units of srv, and send it with the next POST. Its forceX is not applied (nor by the GET that repeat it).
+  function forceXStaleKeep(srv) {
+    if(!plot || !srv || !params.local) return false;
+    var o = plot.getOptions(), a = Number(o.xaxes[0].min), b = Number(o.xaxes[0].max);
+    if(!isFinite(a) || !isFinite(b) || !(b > a)) { a = Number(params.local.xmin); b = Number(params.local.xmax); }
+    if(!isFinite(a) || !isFinite(b) || !(b > a)) return false;
+    var tp = Number(params.local.time_units);   // units of the axis (see forceXUnitsKeep())
+    var ts = Number(srv.time_units);
+    if((tp === 0 || tp === 1 || tp === 2) && (ts === 0 || ts === 1 || ts === 2) && tp !== ts) {
+      var k = timeUnitFactor(ts) / timeUnitFactor(tp);
+      a = parseFloat((a * k).toPrecision(12));
+      b = parseFloat((b * k).toPrecision(12));
+      updateTimeUnits(srv);   // params.local/original.time_units + axis label (loadParams() is skipped in edit mode)
+    }
+    o.xaxes[0].min = a;
+    o.xaxes[0].max = b;
+    plot.setupGrid();
+    plot.draw();
+    if(srv.forcex_flag == 1) forcex_last = forceXKey(srv);
+    xwin_resend = { min: a, max: b };
+    console.log('sendParams: X window set during the POST: its answer (' + srv.xmin + ' .. ' + srv.xmax + ', units ' + ts +
+                ', forcex_flag ' + srv.forcex_flag + ') not applied, ' + a + ' .. ' + b + ' sent again');
+    return true;
+  }
   // true: apply the forceX of the params p of a GET /data answer (get_epoch / get_xgen: plot_epoch / xwin_gen when it started)
   function getForceXApply(p, get_epoch, get_xgen) {
     if(!p || p.forcex_flag != 1) return false;
     if(get_epoch !== plot_epoch || get_xgen !== xwin_gen) return false;
+    if(xwin_pending) return false;                // v2.2.16 (plus 2.2.1): a window of the page not sent yet
     var k = forceXKey(p);
     if(k === forcex_last) return false;
     forcex_last = k;
+    return true;
+  }
+  // v2.2.16 (plus 2.2.1): params p of a GET /data answer whose forceX is not applied (applied: false): keep the time units of the page
+  function forceXUnitsKeep(p, applied) {
+    if(applied || !p || p.forcex_flag != 1 || !params.local) return false;
+    var tp = Number(params.local.time_units);
+    if(!(tp === 0 || tp === 1 || tp === 2) || Number(p.time_units) === tp) return false;
+    p.time_units = tp;
     return true;
   }
   // [FORCEX END]
@@ -4757,6 +4821,10 @@
           initPlot(dresult.datasets.params);
         }
         else {
+          // v2.2.16 (plus 2.2.1): a forceX that is not applied does not bring its time units either (the axis is not in them; see [FORCEX])
+          var get_fx = getForceXApply(dresult.datasets.params, get_epoch, get_xgen);
+          forceXUnitsKeep(dresult.datasets.params, get_fx);
+
           // Apply the params state received from server if not in edit mode
           if(! user_editing) {
             loadParams(dresult.datasets.params, true);  // true: keep the unsent user changes
@@ -4772,7 +4840,7 @@
           }
 
           // Force X min/max (v2.2.16 (plus 2.2.0-rc4): not a stale one, see [FORCEX])
-          if(getForceXApply(dresult.datasets.params, get_epoch, get_xgen)) {
+          if(get_fx) {
             var options = plot.getOptions();
             options.xaxes[0].min = dresult.datasets.params.xmin;
             options.xaxes[0].max = dresult.datasets.params.xmax;
@@ -5250,6 +5318,10 @@
       if(unsent_skip_keys.indexOf(k) >= 0) continue;
       var v = params.local[k];
       if(!isSendable(v)) continue;  // NaN/undefined/null/Infinity: never sent (splitParams), so never pending
+      if(post_sent && (k in post_sent)) {               // v2.2.16 (plus 2.2.1): in the POST in flight (see post_sent)
+        if(v != srv[k]) ch[k] = v;
+        continue;
+      }
       if(v != unsent_base[k] && v != srv[k]) ch[k] = v;  // same loose comparison as isParamChanged()
     }
     return ch;
@@ -5620,6 +5692,12 @@
     // Server values back in params.original: the unsent changes differ from it and sendParams() sends them
     for(var uk in unsent) params.original[uk] = orig_params[uk];
     unsent_base = $.extend({}, params.original);
+    // v2.2.16 (plus 2.2.1): keys of the POST in flight: the sent value (see post_sent)
+    if(keep_unsent === true && post_sent) {
+      for(var pk in post_sent) {
+        if(unsent_skip_keys.indexOf(pk) < 0) unsent_base[pk] = post_sent[pk];
+      }
+    }
   }
 
   function updateTimeUnits(new_params) {
@@ -5729,6 +5807,11 @@
   // is not a valid params response, so the caller can handle it), rejected if any POST fails.
   // A chunk that times out is sent again up to `retries` times (Ecosystem 2.0 may never answer a
   // POST whose body was split by TCP; values are absolute, so resending is safe).
+  // v2.2.16 (plus 2.2.1): the retry keeps the same body on purpose (not rebuilt from params.local): the timed-out POST may have been
+  // served (the server may be in other time units already: a newer xmin/xmax in the old units would be read in the new
+  // ones), and src/main.c answers the same xmin/xmax with the forced window while forcex_state is 1. Changes made
+  // during the wait go in the next POST: the X window through [FORCEX] (xwin_resend), the rest through unsentChanges()
+  // (post_sent).
   function postParamsChunks(chunks, timeout, retries) {
     var dfd = $.Deferred();
     var i = 0;
@@ -5777,7 +5860,7 @@
     if(control_lost) {
       return;  // Another client owns the board: do not change its settings
     }
-    if(sending ||(force_send !== true && send_all !== true && !isParamChanged())) {
+    if(sending ||(force_send !== true && send_all !== true && !isParamChanged() && !xwin_resend)) {   // v2.2.16 (plus 2.2.1): xwin_resend (see [FORCEX])
       send_que = sending;
       if(sending && send_all === true) send_que_all = true;  // the queued call must send all too
       // v2.2.6 (lock_in+pid_harmonic v2.3.10): do not lose a Single click made while another POST is in
@@ -5788,7 +5871,7 @@
 
     // Anti-loop guard (see post_min_gap_ms): nothing really changed and the previous POST ended a moment ago
     var now_ms = Date.now();
-    if(send_all !== true && single_btn !== true && !hasRealChange() &&
+    if(send_all !== true && single_btn !== true && !hasRealChange() && !xwin_resend &&
        last_post_end > 0 && now_ms - last_post_end < post_min_gap_ms) {
       console.log('sendParams: no real change ' + (now_ms - last_post_end) + ' ms after the last POST: not sent');
       if(user_editing_update) user_editing = editFocusActive();
@@ -5822,7 +5905,9 @@
     use_long_timeout = !!auto_flag;
     var epoch_post = plot_epoch_post;      // v2.3.23: this POST carries a Reset zoom (see plot_epoch)
     plot_epoch_post = false;
-    xWindowLocal();                        // v2.2.16 (plus 2.2.0-rc4): GET /data in flight: no forceX (see [FORCEX])
+    xWindowGen();                          // v2.2.16 (plus 2.2.0-rc4): GET /data in flight: no forceX (see [FORCEX])
+    var xgen_post = xwin_gen;              // v2.2.16 (plus 2.2.1): the page sets the X window during this POST -> xwin_gen != xgen_post
+    xwin_pending = false;
 
     // Send only the params that changed (same comparison as isParamChanged()), plus always_send_params.
     // Ecosystem 2.0 hangs with big POST bodies (E3), so all the ~220 params can not be sent every time.
@@ -5838,17 +5923,26 @@
         send_params[key] = params.local[key];
       }
     }
+    // v2.2.16 (plus 2.2.1): the X window of the page that the answer of the previous POST did not take (see [FORCEX])
+    if(xwin_resend) {
+      params.local.xmin = send_params.xmin = xwin_resend.min;
+      params.local.xmax = send_params.xmax = xwin_resend.max;
+      xwin_resend = null;
+    }
     // What is being sent (params.local now): only later changes are unsent changes (see unsent_base).
     // With split POSTs (postParamsChunks) only the response of the last one is loaded, and it has all of them.
     unsent_base = $.extend({}, params.local);
+    post_sent = send_params;               // v2.2.16 (plus 2.2.1): see post_sent
 
     postParamsChunks(splitParams(send_params), (use_long_timeout ? long_timeout : post_chunk_timeout), post_chunk_retries)
     .done(function(dresult) {
+      post_sent = null;                              // v2.2.16 (plus 2.2.1): its values are on the server now (see post_sent)
       // OK: Load the params received as POST result
       if(dresult.datasets !== undefined && dresult.datasets.params !== undefined) {
         serverScopeGen(dresult.datasets.params);     // v2.3.23
         if(epoch_post) plot_epoch++;                 // v2.3.23: GET /data started before this answer are not drawn
-        xWindowLocal();                              // v2.2.16 (plus 2.2.0-rc4): nor take their forceX (see [FORCEX])
+        var xwin_stale = (xwin_gen !== xgen_post);   // v2.2.16 (plus 2.2.1): the page set the X window during this POST (see [FORCEX])
+        xWindowGen();                                // v2.2.16 (plus 2.2.0-rc4): nor take their forceX (see [FORCEX])
 
         // Use the provided min/max values only once after AUTO button was clicked
         if(auto_flag == 1 && dresult.datasets.params.min_y !== dresult.datasets.params.max_y) {
@@ -5872,7 +5966,12 @@
           }
         }
 
-        if(auto_flag == 0 && dresult.datasets.params.forcex_flag == 1) {
+        // v2.2.16 (plus 2.2.1): the page set the X window during this POST (e.g. 2nd click of Reset Zoom while the POST of the 1st one
+        // was retried after a timeout): its window is kept and sent again, the window of this answer is not applied
+        if(auto_flag != 1 && xwin_stale && forceXStaleKeep(dresult.datasets.params)) {
+          apply_config_x = false;
+        }
+        else if(auto_flag == 0 && dresult.datasets.params.forcex_flag == 1) {
           forcex_last = forceXKey(dresult.datasets.params);   // v2.2.16 (plus 2.2.0-rc4): the GET that repeat it do not apply it again
           var options = plot.getOptions();
 
@@ -5917,11 +6016,13 @@
     })
     .always(function() {
       sending = false;
+      post_sent = null;
       // user_editing_update (wheel): keep the edit mode only if an input still has the focus (blur may come
       // during the POST: true here then would never go back to false)
       user_editing = (user_editing_update ? editFocusActive() : false);
       //console.log('user_editing: '+user_editing);
 
+      if(xwin_resend) send_que = true;   // v2.2.16 (plus 2.2.1): send the X window of the page (see [FORCEX])
       if(send_que) {
         var que_all = send_que_all;
         var do_single = single_que;

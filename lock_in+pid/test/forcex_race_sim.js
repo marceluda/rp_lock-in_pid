@@ -18,6 +18,15 @@
 //   2. A wheel X zoom right after the forceX (its POST goes 250 ms later): the GETs that repeat the forceX do not undo it.
 //   3. A forceX that is not stale (another client changes the window and the units): applied once.
 //   4. The forceX of the POST answer (the 1st click, s -> ms) is applied as before.
+//   5. v2.2.1 (bug of testAgent, reportes/lock-in_pid/2026-11-13_1806_v2216.md): the POST of the 1st click of Reset Zoom
+//      gets no answer in post_chunk_timeout (nginx hung ~2.5 s: requests are served only when the hang ends), the page
+//      sends the same body again, and the 2nd click comes during the wait (before and after the retry is sent). The
+//      answer of the retry has forcex_flag 1 and the window of the 1st click: the axis and the server must end at
+//      0 .. 10 ms, in ms. Variants: the timed-out POST is lost / served at the end of the hang (then the retry, the same
+//      body, gets the forced answer, as src/main.c while forcex_state is 1) / plus a GET with the new units answered
+//      before the answer of the retry. Also: a parameter changed during the wait (kp) reaches the server, also when it is
+//      changed back to the value the server had before the timed-out POST (that POST carries kp 150, the server had 100:
+//      a GET answered during the wait with kp 100 made 100 look already sent, and the answer of the POST put 150 back).
 //
 // Usage: node test/forcex_race_sim.js [index.html] [--old]      (exit code 1 if a check fails)
 //        --old: an index.html without [FORCEX] (e.g. v2.2.0-rc3): the checks must fail where the bug is.
@@ -87,6 +96,43 @@ function env(o) {
       E.gets.push({ t0, t1: E.clock.t, snap });
       d.resolve.apply(null, arguments);
     }).fail(function() { d.reject.apply(null, arguments); });
+    return d.promise();
+  };
+  // v2.2.1: nginx hung from E.hang.from to E.hang.to: requests made meanwhile are served at the end (GET: then its
+  // snapshot). E.hang.lost: the 1st hung POST is never served; E.hang.slow: ms more for the answer of the POSTs.
+  // E.freeze: forced answer (no new window) to a POST with the same xmin/xmax as the last one while forcex_flag is 1.
+  const ajax1 = $.ajax;
+  E.hang = null; E.hung = []; E.freeze = false;
+  let lastq = null;
+  const post1 = R.post;
+  R.post = function(q, t) {
+    if(E.freeze && R.p.forcex_flag == 1 && lastq && 'xmin' in q && Number(q.xmin) === Number(lastq.xmin) && Number(q.xmax) === Number(lastq.xmax)) {
+      const keep = { xmin: R.p.xmin, xmax: R.p.xmax, time_units: R.p.time_units, time_range: R.p.time_range, forcex_flag: 1 };
+      const td = post0(q, t);
+      Object.assign(R.p, keep);
+      return td;
+    }
+    if('xmin' in q) lastq = { xmin: q.xmin, xmax: q.xmax };
+    return post1(q, t);
+  };
+  $.ajax = function(a) {
+    const h = E.hang, t = E.clock.t;
+    if(!h || t < h.from || t >= h.to) return ajax1(a);
+    const d = $.Deferred();
+    if(a.type != 'POST') {
+      E.clock.at(h.to + 3, () => ajax1(a).done((...x) => d.resolve(...x)).fail((...x) => d.reject(...x)));
+      return d.promise();
+    }
+    const q = JSON.parse(a.data).datasets.params, first = (E.hung.length === 0);
+    let settled = false;
+    E.hung.push({ t, q });
+    if(a.timeout) E.clock.at(t + a.timeout, () => { if(!settled) { settled = true; d.reject({}, 'timeout'); } });
+    E.clock.at(h.to + 2, () => {
+      if(first && h.lost) return;
+      const tdone = R.post(q, E.clock.t);
+      E.clock.at(tdone + (h.slow || 0), () => { const r = R.params(E.clock.t); E.clock.after(2, () => {
+        if(settled) return; settled = true; d.resolve({ app: { id: 'x' }, status: 'OK', datasets: { params: r, g1: [] } }); }); });
+    });
     return d.promise();
   };
   // the real resetZoom() of the page (and what it calls that the harness does not have)
@@ -172,6 +218,56 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
   E.run(600);
   const w = E.ms();
   check('3 forceX of another client (0 .. 3 s, units s): applied by the next GET', near(w[0], 0) && near(w[1], 3000) && E.get('params.local.time_units') == 2, fmt(w));
+}
+
+// ---- 5. POST of the 1st click with timeout + retry, 2nd click during the wait ---------------------------------------
+{
+  const variants = [
+    { name: 'timed-out POST lost', lost: true },
+    { name: 'timed-out POST served at the end of the hang', lost: false },
+    { name: 'served + GET with the new units before the answer of the retry', lost: false, slow: 300 },
+  ];
+  const t2s = [100, 350, 1500, 2200];          // 2nd click, ms after the 1st (the retry goes at 2000 ms)
+  let bad = [], retries = 0, stale_fx = 0, kp_bad = [], kp_rev = [], getnu = 0, runs = 0;
+  for(const rev of [false, true]) for(const v of variants) for(const d2 of t2s) {
+    if(!rev) runs++;
+    const E = env();
+    E.freeze = true;
+    E.get('params.local').lock_pidA_kp = 100;
+    E.get('sendParams()');
+    E.run(150);
+    if(rev) E.get('params.local').lock_pidA_kp = 150;   // goes in the POST of the 1st click
+    const t1 = E.clock.t;
+    E.hang = { from: t1, to: t1 + 2500, lost: v.lost, slow: v.slow };
+    E.get('resetZoom()');                       // 1st click: 0 .. 20 ms (s -> ms), its POST hangs
+    E.run(d2);
+    E.get('resetZoom()');                       // 2nd click: 0 .. 10 ms, its POST waits in send_que
+    E.run(50);
+    E.get('params.local').lock_pidA_kp = (rev ? 100 : 123);   // another parameter changed during the wait
+    E.get('sendParams()');
+    E.run(4000 - d2);
+    const w = E.ms(), R = E.rig;
+    if(rev) { if(R.p.lock_pidA_kp != 100 || E.get('params.local').lock_pidA_kp != 100) kp_rev.push(v.name + ' @' + d2 + ': ' + R.p.lock_pidA_kp); continue; }
+    retries += E.log.filter(l => l.kind == 'WARN' && /timed out, retrying/.test(l.m)).length;
+    // the answer of the retry had forcex_flag 1 with the window of the 1st click
+    stale_fx += E.hung.filter(h => near(Number(h.q.xmax), 0.02)).length > 1 ? 1 : 0;
+    if(v.slow) getnu += E.gets.filter(g => g.t0 >= t1 + 2500 && g.snap.time_units == 1 && g.snap.forcex_flag == 1 && g.t1 < t1 + 2900).length > 0 ? 1 : 0;
+    const srv_ms = [Number(R.p.xmin) / unitF(R.p.time_units) * 1e3, Number(R.p.xmax) / unitF(R.p.time_units) * 1e3];
+    if(!(near(w[0], 0) && near(w[1], 10) && E.get('params.local.time_units') == 1 && near(srv_ms[0], 0) && near(srv_ms[1], 10) &&
+         R.p.time_units == 1))
+      bad.push(v.name + ' @' + d2 + ': axis ' + fmt(w) + ' (units ' + E.get('params.local.time_units') + '), server ' + fmt(srv_ms) +
+               ' (units ' + R.p.time_units + ')');
+    if(R.p.lock_pidA_kp != 123) kp_bad.push(v.name + ' @' + d2 + ': ' + R.p.lock_pidA_kp);
+  }
+  check('5a the race happens: the POST of the 1st click times out and is sent again with the same body', retries >= runs && stale_fx === runs,
+        retries + ' retries, ' + stale_fx + '/' + runs + ' runs with the old window sent twice');
+  check('5b variant with a GET in the new units (forcex_flag 1) answered before the answer of the retry happens', getnu > 0, getnu + ' runs');
+  check('5c 2nd click during the wait: axis and server at 0 .. 10 ms in ms in all the ' + runs + ' runs', bad.length === 0,
+        bad.length ? bad.length + ' bad: ' + bad.slice(0, 3).join('; ') : runs + '/' + runs);
+  check('5d kp changed during the wait reaches the server (the retry with the old body does not overwrite it)', kp_bad.length === 0,
+        kp_bad.length ? kp_bad.join('; ') : runs + '/' + runs);
+  check('5e kp 150 in the timed-out POST, changed back to 100 during the wait: 100 on the server and on the page', kp_rev.length === 0,
+        kp_rev.length ? kp_rev.length + ' bad: ' + kp_rev.slice(0, 3).join('; ') : runs + '/' + runs);
 }
 
 console.log(`\n${n - fails}/${n} ok` + (OLD ? ' (--old: an older page, failures expected)' : ''));
