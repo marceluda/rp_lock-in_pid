@@ -1,6 +1,6 @@
 # Remote control
 
-How to control `lock_in+pid` **v2.2.10** (branch `master`) from a program, without the web page. The registers are described in
+How to control `lock_in+pid` **v2.2.16** (branch `master`; nothing of the remote control changed in v2.2.11 … v2.2.16, which change the web page and the scope part of the controller) from a program, without the web page. The registers are described in
 [FPGA.md](FPGA.md); the meaning of each instrument in [App.md](App.md).
 
 - [What exists in this App](#what-exists-in-this-app)
@@ -109,7 +109,7 @@ in ≤ 1 s, with 0 POST (`testAgent.md` 2026-10-10 09:48).
 Since 2.2.7 the trigger values written by the script (0x30, 0x34, 0x38) are copied to the parameters of the page
 (shown in its fields and kept): the controller writes these registers only when the user changes them in the page
 (before 2.2.7 they were not shown and were rewritten with the page values at the next change of any lock parameter;
-on the board the lock then fired at 18 ms instead of 100 ms). `--time` is clamped to 0..2³²−1 ticks (34.36 s).
+on the board the lock then fired at 18 ms instead of 100 ms). `--time` is clamped to 0..$2^{32}-1$ ticks (34.36 s).
 See [Structure.md](Structure.md#lock-control).
 
 Since 2.2.9 (FPGA) the time trigger only counts from a scan floor of a ramp that kept running: a request armed right
@@ -213,13 +213,40 @@ li['sg_amp_sq'].val(0)
 ```python
 li['out1_sw'].val(12)            # OUT1 = ctrl_A
 li['ramp_low_lim'].val(-5000); li['ramp_hig_lim'].val(5000)
-li['ramp_step'].val(400)         # 64.16 ms
+li['ramp_step'].val(400)         # 64.16 ms (triangle: T = 2*(hig-low)*(step+1)*8 ns)
 li['ramp_enable'].val(1)
 li['error_sw'].val(2)            # error = Xo
 li['pidA_sw'].val(0)             # PID A input = error
 li['pidA_PSR'].val(3); li['pidA_kp'].val(-500)   # -500/1024
 li['pidA_ISR'].val(8); li['pidA_ki'].val(-20)    # tau_i = 537 ms / 20
 ```
+
+Ramp period: `T = 2 · (high − low) · (step + 1) · 8 ns` (triangle, the only shape of this App;
+[FPGA.md](FPGA.md#ramp-scan)). The scripts have no helper to set the ramp by frequency (the *freq* tab of v2.2.16 is
+only in the web page); the same computation with the formulas of [App.md](App.md#ramp-generator-scan), as an example
+(not run on the board):
+
+```python
+from hugo import li
+
+def ramp_by_freq(f_hz, amp, off=0):
+    """Triangle of amplitude amp (counts, hig - low) around off (counts) at the nearest frequency to f_hz."""
+    low = int(off) - int(amp) // 2           # as the freq tab: low = off - floor(amp/2), high = low + amp
+    high = low + int(amp)
+    assert -8192 <= low < high <= 8191
+    n = 2 * (high - low)                     # steps per period of the triangle
+    step = max(0, round(125e6 / (n * f_hz) - 1))
+    li['ramp_low_lim'].val(low); li['ramp_hig_lim'].val(high); li['ramp_step'].val(step)
+    return step, 125e6 / (n * (step + 1))
+
+print(ramp_by_freq(100, 8000))   # (77, 100.16...) as the web page (board test v2.2.16)
+```
+
+`round()` takes the nearest step, not exactly the nearest frequency as the page does (`rampStepForFreq()` compares the
+two neighbouring steps); the difference is at most one step. Written from Python the register takes any 32-bit step;
+the web page only uses float32 integers up to 2147483520. `ramp_direction` only sets the slope after `ramp_reset`: the
+triangle always rises after the scan floor ([FPGA.md](FPGA.md#ramp-scan)). If the page is open it rewrites these
+registers on its next lock change ([below](#coexistence-with-the-web-page)).
 
 **Close and check a lock**: `./lock_from_registers.py --trig time --time 16.58ms --set pidA`, then
 `./lock_from_registers.py --status` and `./lock.py error_mean error_std` (mean in counts = `error_mean / 2^18`,

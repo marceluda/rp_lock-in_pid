@@ -71,9 +71,17 @@ Since 2026-10-15 the branch `master` holds the 2.x series; the 0.2.x series (FPG
 - 2.2.16 (from lock_in+pid_harmonic 2.3.31 / lock_in+pid_plus 2.2.0): **Ramp Controller** (web page only): tabs
   *period* / *freq* (Frequency in Hz with the nearest reachable value, Amp. p-p / Offset), *Ramp period* in s / ms
   (whole period), *Lock osc. screen* (scope locked on the ramp: its rising half, the time zoom sets the ramp limits),
-  *Reset zoom* alternating whole period / rising half (Scan floor), no stale *Force X* of `GET /data`. This App has the
-  triangle ramp only (no Sawtooth).
+  *Reset zoom* alternating whole period / rising half (Scan floor; one whole period with Ext Trig = harmonic mod. or
+  Square mod., no alternation), no stale *Force X* of `GET /data`; the three ramp checkboxes in two columns, no "-0 mV"
+  labels. This App has the triangle ramp only (no Sawtooth): *Lock osc. screen* always shows T/2. Also (from
+  lock_in+pid_plus 2.2.1) the X window of the page survives a `POST /data` that timed out and was retried: the retry
+  goes without `xmin` / `xmax`, an older answer does not undo a newer window, the page checks that the server took its
+  window and sends it again, and a `GET /data` does not change the time units. Same FPGA and C sources as v2.2.15;
+  tested on RP2 (Force X with a retried POST 21/21). See [doc/Usage.md](doc/Usage.md#ramp-controller) and
+  [doc/Structure.md](doc/Structure.md#time-window-of-the-plot-and-force-x).
 - See the [CHANGELOG](CHANGELOG.md).
+
+![Ramp Controller of v2.2.16: tab freq (100 Hz triangle, Amp. p-p 8000) and Lock osc. screen: the scope on Scan floor with the window 0 … T/2 = 4.992 ms (the rise of Ramp A, red; in1, blue, is the signal of the bench)](.README/ramp_controller_lock_osc_screen_v2.2.16.jpg)
 
 ## Features
 
@@ -83,7 +91,8 @@ Since 2026-10-15 the branch `master` holds the 2.x series; the 0.2.x series (FPG
   - fast **square** lock-in (square references up to 31.25 MHz): sqX, sqY, sqF.
 - Internal harmonic and square modulation generators (references available on the outputs and on a digital pin).
 - Two PID filters, for loop back stabilization.
-- Ramp/Scan controller for response analysis.
+- Ramp/Scan controller for response analysis, set by period or by frequency / amplitude / offset, with a *Lock osc.
+  screen* mode that turns a time zoom of the scope into new scan limits.
 - Lock control for automatic scan-stop / PID start (time, level or immediate trigger, run by the FPGA).
 - Two-channel oscilloscope on any of 30 internal signals, triggered by internal events (scan floor, lock, ...),
   time ranges from 131 µs to 68.7 s.

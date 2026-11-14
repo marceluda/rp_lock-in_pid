@@ -49,7 +49,17 @@ Apps: without `lock_ramp_sawtooth` (undefined) they give the triangle.
   without the sawtooth sub-case (42); `minor_ui_sim.js` takes the new ramp functions; `config_load_window_sim`,
   `lock_capture_ui_sim`, `lock_ctrl_ui_sim`, `osc_presets_sim` take the `[FORCEX]` block. All 15 node sims pass.
 - Pending (as in pid_plus 2.2.0): *Ramp hig / low lim* do not take mV / V; the wheel over *Ramp period* does not move
-  the step above $2^{24}$ (float32). Board test (testAgent) pending.
+  the step above $2^{24}$ (float32).
+- Board test of this first commit (testAgent, RP2, package 2.2.16-31, 2026-11-13;
+  `reportes/lock-in_pid/2026-11-13_1806_v2216.md` in the Apps folder): **PASS except Force X**. Tabs (the last one
+  survives a reload; 3 checkboxes in 2 columns, no Sawtooth), *freq* tab (100 Hz → step 77, 100.1603 Hz; wheel
+  1/10/100/1000 Hz; `2.5 kHz` → 2, `500 mHz` → 15624, `500 mV` → 152 ±2048, `0.1 V` → −1229/2867), *Ramp period*
+  `10 ms` → 77 (τ 9.98 ms), clamp 2147483520, `10 kg` restored, no "-0 mV", no tooltips; Lock osc. screen 0 … 4.992 ms
+  with Scan direction 0 and 1 (zoom → limits as the model, 0.2 Hz: 0 … 2.5 s with continuous update, Single turns it
+  off); Reset zoom 9.984 / 4.992 ms alternating, Scan ceil 9.984 ms, harmonic mod. hp 0 and Square mod. sqp 0 → 0 …
+  20.16 µs, sqp 49 → 0 … 0.8 µs, never alternating; regression (Config load, Capture Lock, AUTO, harmonic and square
+  lock-ins) PASS. **Force X 19/21**: the 2nd click of Reset zoom was lost twice, when the POST of the 1st click fell in
+  a ~2 s hang of nginx and was retried: fixed below.
 
 ### Force X of a retried POST (same tag v2.2.16, moved to the commit with this fix; from lock_in+pid_plus 2.2.1)
 
@@ -96,6 +106,19 @@ body (0 … 9984 in µs) was read in ms and sent the server to s, and the window
   FORCEX_STALE_MS, `GUI_XMIN`/`GUI_XMAX` in float32), new cases 6 (POST served at once with its answer lost, retry; from s
   and from µs; 2nd click before and during the retry, 1 or 2 lost answers; also not served: 16 runs) and 7 (a zoom the
   server ignores in forcex_state, sent again later): 19/19. With the first round (`--old`) 6b, 6c and 7b fail.
+- Board test of the first round (testAgent, RP2, package 2.2.16-32, `reportes/lock-in_pid/2026-11-13_1848_forcex_retry.md`):
+  with the timed-out POST not served (`__serve = false`) 2nd click at 0.3 / 1 / 1.9 s 11/11, `__hold = 2` 3/3, kp
+  A→B→A / A→B→C kept, no hook regression and the original point 7 (20/20) PASS; with the POST served (`__serve =
+  true`) **0/6** (the case fixed by the second round).
+- Board test of the second round (testAgent, RP2, `c6b4006`, `reportes/lock-in_pid/2026-11-13_2312_forcex_retry2.md`):
+  **PASS**. `__serve = true`: 15/15 from an axis in µs and 6/6 from s (2nd click at 0.3 / 1 / 1.9 s; the retry goes
+  without `xmin`/`xmax` and the page sends 0 … 4.992 ms again; page and server at 0 … 4.992 ms, units 1, after 5 s),
+  `__hold = 2` 3/3 valid (one more run met a real nginx hang and ended, as designed, in the E3 dialog after the
+  retries), `__serve = false` 3/3, zoom right after a change of units (sent again ~1.7 s later) 3/3, kp A→B→A kept,
+  the original point 7 (20 quick clicks without hook) 20/20, no console errors.
+- LOCK MODE (`test_files/lock_test.md`) was not run: there is no `lock_mode` config of this App and RP1 runs
+  `dummy_simulator` without its LPF; not verifiable on the current bench.
+- Documentation (`doc/*.md`, README) updated for v2.2.16 in the commit that carries the tag `v2.2.16`.
 
 ## v2.2.15 - 2026-10-24 - AUTO trigger level at the middle of the signal with a calibration offset or a full scale other than 1 V; Raw Mode half counts (C controller; page: version and comments only; no FPGA change; as lock_in+pid_harmonic 2.3.30)
 
