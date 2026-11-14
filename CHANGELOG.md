@@ -64,13 +64,38 @@ is marked `v2.2.16 (plus 2.2.1)`. Bug found by testAgent in lock_in+pid 2.2.16 (
   during which the page set the X window itself (`xwin_gen` moved) does not set the window: `forceXStaleKeep()` keeps
   the window of the page in the units of the answer and `xwin_resend` makes the next POST send it; no forceX of a GET
   /data is applied while a window of the page is not sent yet (`xwin_pending`), and a forceX of a GET that is not
-  applied does not change the time units of the page (`forceXUnitsKeep()`). The retry keeps the same body on purpose
+  applied does not change the time units of the page (`forceXUnitsKeep()`). (First round; superseded by the second round below:) the retry kept the same body on purpose
   (the timed-out POST may have been served in other units).
 - **Fixed — a parameter changed back to its previous value during a POST in flight was lost** (a GET answered meanwhile
   carried the old server value). `post_sent`: for the keys of the POST in flight a GET answer does not replace
   `params.local` and `unsent_base` keeps the sent value.
 - Tests: `test/forcex_race_sim.js` case 5 (timeout + retry + 2nd click during the wait, 12 runs, kp changed during the
   wait): 12/12; with the previous `index.html` (`--old`) 5c and 5e fail.
+
+#### Second round (same tag, moved): the timed-out POST that the server did serve
+
+Board test of testAgent with the first round (`reportes/lock-in_pid/2026-11-13_1848_forcex_retry.md`): it worked when the
+timed-out POST never reached the server (32/32), but failed always when it did (hook `__serve = true`, the realistic case:
+nginx hangs ~2 s and then serves it; pid 0/6, h2 0/2, also _h and sq). `src/main.c` reads `xmin`/`xmax` in its current
+units (`time_units` is read-only) and protects a forced window only for `FORCEX_STALE_MS` (1.5 s): the retry with the same
+body (0 … 9984 in µs) was read in ms and sent the server to s, and the window the page sent next was ignored (while
+`forcex_state` is 1 a window more than 33× away from the forced one is not taken). No C change; in `index.html`
+(marked `v2.2.16 (plus 2.2.1)`):
+- `postParamsChunks(.., post_info)`: the retry of a timed-out chunk goes **without `xmin`/`xmax`** (all the other values
+  are absolute; a chunk left empty carries `auto_flag` 0, a no-op), and `post_info.window_unsure` makes `sendParams()`
+  treat the answer as stale: the window of the page is sent again in the units of that answer (the units of the server).
+- Every POST that sends a window checks that the answer has it (`xWindowTaken()`: same window in seconds, tolerance
+  $10^{-4}$ of its width). An answer with `forcex_flag` 1 and another window (the server kept its forced one) is also
+  stale: the page keeps its window and sends it again after `forcex_hold_ms` = 1.7 s (> `FORCEX_STALE_MS`), up to 3
+  times in a row (then it takes the window of the server). While that resend waits, POSTs for other changes go without
+  `xmin`/`xmax` and their answers do not set the window either. AUTO cancels a pending resend.
+- GET /data: a GET whose forceX is not applied never changes the time units of the page (also with `forcex_flag` 0:
+  the server may have ended the forceX while the page still had its window in the old units); the forceX of a GET is
+  put on the axis before `loadParams()`.
+- Tests: `test/forcex_race_sim.js` with a server model that follows `src/main.c` (forcex_state, ratio 0.03,
+  FORCEX_STALE_MS, `GUI_XMIN`/`GUI_XMAX` in float32), new cases 6 (POST served at once with its answer lost, retry; from s
+  and from µs; 2nd click before and during the retry, 1 or 2 lost answers; also not served: 16 runs) and 7 (a zoom the
+  server ignores in forcex_state, sent again later): 19/19. With the first round (`--old`) 6b, 6c and 7b fail.
 
 ## v2.2.15 - 2026-10-24 - AUTO trigger level at the middle of the signal with a calibration offset or a full scale other than 1 V; Raw Mode half counts (C controller; page: version and comments only; no FPGA change; as lock_in+pid_harmonic 2.3.30)
 

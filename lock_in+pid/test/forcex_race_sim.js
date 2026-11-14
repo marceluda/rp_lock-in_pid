@@ -27,6 +27,11 @@
 //      before the answer of the retry. Also: a parameter changed during the wait (kp) reaches the server, also when it is
 //      changed back to the value the server had before the timed-out POST (that POST carries kp 150, the server had 100:
 //      a GET answered during the wait with kp 100 made 100 look already sent, and the answer of the POST put 150 back).
+//   6. v2.2.1, 2nd round: the timed-out POST is served at once (only its answer is lost, hook __serve = true of the board
+//      test): the retry must not carry xmin/xmax (they were read in the new units), and the window of the page must
+//      reach the server although it is in forcex_state. 7. a zoom that the server ignores in forcex_state (< 1.5 s,
+//      > 33x): sent again after forcex_hold_ms. The server model follows src/main.c (forcex_state, ratio 0.03,
+//      FORCEX_STALE_MS 1500, xmin/xmax compared with GUI_XMIN/GUI_XMAX as float32).
 //
 // Usage: node test/forcex_race_sim.js [index.html] [--old]      (exit code 1 if a check fails)
 //        --old: an index.html without [FORCEX] (e.g. v2.2.0-rc3): the checks must fail where the bug is.
@@ -67,21 +72,47 @@ function env(o) {
                  lock_ramp_step: 999, lock_ramp_low_lim: -625, lock_ramp_hig_lim: 625, lock_ramp_sawtooth: 0 };   // T = 20 ms
   const E = H.setup({ init, capture: false, fire: false });
   const R = E.rig, ctx = E.get('this');
-  // server: the time fields (xmin/xmax/time_units/time_range/forcex_flag) of R.p
+  // server: the time fields (xmin/xmax/time_units/time_range/forcex_flag) of R.p, with the forceX logic of src/main.c
+  // (v2.2.1, 2nd round): rp_set_params() compares xmin/xmax with GUI_XMIN/GUI_XMAX (float32): no change and forcex_state
+  // 1 with both received -> forcex_state 0 (the GUI answered the forceX); a change -> transform_acq_params(): xmin/xmax
+  // in the CURRENT units (time_units is read-only), ratio of the forced window to the GUI one (folded to <= 1): if
+  // > 0.03 or the forceX is older than FORCEX_STALE_MS (1500 ms) the forceX ends; while forcex_state is 1 the forced
+  // window, units and time range are kept; units of the new Dec != units before -> forcex_state 1 (window forced).
+  // A POST without xmin/xmax uses GUI_XMIN/GUI_XMAX (no change of the window by itself).
   R.p.forcex_flag = 0;
+  const S = { gui_xmin: Math.fround(R.p.xmin), gui_xmax: Math.fround(R.p.xmax), fx: 0, fxmin: 0, fxmax: 0, fxu: tu0, fxr: tr0, mark: -1e9 };
+  E.srv = S; E.units_hist = [];
+  const SCOPE_K = ['trig_mode', 'trig_source', 'trig_edge', 'trig_level', 'lock_trig_sw', 'lock_osc_raw_mode', 'auto_flag'];
   const post0 = R.post.bind(R);
   R.post = function(q, t) {
     const units = R.p.time_units;
+    const keep = { xmin: R.p.xmin, xmax: R.p.xmax, time_units: units, time_range: R.p.time_range };
+    const got = ('xmin' in q) && ('xmax' in q);
+    let change = SCOPE_K.some(k => (k in q) && Number(q[k]) != Number(R.p[k]));
+    if(('xmin' in q) && Math.fround(Number(q.xmin)) != S.gui_xmin) change = true;
+    if(('xmax' in q) && Math.fround(Number(q.xmax)) != S.gui_xmax) change = true;
     const tdone = post0(q, t);
-    if('xmin' in q || 'xmax' in q) {
-      const f = unitF(units);
-      const xmin = Math.fround(Number(q.xmin)) / f, xmax = Math.fround(Number(q.xmax)) / f;
-      const rdec = (Number(R.p.trig_mode) == 0 ? xmax : (Math.max(xmax, 0) - xmin)) * 125e6 / 16384;
+    Object.assign(R.p, keep);
+    if(!change && S.fx && got) S.fx = 0;
+    if(change) {
+      const xmin = ('xmin' in q) ? Math.fround(Number(q.xmin)) : S.gui_xmin;
+      const xmax = ('xmax' in q) ? Math.fround(Number(q.xmax)) : S.gui_xmax;
+      let ratio = (xmax - xmin) != 0 ? Math.abs(S.fxmax - S.fxmin) / Math.abs(xmax - xmin) : 0;
+      if(ratio > 1) ratio = 1 / ratio;
+      if(ratio > 0.03 || (S.fx && t - S.mark > 1500)) S.fx = 0;
+      const f = unitF(units), xs0 = xmin / f, xs1 = xmax / f;
+      const rdec = (Number(R.p.trig_mode) == 0 ? xs1 : (Math.max(xs1, 0) - xs0)) * 125e6 / 16384;
       let i = 0; while(i <= 9 && DEC[i] < rdec) i++;
       if(i > 9) i = 9;
-      const tu = rangeToUnit(i), nf = unitF(tu);
-      Object.assign(R.p, { time_range: i, time_units: tu, xmin: xmin * nf, xmax: xmax * nf, forcex_flag: (tu != units) ? 1 : 0 });
-    } else R.p.forcex_flag = 0;
+      if(!S.fx) R.p.time_range = i;
+      const tu = rangeToUnit(R.p.time_range), nf = unitF(tu);
+      if(!S.fx) Object.assign(R.p, { xmin: Math.fround(xs0 * nf), xmax: Math.fround(xs1 * nf), time_units: tu });
+      else Object.assign(R.p, { xmin: S.fxmin, xmax: S.fxmax, time_units: S.fxu, time_range: S.fxr });
+      S.gui_xmin = R.p.xmin; S.gui_xmax = R.p.xmax;
+      if(R.p.time_units != units) Object.assign(S, { fx: 1, mark: t, fxmin: R.p.xmin, fxmax: R.p.xmax, fxu: R.p.time_units, fxr: R.p.time_range });
+    }
+    R.p.forcex_flag = S.fx;
+    E.units_hist.push({ t, tu: R.p.time_units });
     return tdone;
   };
   // GET /data: the params of the server when the GET starts (the answer is built from them)
@@ -100,23 +131,20 @@ function env(o) {
   };
   // v2.2.1: nginx hung from E.hang.from to E.hang.to: requests made meanwhile are served at the end (GET: then its
   // snapshot). E.hang.lost: the 1st hung POST is never served; E.hang.slow: ms more for the answer of the POSTs.
-  // E.freeze: forced answer (no new window) to a POST with the same xmin/xmax as the last one while forcex_flag is 1.
+  // E.drop = { n, serve }: the hook of the board test (devAgent.md): the next n POSTs get no answer (the page sees
+  // 'timeout' after post_chunk_timeout); serve: they reach the server anyway (served at once, only the answer is lost).
   const ajax1 = $.ajax;
-  E.hang = null; E.hung = []; E.freeze = false;
-  let lastq = null;
-  const post1 = R.post;
-  R.post = function(q, t) {
-    if(E.freeze && R.p.forcex_flag == 1 && lastq && 'xmin' in q && Number(q.xmin) === Number(lastq.xmin) && Number(q.xmax) === Number(lastq.xmax)) {
-      const keep = { xmin: R.p.xmin, xmax: R.p.xmax, time_units: R.p.time_units, time_range: R.p.time_range, forcex_flag: 1 };
-      const td = post0(q, t);
-      Object.assign(R.p, keep);
-      return td;
-    }
-    if('xmin' in q) lastq = { xmin: q.xmin, xmax: q.xmax };
-    return post1(q, t);
-  };
+  E.hang = null; E.hung = []; E.drop = null;
   $.ajax = function(a) {
     const h = E.hang, t = E.clock.t;
+    if(a.type == 'POST' && E.drop && E.drop.n > 0) {
+      E.drop.n--;
+      const d = $.Deferred(), q = JSON.parse(a.data).datasets.params;
+      E.hung.push({ t, q, dropped: true });
+      if(E.drop.serve) ajax1(Object.assign({}, a, { timeout: 0 }));     // served, its answer ignored
+      E.clock.at(t + (a.timeout || 2000), () => d.reject({}, 'timeout'));
+      return d.promise();
+    }
     if(!h || t < h.from || t >= h.to) return ajax1(a);
     const d = $.Deferred();
     if(a.type != 'POST') {
@@ -215,6 +243,7 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
   const R = E.rig;
   // another client posts 0 .. 3 s: the server goes to s with forcex_flag 1 (this page sends nothing)
   Object.assign(R.p, { time_units: 2, time_range: 8, xmin: 0, xmax: 3, forcex_flag: 1 });
+  Object.assign(E.srv, { gui_xmin: 0, gui_xmax: 3, fx: 1, fxmin: 0, fxmax: 3, fxu: 2, fxr: 8, mark: E.clock.t });
   E.run(600);
   const w = E.ms();
   check('3 forceX of another client (0 .. 3 s, units s): applied by the next GET', near(w[0], 0) && near(w[1], 3000) && E.get('params.local.time_units') == 2, fmt(w));
@@ -232,7 +261,6 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
   for(const rev of [false, true]) for(const v of variants) for(const d2 of t2s) {
     if(!rev) runs++;
     const E = env();
-    E.freeze = true;
     E.get('params.local').lock_pidA_kp = 100;
     E.get('sendParams()');
     E.run(150);
@@ -245,12 +273,12 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
     E.run(50);
     E.get('params.local').lock_pidA_kp = (rev ? 100 : 123);   // another parameter changed during the wait
     E.get('sendParams()');
-    E.run(4000 - d2);
+    E.run(6000 - d2);
     const w = E.ms(), R = E.rig;
     if(rev) { if(R.p.lock_pidA_kp != 100 || E.get('params.local').lock_pidA_kp != 100) kp_rev.push(v.name + ' @' + d2 + ': ' + R.p.lock_pidA_kp); continue; }
     retries += E.log.filter(l => l.kind == 'WARN' && /timed out, retrying/.test(l.m)).length;
-    // the answer of the retry had forcex_flag 1 with the window of the 1st click
-    stale_fx += E.hung.filter(h => near(Number(h.q.xmax), 0.02)).length > 1 ? 1 : 0;
+    // v2.2.1 (2nd round): the retry goes without xmin/xmax
+    stale_fx += E.hung.filter(h => near(Number(h.q.xmax), 0.02)).length === 1 && E.hung.length >= 2 && !('xmax' in E.hung[1].q) ? 1 : 0;
     if(v.slow) getnu += E.gets.filter(g => g.t0 >= t1 + 2500 && g.snap.time_units == 1 && g.snap.forcex_flag == 1 && g.t1 < t1 + 2900).length > 0 ? 1 : 0;
     const srv_ms = [Number(R.p.xmin) / unitF(R.p.time_units) * 1e3, Number(R.p.xmax) / unitF(R.p.time_units) * 1e3];
     if(!(near(w[0], 0) && near(w[1], 10) && E.get('params.local.time_units') == 1 && near(srv_ms[0], 0) && near(srv_ms[1], 10) &&
@@ -259,8 +287,8 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
                ' (units ' + R.p.time_units + ')');
     if(R.p.lock_pidA_kp != 123) kp_bad.push(v.name + ' @' + d2 + ': ' + R.p.lock_pidA_kp);
   }
-  check('5a the race happens: the POST of the 1st click times out and is sent again with the same body', retries >= runs && stale_fx === runs,
-        retries + ' retries, ' + stale_fx + '/' + runs + ' runs with the old window sent twice');
+  check('5a the race happens: the POST of the 1st click times out and is sent again', retries >= runs, retries + ' retries in ' + runs + ' runs');
+  if(!OLD) check('5a2 the retry goes without xmin/xmax', stale_fx === runs, stale_fx + '/' + runs);
   check('5b variant with a GET in the new units (forcex_flag 1) answered before the answer of the retry happens', getnu > 0, getnu + ' runs');
   check('5c 2nd click during the wait: axis and server at 0 .. 10 ms in ms in all the ' + runs + ' runs', bad.length === 0,
         bad.length ? bad.length + ' bad: ' + bad.slice(0, 3).join('; ') : runs + '/' + runs);
@@ -268,6 +296,72 @@ if(!OLD) check('0 [FORCEX] block in the page', hasFx);
         kp_bad.length ? kp_bad.join('; ') : runs + '/' + runs);
   check('5e kp 150 in the timed-out POST, changed back to 100 during the wait: 100 on the server and on the page', kp_rev.length === 0,
         kp_rev.length ? kp_rev.length + ' bad: ' + kp_rev.slice(0, 3).join('; ') : runs + '/' + runs);
+}
+
+// ---- 6. v2.2.1 (2nd round, testAgent reportes/lock-in_pid/2026-11-13_1848_forcex_retry.md): the POST of the 1st click
+//         is SERVED at once but its answer is lost (hook __serve = true of the board test), the page retries after
+//         post_chunk_timeout. With the same body the server read 0 .. 20 ms-in-the-old-units in the new ones (s -> ms
+//         -> us, or us -> ms -> s) and then kept that forced window against the page (forcex_state, < 1.5 s).
+//         From s (0 .. 2 s) and from us (0 .. 100 us); 2nd click before the retry (1 dropped answer) and while the
+//         retry waits too (2 dropped answers); also not served (__serve = false). Final: axis and server 0 .. 10 ms
+//         in ms, the server never in the units on the other side of ms, few POSTs. -----------------------------------
+{
+  const starts = [{ name: 'from s', o: {}, wrong: 0 }, { name: 'from us', o: { tu: 0, tr: 0, win_s: [0, 100e-6] }, wrong: 2 }];
+  const vars = [];
+  for(const d2 of [100, 350, 1000, 1900]) vars.push({ n: 1, serve: true, d2 });
+  for(const d2 of [2300, 3000]) vars.push({ n: 2, serve: true, d2 });
+  for(const d2 of [350, 1900]) vars.push({ n: 1, serve: false, d2 });
+  let bad = [], wrongu = [], many = [], retries = 0, runs = 0;
+  for(const st of starts) for(const v of vars) {
+    runs++;
+    const E = env(st.o);
+    E.run(150);
+    const t1 = E.clock.t;
+    E.drop = { n: v.n, serve: v.serve };
+    E.get('resetZoom()');                       // 1st click: 0 .. 20 ms
+    E.run(v.d2);
+    E.get('resetZoom()');                       // 2nd click: 0 .. 10 ms
+    E.run(8000 - v.d2);
+    const w = E.ms(), R = E.rig, tag = st.name + ' n' + v.n + (v.serve ? ' served' : ' lost') + ' @' + v.d2;
+    retries += E.log.filter(l => l.kind == 'WARN' && /timed out, retrying/.test(l.m)).length;
+    const srv_ms = [Number(R.p.xmin) / unitF(R.p.time_units) * 1e3, Number(R.p.xmax) / unitF(R.p.time_units) * 1e3];
+    if(!(near(w[0], 0) && near(w[1], 10) && E.get('params.local.time_units') == 1 && near(srv_ms[0], 0) && near(srv_ms[1], 10) && R.p.time_units == 1))
+      bad.push(tag + ': axis ' + fmt(w) + ' (units ' + E.get('params.local.time_units') + '), server ' + fmt(srv_ms) + ' (units ' + R.p.time_units + ')');
+    if(E.units_hist.some(u => u.t >= t1 && u.tu == st.wrong)) wrongu.push(tag);
+    const np = E.log.filter(l => l.kind == 'POST' && l.t >= t1).length + E.hung.length;
+    if(np > 12) many.push(tag + ': ' + np);
+  }
+  check('6a the race happens: the POST times out and is retried', retries >= runs, retries + ' retries in ' + runs + ' runs');
+  check('6b served POST + retry, 2nd click during the wait: axis and server at 0 .. 10 ms in ms in all the ' + runs + ' runs', bad.length === 0,
+        bad.length ? bad.length + ' bad: ' + bad.slice(0, 3).join('; ') : runs + '/' + runs);
+  check('6c the server never goes to the units on the other side of ms (retry read in the new units)', wrongu.length === 0,
+        wrongu.length ? wrongu.length + ' bad: ' + wrongu.slice(0, 4).join('; ') : runs + '/' + runs);
+  check('6d at most 12 POSTs per run (no loop)', many.length === 0, many.length ? many.join('; ') : runs + '/' + runs);
+}
+
+// ---- 7. v2.2.1 (2nd round): a window the server ignores because it is in forcex_state (< 1.5 s, > 33x away from the
+//         forced one): the 2nd click of the report (step 3) and a zoom right after a units change. The page keeps its
+//         window and sends it again after forcex_hold_ms: Reset zoom s -> ms (0 .. 20 ms), 200 ms later the page sets
+//         0 .. 0.2 ms (100x smaller) and sends it. Final: axis and server 0 .. 0.2 ms (in us). ---------------------------
+{
+  let bad = [], frozen = 0;
+  for(const d of [50, 200, 600, 1200]) {
+    const E = env();
+    E.get('resetZoom()');
+    E.run(d);
+    const tz = E.clock.t;
+    E.get('lockSetXWindow(0, 0.0002)');
+    E.get('sendParams(true, true)');
+    E.run(5000);
+    const w = E.ms(), R = E.rig;
+    // the server answered its forced window to the zoom at least once (the case happens)
+    if(E.units_hist.some(u => u.t >= tz && u.t < tz + 1500 && u.tu == 1)) frozen++;
+    const srv_ms = [Number(R.p.xmin) / unitF(R.p.time_units) * 1e3, Number(R.p.xmax) / unitF(R.p.time_units) * 1e3];
+    if(!(near(w[0], 0) && near(w[1], 0.2) && near(srv_ms[0], 0) && near(srv_ms[1], 0.2) && R.p.time_units == 0 && E.get('params.local.time_units') == 0))
+      bad.push('zoom ' + d + ' ms after: axis ' + fmt(w) + ' (units ' + E.get('params.local.time_units') + '), server ' + fmt(srv_ms) + ' (units ' + R.p.time_units + ')');
+  }
+  check('7a the case happens: the server keeps its forced window against the zoom', frozen > 0, frozen + '/4');
+  check('7b zoom to 0 .. 0.2 ms right after a forceX: kept and on the server (us) in 4/4', bad.length === 0, bad.length ? bad.join('; ') : '4/4');
 }
 
 console.log(`\n${n - fails}/${n} ok` + (OLD ? ' (--old: an older page, failures expected)' : ''));
